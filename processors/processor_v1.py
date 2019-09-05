@@ -4,20 +4,23 @@ import faust
 import numpy as np
 import pickle
 
-import matplotlib as mpl
-mpl.use("AGG")
-import matplotlib.pyplot as plt
-
-
-#import sys
-#sys.path.append("/global/homes/r/rkube/repos/fluctana")
-#from specs import fftbins
-
+from pymongo import MongoClient
+from bson.binary import Binary
 from scipy.signal import spectrogram
 
-app = faust.App('processor_v1', broker='kafka://localhost:9092', value_serializer='raw', store="memory://")
 
-delta_topic = app.topic('H2202')
+channel = 2202
+
+app = faust.App('processor_v1', broker='kafka://localhost:9092', value_serializer='raw', store="memory://")
+delta_topic = app.topic('H{0:4d}'.format(channel))
+
+client = MongoClient()
+db = client.ECEI
+mycol = db.Diagnsotics
+
+t_start = None
+t_end = None
+
 
 @app.agent(delta_topic)
 async def consume(data):
@@ -27,16 +30,22 @@ async def consume(data):
         #print("received data: ", type(d))
 
         res = spectrogram(rec_data)
-
         print(res[0].shape, res[1].shape, res[2].shape)
 
-        fig = plt.figure()
-        ax = fig.add_axes([0.2, 0.2, 0.75, 0.75])
+        post = {"diagnostic": "ECEI",
+                "channel": channel,
+                "tstart": t_start,
+                "tend": t_end,
+                "consumer_id = ": "diag_spectrogram",
+                "data": Binary(pickle.dumps(res))}
 
-        ax.contourf(res[1], res[0], res[2])
+        mycol.insert_one(post)
 
-        fig.savefig("fig{0:03d}.png".format(tix))
 
+        #fig = plt.figure()
+        #ax = fig.add_axes([0.2, 0.2, 0.75, 0.75])
+        #ax.contourf(res[1], res[0], res[2])
+        #fig.savefig("fig{0:03d}.png".format(tix))
         tix += 1
 
 
