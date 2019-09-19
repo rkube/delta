@@ -3,42 +3,50 @@
 from mpi4py import MPI
 import numpy as np 
 import adios2
+import json
+import argparse 
 
+from readers import reader_dataman, reader_bpfile
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-channel = 2202
+parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
+parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
+args = parser.parse_args()
 
-transport_params = {"IPAddress": "127.0.0.1",
-                    "Port": "12306"}
+with open(args.config, "r") as df:
+    cfg = json.load(df)
 
+datapath = cfg["datapath"]
+shotnr = cfg["shotnr"]
+channel_list = cfg["channels"]
+assert(len(channel_list) == size)
 
-adios = adios2.ADIOS(comm)
-dataman_IO = adios.DeclareIO("ECEI_H{0:4d}".format(channel))
-dataman_IO.SetEngine("DataMan")
-dataman_IO.SetParameters(transport_params)
-dataman_IO.AddTransport("WAN", transport_params)
+reader = reader_bpfile(shotnr, channel_list[rank])
+reader.Open()
 
-datamanReader = dataman_IO.Open("stream", adios2.Mode.Read)
+print("Starting main loop")
 
 while(True):
-    stepStatus = datamanReader.BeginStep()
+    #stepStatus = datamanReader.BeginStep()
+    stepStatus = reader.BeginStep()
+    print(stepStatus)
     if stepStatus == adios2.StepStatus.OK:
-        var = dataman_IO.InquireVariable("floats")
-        shape = var.Shape()
-        io_array = np.zeros(np.prod(shape), dtype=np.float)
-
-        datamanReader.Get(var, io_array, adios2.Mode.Sync)
-        currentStep = datamanReader.CurrentStep()
-        datamanReader.EndStep()
-        print("Step", currentStep, ", shape = ", shape, ", io_array = ", io_array)
+        #var = dataman_IO.InquireVariable("floats")
+        #shape = var.Shape()
+        #io_array = np.zeros(np.prod(shape), dtype=np.float)
+        #reader.Get(var, io_array, adios2.Mode.Sync)
+        io_array = reader.get_data("floats")
+        #currentStep = reader.CurrentStep()
+        reader.EndStep()
+        print("Step", reader.CurrentStep(), ", io_array = ", io_array)
     else:
         print("End of stream")
         break
 
-datamanReader.Close()
+#datamanReader.Close()
 
 
 # End of file processor_adios2.
