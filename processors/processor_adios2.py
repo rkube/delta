@@ -18,11 +18,20 @@ args = parser.parse_args()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
+    df.close()
+
+# "Enforce" 1:1 mapping of reader processes on analysis tasks
+assert(len(cfg["channels"]) == size)
+assert(len(cfg["analysis"]) == size)
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
 channel_list = cfg["channels"]
-assert(len(channel_list) == size)
+analysis = cfg["analysis"][rank]
+
+
+
+
 
 reader = reader_bpfile(shotnr, channel_list[rank])
 reader.Open()
@@ -30,7 +39,6 @@ reader.Open()
 print("Starting main loop")
 
 while(True):
-    #stepStatus = datamanReader.BeginStep()
     stepStatus = reader.BeginStep()
     print(stepStatus)
     if stepStatus == adios2.StepStatus.OK:
@@ -45,6 +53,12 @@ while(True):
     else:
         print("End of stream")
         break
+
+
+    # Perform the analysis
+
+
+    # Store result in database
 
 #datamanReader.Close()
 

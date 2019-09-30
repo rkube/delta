@@ -65,7 +65,7 @@ class reader_dataman(reader_base):
         dataman_port = 12300 + self.rank
         transport_params = {"IPAddress": "127.0.0.1",
                             "Port": "{0:5d}".format(dataman_port),
-                            "Timeout": "30",
+                            "OpenTimeoutSecs": "600",
                             "Verbose": "20"}
         self.IO.SetParameters(transport_params)
 

@@ -10,7 +10,7 @@ class writer_base():
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
-        print("writer_base.__init__(): rank = {0:02d}".format(self.rank))
+        #print("writer_base.__init__(): rank = {0:02d}".format(self.rank))
 
         self.shotnr = shotnr
         self.channel = channel
@@ -71,7 +71,7 @@ class writer_dataman(writer_base):
         dataman_port = 12300 + self.rank
         transport_params = {"IPAddress": "127.0.0.1",
                             "Port": "{0:5d}".format(dataman_port),
-                            "Timeout": "30",
+                            "OpenTimeoutSecs": "600",
                             "Verbose": "20"}
         self.IO.SetParameters(transport_params)
 
