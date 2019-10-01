@@ -10,8 +10,8 @@ from os import path
 import json
 import argparse
 
-from writers import writer_dataman, writer_bpfile
-from data_loader import data_loader
+from generator.writers import writer_dataman, writer_bpfile
+from generator.data_loader import data_loader
 
 """
 Generates batches of ECEI data.
@@ -31,12 +31,14 @@ with open(args.config, "r") as df:
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
-channel_list = cfg["channels"]
 
 # Enforce 1:1 mapping of channels and tasks
-assert(len(cfg["channels"]) == size)
+assert(len(cfg["channel_lists"]) == size)
+# Channels this process is reading
+my_channel_list = cfg["channel_lists"][rank]
+gen_id = 100000 * rank + my_channel_list[0]
 
-print("Rank: {0:d}".format(rank), ", channels: ", channel_list[rank])
+print("Rank: {0:d}".format(rank), ", channel_list: ", my_channel_list, ", id = ", gen_id)
 
 # Hard-code the total number of data points
 data_pts = int(5e6)
@@ -47,7 +49,7 @@ num_batches = data_pts // data_per_batch
 
 # Get a data_loader
 dl = data_loader(path.join(datapath, "ECEI.018431.LFS.h5"),
-                 channel_list=[channel_list[rank]],
+                 channel_list=my_channel_list,
                  batch_size=1000)
 
 # data_arr is a list
@@ -56,7 +58,7 @@ data_arr = np.array(_data_arr)
 data_arr = data_arr.astype(np.float64)
 _data_arr = 0.0
 
-writer = writer_bpfile(shotnr, channel_list[rank])
+writer = writer_bpfile(shotnr, gen_id)
 writer.DefineVariable(data_arr)
 writer.Open()
 

@@ -1,5 +1,24 @@
 #-*- coding: UTF-8 -*-
 
+"""
+Below is old information for running the kafka/faust implementation:
+Start/Stop zookeper and kafka: https://gist.github.com/piatra/0d6f7ad1435fa7aa790a
+#!/bin/bash
+
+if [ "$#" -ne 1 ]; then
+  echo "Please supply topic name"
+  exit 1
+fi
+
+nohup bin/zookeeper-server-start.sh -daemon config/zookeeper.properties > /dev/null 2>&1 &
+sleep 2
+nohup bin/kafka-server-start.sh -daemon config/server.properties > /dev/null 2>&1 &
+sleep 2
+
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic $1
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic parsed
+"""
+
 import faust
 import numpy as np
 import pickle

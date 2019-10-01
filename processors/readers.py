@@ -6,13 +6,13 @@ import numpy as np
 
 
 class reader_base():
-    def __init__(self, shotnr, channel):
+    def __init__(self, shotnr, id):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
 
         self.shotnr = shotnr
-        self.channel = channel
+        self.id = id
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
         self.IO = self.adios.DeclareIO("stream_{0:03d}".format(self.rank))
         print("reader_base.__init__(): rank = {0:02d}".format(self.rank))
@@ -20,7 +20,7 @@ class reader_base():
 
     def Open(self):
         """Opens a new channel"""
-        self.channel_name = "{0:05d}_ch{1:d}.bp".format(self.shotnr, self.channel)
+        self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
 
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
@@ -57,8 +57,8 @@ class reader_base():
 
 
 class reader_dataman(reader_base):
-    def __init__(self, shotnr, channel):
-        super().__init__(shotnr, channel)
+    def __init__(self, shotnr, id):
+        super().__init__(shotnr, id)
         self.IO.SetEngine("DataMan")
         self.reader = None
 
@@ -71,12 +71,9 @@ class reader_dataman(reader_base):
 
 
 class reader_bpfile(reader_base):
-        def __init__(self, shotnr, channel):
-            super().__init__(shotnr, channel)
+        def __init__(self, shotnr, id):
+            super().__init__(shotnr, id)
             self.IO.SetEngine("BPFile")
             self.reader = None
-
-
-
 
 # end of file readers.py

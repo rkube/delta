@@ -1,24 +1,23 @@
+DELTA-FUSION
 aDaptive rEaL Time Analysis of big fusion data
 
-This project implements a client-server model for analysis of streamed data from
+This project implements a client-server model for analysis of streaming data from
 fusion experiments or large-scale simulations.
 
 Implemented as part of "Adaptive near-real time net-worked analysis of big
 fusion data", (FY18).
 
 
-Start/Stop zookeper and kafka: https://gist.github.com/piatra/0d6f7ad1435fa7aa790a
-#!/bin/bash
+The current implementation features a data generator and a data processor.
+Both are MPI applications. Each generator task reads data from a single group of channels
+and writes them via the ADIOS2 dataman interface.
+Each processor task reads this data and performs a single analysis routine.
+The output of the analysis is stored in a database for later analysis and visualization.
 
-if [ "$#" -ne 1 ]; then
-  echo "Please supply topic name"
-  exit 1
-fi
 
-nohup bin/zookeeper-server-start.sh -daemon config/zookeeper.properties > /dev/null 2>&1 &
-sleep 2
-nohup bin/kafka-server-start.sh -daemon config/server.properties > /dev/null 2>&1 &
-sleep 2
+To run the analysis framework run a generator and a processor simultaneously on a node:
+srun -n 2 -c 2 --mem=1G --gres=craynetwork:0 python generator_adios2.py
+srun -n 2 -c 2 --mem=1G --gres=craynetwork:0 python processor_adios2.py
 
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic $1
-bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic parsed
+For example within an interactive session, using a split terminal (see the screen utility)
+

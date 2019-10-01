@@ -37,16 +37,15 @@ class data_loader(object):
         comm = MPI.COMM_WORLD
         rank, size = comm.Get_rank(), comm.Get_size()
 
-        #print("rank: {0:d} channel {1:d} batch{2:d}".format(rank, self.channel_list[0], self.current_batch))
+        print("rank: {0:d} batch: {1:d}".format(rank,  self.current_batch), ", channel list: ", self.channel_list)
 
 
         with h5py.File(self.filename, "r", driver='mpio', comm=MPI.COMM_WORLD) as df:
-
             for ch in self.channel_list_hdf5:
+                print("Accessing channel ", ch)
                 data_list.append(df[ch][self.current_batch * self.batch_size:
                                         (self.current_batch + 1) * self.batch_size])
             self.current_batch += 1
-
             df.close()
 
         return(data_list)

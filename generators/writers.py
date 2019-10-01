@@ -6,14 +6,14 @@ import numpy as np
 
 
 class writer_base():
-    def __init__(self, shotnr, channel):
+    def __init__(self, shotnr, id):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
         #print("writer_base.__init__(): rank = {0:02d}".format(self.rank))
 
         self.shotnr = shotnr
-        self.channel = channel
+        self.id = id
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
         self.IO = self.adios.DeclareIO("stream_{0:03d}".format(self.rank))
         self.writer = None
@@ -35,10 +35,10 @@ class writer_base():
 
 
     def Open(self):
-        """Opens a new channel
+        """Opens a new channel. 
         """
 
-        self.channel_name = "{0:05d}_ch{1:d}.bp".format(self.shotnr, self.channel)
+        self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
 
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
@@ -65,8 +65,8 @@ class writer_base():
 
 
 class writer_dataman(writer_base):
-    def __init__(self, shotnr, channel):
-        super().__init__(shotnr, channel)
+    def __init__(self, shotnr, id):
+        super().__init__(shotnr, id)
         self.IO.SetEngine("DataMan")
         dataman_port = 12300 + self.rank
         transport_params = {"IPAddress": "127.0.0.1",
@@ -77,15 +77,9 @@ class writer_dataman(writer_base):
 
 
 class writer_bpfile(writer_base):
-    def __init__(self, shotnr, channel):
-        super().__init__(shotnr, channel)
+    def __init__(self, shotnr, id):
+        super().__init__(shotnr, id)
         self.IO.SetEngine("BP4")
         
-# # Define variable
-
-# Open stream
-#writer = adios_IO.Open("stream", adios2.Mode.Write)
-
-
 
 # End of file a2_sender.py
