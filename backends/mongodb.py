@@ -1,19 +1,18 @@
 #Coding: UTF-8 -*-
 
-from mpi4py import MPI
+#from mpi4py import MPI
 from pymongo import MongoClient
 from bson.binary import Binary
 
 class mongodb_backend():
-    __init__(self, rank, channel_list):
+    def __init__(self, rank, channel_list):
         self.rank = rank
         self.channel_list = channel_list
-
         # Connect to mongodb
         client = MongoClient("mongodb07.nersc.gov")
 
 
-    def store(analysis, result):
+    def store(self, analysis, result):
         """Stores analysis data 
 
         Input:
@@ -29,7 +28,6 @@ class mongodb_backend():
         """
 
         print("Storing data")
-
 
         return None
 

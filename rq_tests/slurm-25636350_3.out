@@ -1,0 +1,25 @@
+/bin/bash: /global/homes/r/rkube/.conda/envs/delta/lib/libreadline.so.7: no version information available (required by /bin/bash)
+/bin/sh: /global/homes/r/rkube/.conda/envs/delta/lib/libreadline.so.7: no version information available (required by /bin/sh)
+
+CommandNotFoundError: Your shell has not been properly configured to use 'conda activate'.
+To initialize your shell, run
+
+    $ conda init <SHELL_NAME>
+
+Currently supported shells are:
+  - bash
+  - fish
+  - tcsh
+  - xonsh
+  - zsh
+  - powershell
+
+See 'conda init --help' for more information and options.
+
+IMPORTANT: You may need to close and restart your shell after running 'conda init'.
+
+
+sh: /global/homes/r/rkube/.conda/envs/delta/lib/libreadline.so.7: no version information available (required by sh)
+Error 97 connecting to localhost:6379. Address family not supported by protocol.
+srun: error: nid00669: task 0: Exited with exit code 1
+srun: Terminating job step 25636350.0
