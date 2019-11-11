@@ -9,7 +9,9 @@ class mongodb_backend():
         self.rank = rank
         self.channel_list = channel_list
         # Connect to mongodb
-        client = MongoClient("mongodb07.nersc.gov")
+        client = MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 
+                            username="delta-fusion_admin",
+                            password="eeww33ekekww212aa")
 
 
     def store(self, analysis, result):
