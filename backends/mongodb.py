@@ -29,6 +29,8 @@ class mongodb_backend():
         None
         """
 
+        import datetime
+
         print("Storing data")
 
         return None

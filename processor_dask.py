@@ -1,6 +1,31 @@
 #-*- coding: UTF-8 -*-
 
-#from mpi4py import MPI
+"""
+This processor implements the one-to-one model.
+
+The processor runs as a single-task program and receives data from a single
+Dataman stream. 
+The configuration file defines a list of analysis routines together with a list of channel
+data on which to apply a given routine. 
+In the receive loop, this data is gathered and dispatched into a task queue
+
+
+The task queue is implemented using Dask. Run this implementation within an interactive session.
+Documentation on how to run with dask on nersc is here: https://docs.nersc.gov/programming/high-level-environments/python/dask/
+
+
+On an interactice node:
+1. Start the dask scheduler:
+python -u $(which dask-scheduler) --scheduler-file $SCRATCH/scheduler.json
+
+2. Start the worker tasks
+srun -u -n 10 python -u $(which dask-worker) --scheduler-file $SCRATCH/scheduler.json --nthreads 1 &
+
+3. Launch the dask program:
+python -u processor_dask.py
+
+"""
+
 import numpy as np 
 import adios2
 import json
@@ -8,13 +33,10 @@ import argparse
 
 
 from dask.distributed import Client
-
-from processors.readers import reader_dataman, reader_bpfile
+from processors.readers import reader_bpfile
 from analysis.spectral import power_spectrum
 
 from backends.mongodb import mongodb_backend
-
-
 from analysis.spectral import power_spectrum
 
 
@@ -38,10 +60,7 @@ def analyze_and_store(channel_data, my_analysis, backend):
 
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 
-rank = 0
-size = 2
-
-parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
+parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 args = parser.parse_args()
 

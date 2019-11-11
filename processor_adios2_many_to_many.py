@@ -1,5 +1,16 @@
 #-*- coding: UTF-8 -*-
 
+"""
+This data processor implements the many-to-many model.
+It runs as an MPI application and assumes that the sender sends data on a number of 
+channels equal to the number of MPI ranks.
+
+The config file specifies a list of analysis tasks. The length of this lists must correspond to the
+number of MPI ranks.
+
+Each MPI rank receives data as chunks in time. For each time chunk, the specified analysis task is performed.
+The results are stored in a database
+"""
 from mpi4py import MPI
 import numpy as np 
 import adios2
@@ -18,7 +29,7 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
-parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
+parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_many_to_many.json')
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
@@ -38,7 +49,6 @@ num_channels = len(my_channel_list)
 
 reader = reader_bpfile(shotnr, gen_id)
 reader.Open()
-
 
 backend = mongo_backend(rank, my_channel_list)
 
