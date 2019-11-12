@@ -18,7 +18,7 @@ import json
 import argparse
 
 
-from processors.readers import reader_dataman, reader_bpfile
+from processors.readers_many_to_many import reader_many_to_many_dataman, reader_many_to_many_bpfile
 from analysis.spectral import power_spectrum
 
 from backends.mongodb import mongo_backend
@@ -47,7 +47,7 @@ my_channel_list = cfg["channel_lists"][rank]
 gen_id = 100000 * rank + my_channel_list[0]
 num_channels = len(my_channel_list)
 
-reader = reader_bpfile(shotnr, gen_id)
+reader = reader_many_to_many_bpfile(shotnr, gen_id)
 reader.Open()
 
 backend = mongo_backend(rank, my_channel_list)

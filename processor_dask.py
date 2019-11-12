@@ -108,7 +108,7 @@ while(True):
 
     print(type(channel_data), channel_data.shape)
 
-    dask_client.map(analyze_and_store, [channel_data, my_analysis, backend])
+    #dask_client.map(analyze_and_store, [channel_data, my_analysis, backend])
     #analyze_and_store(channel_data, my_analysis, backend)
 
 

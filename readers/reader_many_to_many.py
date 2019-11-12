@@ -5,7 +5,7 @@ import adios2
 import numpy as np 
 
 
-class reader_base():
+class reader_many_to_many_base():
     def __init__(self, shotnr, id):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
@@ -56,7 +56,7 @@ class reader_base():
         self.reader.EndStep()
 
 
-class reader_dataman(reader_base):
+class reader_many_to_many_dataman(reader_base):
     def __init__(self, shotnr, id):
         super().__init__(shotnr, id)
         self.IO.SetEngine("DataMan")
@@ -70,7 +70,7 @@ class reader_dataman(reader_base):
         self.IO.SetParameters(transport_params)
 
 
-class reader_bpfile(reader_base):
+class reader_many_to_many_bpfile(reader_base):
         def __init__(self, shotnr, id):
             super().__init__(shotnr, id)
             self.IO.SetEngine("BPFile")
