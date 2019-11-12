@@ -1,7 +1,7 @@
 # Coding: UTF-8 -*-
 
 
-def power_spectrum(data, **kwargs):
+def power_spectrum(data, kwargs):
     """Implements an overlapped segmented averaging of modified periodograms.
     Currently scipy.signal.welch
 
@@ -15,8 +15,8 @@ def power_spectrum(data, **kwargs):
 
     Input:
     ======
-    data : channel data to be analyzed
-    **kwargs : keyword arguments to be passed into wrapped function. See documentation of wrapped function.
+    data : ndarray, channel data to be analyzed
+    kwargs : dictionary, keyword arguments to be passed into wrapped function. See documentation of wrapped function.
     
     
     Returns:

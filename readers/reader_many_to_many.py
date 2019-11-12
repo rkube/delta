@@ -5,7 +5,7 @@ import adios2
 import numpy as np 
 
 
-class reader_many_to_many_base():
+class reader_base():
     def __init__(self, shotnr, id):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
@@ -21,19 +21,8 @@ class reader_many_to_many_base():
     def Open(self):
         """Opens a new channel"""
         self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
-
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
-
-
-    def BeginStep(self):
-        """wrapper for reader.BeginStep()"""
-        return self.reader.BeginStep()
-
-
-    def InquireVariable(self, varname):
-        """Wrapper for IO.InquireVariable"""
-        return self.IO.InquireVariable(varname)
 
 
     def get_data(self, varname):
@@ -42,8 +31,17 @@ class reader_many_to_many_base():
         var = self.IO.InquireVariable(varname)
         io_array = np.zeros(np.prod(var.Shape()), dtype=np.float)
         self.reader.Get(var, io_array, adios2.Mode.Sync)
-
         return(io_array)
+
+
+    def InquireVariable(self, varname):
+        """Wrapper for IO.InquireVariable"""
+        return self.IO.InquireVariable(varname)
+
+
+    def BeginStep(self):
+        """wrapper for reader.BeginStep()"""
+        return self.reader.BeginStep()
 
 
     def CurrentStep(self):
@@ -56,7 +54,7 @@ class reader_many_to_many_base():
         self.reader.EndStep()
 
 
-class reader_many_to_many_dataman(reader_base):
+class reader_dataman(reader_base):
     def __init__(self, shotnr, id):
         super().__init__(shotnr, id)
         self.IO.SetEngine("DataMan")
@@ -70,7 +68,7 @@ class reader_many_to_many_dataman(reader_base):
         self.IO.SetParameters(transport_params)
 
 
-class reader_many_to_many_bpfile(reader_base):
+class reader_bpfile(reader_base):
         def __init__(self, shotnr, id):
             super().__init__(shotnr, id)
             self.IO.SetEngine("BPFile")

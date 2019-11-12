@@ -27,99 +27,71 @@ python -u processor_dask.py
 """
 
 import numpy as np 
-import adios2
+
 import json
 import argparse
-
-
-from dask.distributed import Client
-from processors.readers import reader_bpfile
-from analysis.spectral import power_spectrum
+from distributed import Client, progress
 
 from backends.mongodb import mongodb_backend
-from analysis.spectral import power_spectrum
+from readers.reader_one_to_one import reader_bpfile
+from analysis.tasks import analysis_task
 
 
-def analyze_and_store(channel_data, my_analysis, backend):
-    """Analyze and store data
-
-    channel_data:  ndarray, float: data to be analyzed
-    method: string, name of the analysis method
-    backend: obj, callable: storage backend
-
-    """
-
-    #print("Analyze and store")
-
-    if my_analysis["name"] == "power_spectrum":
-        result = power_spectrum(channel_data, **my_analysis["config"])
-
-    backend.store(my_analysis, result)
-
-
-
+mongo_client = mongodb_backend()
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 
+#import adios2
+
+
 parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
-parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
+parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one.json')
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
 
-# "Enforce" 1:1 mapping of reader processes on analysis tasks
-assert(len(cfg["channel_lists"]) == size)
-assert(len(cfg["analysis"]) == size)
+# Build list of analysis tasks that we perform at a given time step
+task_list = []
+for task in cfg["task_list"]:
+    task_list.append(analysis_task(task["channels"], task["name"], task["kw_dict"]))
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
-my_analysis = cfg["analysis"][rank]
-my_channel_list = cfg["channel_lists"][rank]
-gen_id = 100000 * rank + my_channel_list[0]
-num_channels = len(my_channel_list)
+reader = reader_bpfile(shotnr)
+reader.Open(cfg["datapath"])
 
-reader = reader_bpfile(shotnr, gen_id)
-reader.Open()
-
-
-backend = mongodb_backend(rank, my_channel_list)
-
-#print("Starting main loop")
+print("Starting main loop")
+s = 0
 
 while(True):
     stepStatus = reader.BeginStep()
-    #print(stepStatus)
-    if stepStatus == adios2.StepStatus.OK:
-        #var = dataman_IO.InquireVariable("floats")
-        #shape = var.Shape()
-        #io_array = np.zeros(np.prod(shape), dtype=np.float)
-        #reader.Get(var, io_array, adios2.Mode.Sync)
-        channel_data = reader.get_data("floats")
-        #currentStep = reader.CurrentStep()
-        reader.EndStep()
-        #print("rank {0:d}: Step".format(rank), reader.CurrentStep(), ", io_array = ", io_array)
+
+    # Iterate over the task list and add the required data at the current time step
+    if stepStatus:
+        for task in task_list:
+            for channel in task.channel_list:
+                ecei_data = reader.Get("ECEI_" + channel)
+                task.update_data(ecei_data, channel)
+
+            #task_futures.append(task.calculate(dask_client))
+            task.calculate(dask_client)
+
     else:
-        print("rank {0:d}: End of stream".format(rank))
+        print("End of stream")
         break
 
-    # Recover channel data 
-    channel_data = channel_data.reshape((num_channels, channel_data.size // num_channels))
+    reader.EndStep()
 
-    print(type(channel_data), channel_data.shape)
-
-    #dask_client.map(analyze_and_store, [channel_data, my_analysis, backend])
-    #analyze_and_store(channel_data, my_analysis, backend)
+    # Pass the task object to our backend for storage
+    for task in task_list:
+        mongo_client.store(task)
 
 
-    # Perform the analysis
-    #if(my_analysis["name"] == "power_spectrum"):
-    #    analysis_result = power_spectrum(channel_data, **my_analysis["config"])
-
-    # Store result in database
-    #backend.store(my_analysis, analysis_result)
-
-#datamanReader.Close()
+    # Do only 10 time steps for now
+    s -= -1
+    if s >= 5:
+        break
 
 
-# End of file processor_adios2.
+# End of file processor_dask_one_to_one.py.

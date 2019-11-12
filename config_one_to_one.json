@@ -1,9 +1,14 @@
-{"datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431",
+{
+"datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
  "shotnr": 18431,
- "channel_lists": [[2203, 2204], [2101, 2102]],
- "analysis": [{"name" : "power_spectrum", 
-               "channels" : [2203, 2204],
-               "config" : {"nperseg": 32, "fs": 1.0}},
-              {"name" : "power_spectrum",
-               "channels" : [2103, 2104],
-               "config" : {"nperseg" : 32, "fs" : 1.0}}]}
+ "task_list": [{
+                    "channels": ["L2203"],
+                    "name" : "power_spectrum", 
+                    "kw_dict" : {"nperseg": 32, "fs": 1.0}
+                   },
+                   {
+                    "channels": ["G2102"],
+                    "name" : "power_spectrum",
+                    "kw_dict" : {"nperseg" : 32, "fs" : 1.0}
+                   }]
+}
