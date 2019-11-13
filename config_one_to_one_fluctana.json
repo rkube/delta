@@ -1,0 +1,13 @@
+{
+"datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
+ "shotnr": 18431,
+ "task_list": [{
+                    "channels": ["L2403", "L2406"],
+                    "description" : "ralphs_task", 
+                    "analysis_list": ["cross_power"],
+                    "kw_dict" : {"nfft": 1000,
+                                 "window": "hann",
+                                 "overlap": 0.0,
+                                 "detrend": 1}
+                   }]
+}

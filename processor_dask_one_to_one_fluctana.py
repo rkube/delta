@@ -1,7 +1,8 @@
 #-*- coding: UTF-8 -*-
 
 """
-This processor implements the one-to-one model.
+This processor implements the one-to-one model. Code is adapted from processor_dask_one_to_one.py
+to use the kstar fluctana object class.
 
 The processor runs as a single-task program and receives data from a single
 Dataman stream. 
@@ -34,24 +35,27 @@ from distributed import Client, progress
 
 from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
-from analysis.tasks import analysis_task
+from analysis.fluctana_task import fluctana_task
 
-
+# This object manages storage to a backend.
 mongo_client = mongodb_backend()
+# Interface to worker nodes
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 
+# Parse command line arguments and read configuration file
 parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
-parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one.json')
+parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one_fluctana.json')
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
 
-# Build list of analysis tasks that we perform at a given time step
+# Build list of analysis tasks that are performed at any given time step
 task_list = []
 for task in cfg["task_list"]:
-    task_list.append(analysis_task(task["channels"], task["name"], task["kw_dict"]))
+    task_list.append(fluctana_task(task["channels"], task["description"], 
+                                   task["analysis_list"], task["kw_dict"]))
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -64,15 +68,16 @@ s = 0
 while(True):
     stepStatus = reader.BeginStep()
 
-    # Iterate over the task list and add the required data at the current time step
+    # Iterate over the task list and update the required data at the current time step
     if stepStatus:
+        print("ok")
         for task in task_list:
             for channel in task.channel_list:
                 ecei_data = reader.Get("ECEI_" + channel)
                 task.update_data(ecei_data, channel)
 
-            #task_futures.append(task.calculate(dask_client))
-            task.calculate(dask_client)
+#             #task_futures.append(task.calculate(dask_client))
+#             task.calculate(dask_client)
 
     else:
         print("End of stream")
@@ -80,9 +85,9 @@ while(True):
 
     reader.EndStep()
 
-    # Pass the task object to our backend for storage
-    for task in task_list:
-        mongo_client.store(task)
+#     # Pass the task object to our backend for storage
+#     for task in task_list:
+#         mongo_client.store(task)
 
 
     # Do only 10 time steps for now

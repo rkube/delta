@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from bson.binary import Binary
 import datetime
 
-# Defines how data is stored in the database
+# Schemes that describe how results from a given analysis is stored in the database
 schemes_dict={"power_spectrum": lambda task, result: {"routine_name": task.task_name,
                                                       "channel": task.channel_list[0],
                                                       "kwargs": task.kw_dict,
@@ -24,12 +24,15 @@ class mongodb_backend():
         print("***mongodb_backend*** Connected to database {0:s}".format(self.db.name))
         
 
-    def store(self, task):
-        """Stores analysis data 
+    def store(self, task, dummy=True):
+        """Stores data from an analysis task in the mongodb backend.
+
+        The data anylsis results from analysis_task object are evaluated in this method.
 
         Input:
         ======
-        task: analysis_task object
+        task: analysis_task object. 
+        dummy: bool. If true, do not insert the item into the database
         
         Returns:
         ========
@@ -37,11 +40,11 @@ class mongodb_backend():
         """
 
         storage_scheme = schemes_dict[task.task_name](task, task.future.result())
-        #storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Add a time stamp to the scheme
+        storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        print(storage_scheme)
-
-        self.collection.insert_one(storage_scheme)
+        #print(storage_scheme)
+        #self.collection.insert_one(storage_scheme)
         print("***mongodb_backend*** Storing...")
 
         return None
