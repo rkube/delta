@@ -7,30 +7,32 @@
 # Last updated
 #  2018.03.23 : version 0.10; even nfft -> odd nfft (for symmetry)
 
-from scipy import signal
-import math
-import itertools
+#from scipy import signal
+#import math
+#import itertools
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+import numpy as np
+
+#import matplotlib.pyplot as plt
+#from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #import pickle
 
-from kstarecei import *
-from kstarmir import *
+#from kstarecei import *
+#from kstarmir import *
 #from kstarmds import *
 #from diiiddata import *  # needs pidly
 
-import specs as sp
-import stats as st
-import massdata as ms
-import filtdata as ft
+#import specs as sp
+#import stats as st
+#import massdata as ms
+#import filtdata as ft
 
 # CM = plt.cm.get_cmap('RdYlBu_r')
 # CM = plt.cm.get_cmap('spectral')
 # CM = plt.cm.get_cmap('YlGn')
 # CM = plt.cm.get_cmap('jet')
-CM = plt.cm.get_cmap('hot')
+#CM = plt.cm.get_cmap('hot')
 
 
 class FluctData(object):
@@ -92,176 +94,175 @@ class FluctData(object):
         return time[idx1:idx2], idx1, idx2
         
 
-# class FluctAna(object):
-#     def __init__(self):
-#         self.Dlist = []
+class FluctAna(object):
+    def __init__(self):
+        self.Dlist = []
 
-#     def add_data(self, D, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
+    def add_data(self, D, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
+        D.get_data(trange, norm=norm, atrange=atrange, res=res, verbose=verbose)
+        self.Dlist.append(D)
 
-#         D.get_data(trange, norm=norm, atrange=atrange, res=res, verbose=verbose)
-#         self.Dlist.append(D)
+    def del_data(self, dnum):
+        del self.Dlist[dnum]
 
-#     def del_data(self, dnum):
-#         del self.Dlist[dnum]
+    def list_data(self):
+        for i in range(len(self.Dlist)):
+            print('---- DATA SET # {:d} for [{:0.6f}, {:0.6f}] s ----'.format(i, self.Dlist[i].trange[0], self.Dlist[i].trange[1]))
+            cstr = ''
+            for j, c in enumerate(self.Dlist[i].clist):
+                cstr += '[{:03d}:{:s}]'.format(j, c)
+                if np.mod(j+1, 4) == 0 or j == len(self.Dlist[i].clist)-1:
+                    print(cstr)
+                    cstr = ''
+            # print '     # %d size : %s' % (i, self.Dlist[i].data.shape)
 
-#     def list_data(self):
-#         for i in range(len(self.Dlist)):
-#             print('---- DATA SET # {:d} for [{:0.6f}, {:0.6f}] s ----'.format(i, self.Dlist[i].trange[0], self.Dlist[i].trange[1]))
-#             cstr = ''
-#             for j, c in enumerate(self.Dlist[i].clist):
-#                 cstr += '[{:03d}:{:s}]'.format(j, c)
-#                 if np.mod(j+1, 4) == 0 or j == len(self.Dlist[i].clist)-1:
-#                     print(cstr)
-#                     cstr = ''
-#             # print '     # %d size : %s' % (i, self.Dlist[i].data.shape)
+    def add_channel(self, dnum, clist):  # re-do fftbins after add channels
+        old_clist = self.Dlist[dnum].clist
+         # add channels (no duplicates)
+        clist = expand_clist(clist)
+        clist = [c for c in clist if c not in self.Dlist[dnum].clist]
 
-#     def add_channel(self, dnum, clist):  # re-do fftbins after add channels
-#         old_clist = self.Dlist[dnum].clist
+        # add data
+        time, data = self.Dlist[dnum].get_data(self.Dlist[dnum].trange, norm=norm, atrange=atrange, res=res)
+        self.Dlist[dnum].data = np.concatenate((self.Dlist[dnum].data, data), axis=0)
 
-#         # add channels (no duplicates)
-#         clist = expand_clist(clist)
-#         clist = [c for c in clist if c not in self.Dlist[dnum].clist]
+        # update clist
+        self.Dlist[dnum].clist = old_clist + clist
 
-#         # add data
-#         time, data = self.Dlist[dnum].get_data(self.Dlist[dnum].trange, norm=norm, atrange=atrange, res=res)
-#         self.Dlist[dnum].data = np.concatenate((self.Dlist[dnum].data, data), axis=0)
+        self.list_data()
 
-#         # update clist
-#         self.Dlist[dnum].clist = old_clist + clist
+    def del_channel(self, dnum, clist):
+        clist = expand_clist(clist)
 
-#         self.list_data()
+        for i in range(len(clist)):
+            # find index to be deleted
+            del_idx = [j for j, s in enumerate(self.Dlist[dnum].clist) if clist[i] in s]
 
-#     def del_channel(self, dnum, clist):
-#         clist = expand_clist(clist)
+            # delete data
+            self.Dlist[dnum].data = np.delete(self.Dlist[dnum].data, del_idx, 0)
 
-#         for i in range(len(clist)):
-#             # find index to be deleted
-#             del_idx = [j for j, s in enumerate(self.Dlist[dnum].clist) if clist[i] in s]
+            # delete fftdata if it has
+            if hasattr(self.Dlist[dnum], 'fftdata'):
+                self.Dlist[dnum].fftdata = np.delete(self.Dlist[dnum].fftdata, del_idx, 0)
 
-#             # delete data
-#             self.Dlist[dnum].data = np.delete(self.Dlist[dnum].data, del_idx, 0)
+            # update clist
+            self.Dlist[dnum].clist = [self.Dlist[dnum].clist[k] for k in range(len(self.Dlist[dnum].clist)) if k not in del_idx]
 
-#             # delete fftdata if it has
-#             if hasattr(self.Dlist[dnum], 'fftdata'):
-#                 self.Dlist[dnum].fftdata = np.delete(self.Dlist[dnum].fftdata, del_idx, 0)
+        self.list_data()
 
-#             # update clist
-#             self.Dlist[dnum].clist = [self.Dlist[dnum].clist[k] for k in range(len(self.Dlist[dnum].clist)) if k not in del_idx]
+############################# down sampling #############################
 
-#         self.list_data()
+    def downsample(self, q, verbose=0):
+        # down sampling after anti-aliasing filter
+        for d, D in enumerate(self.Dlist):
+            cnum = len(D.data)
 
-# ############################# down sampling #############################
+            # plot dimension
+            if cnum < 4:
+                row = cnum
+            else:
+                row = 4
+            col = math.ceil(cnum/row)
 
-#     def downsample(self, q, verbose=0):
-#         # down sampling after anti-aliasing filter
-#         for d, D in enumerate(self.Dlist):
-#             cnum = len(D.data)
+            # new time axis
+            raw_time = np.copy(D.time)
+            tnum = len(D.time)
+            idx = np.arange(0, tnum, q)
+            D.time = D.time[idx]
 
-#             # plot dimension
-#             if cnum < 4:
-#                 row = cnum
-#             else:
-#                 row = 4
-#             col = math.ceil(cnum/row)
+            # down sample
+            raw_data = np.copy(D.data)
+            D.data = np.empty((cnum, len(D.time)))
+            for c in range(cnum):
+                D.data[c,:] = signal.decimate(raw_data[c,:], q)
 
-#             # new time axis
-#             raw_time = np.copy(D.time)
-#             tnum = len(D.time)
-#             idx = np.arange(0, tnum, q)
-#             D.time = D.time[idx]
+            #     if verbose == 1:
+            #         # plot info
+            #         pshot = D.shot
+            #         pname = D.clist[c]
 
-#             # down sample
-#             raw_data = np.copy(D.data)
-#             D.data = np.empty((cnum, len(D.time)))
-#             for c in range(cnum):
-#                 D.data[c,:] = signal.decimate(raw_data[c,:], q)
+            #         # set axes
+            #         if c == 0:
+            #             plt.subplots_adjust(hspace = 0.5, wspace = 0.3)
+            #             axes1 = plt.subplot(row,col,c+1)
+            #             axprops = dict(sharex = axes1, sharey = axes1)
+            #         elif c > 0:
+            #             plt.subplot(row,col,c+1, **axprops)
 
-#                 if verbose == 1:
-#                     # plot info
-#                     pshot = D.shot
-#                     pname = D.clist[c]
+            #         plt.plot(raw_time, raw_data[c,:])
+            #         plt.plot(D.time, D.data[c,:])
 
-#                     # set axes
-#                     if c == 0:
-#                         plt.subplots_adjust(hspace = 0.5, wspace = 0.3)
-#                         axes1 = plt.subplot(row,col,c+1)
-#                         axprops = dict(sharex = axes1, sharey = axes1)
-#                     elif c > 0:
-#                         plt.subplot(row,col,c+1, **axprops)
+            #         plt.title('#{:d}, {:s}'.format(pshot, pname), fontsize=10)
 
-#                     plt.plot(raw_time, raw_data[c,:])
-#                     plt.plot(D.time, D.data[c,:])
+            # plt.show()
 
-#                     plt.title('#{:d}, {:s}'.format(pshot, pname), fontsize=10)
+            D.fs = round(1/(D.time[1] - D.time[0])/1000)*1000.0
+            print('down sample with q={:d}, fs={:g}'.format(q, D.fs))
 
-#             plt.show()
+############################# data filtering functions #########################
 
-#             D.fs = round(1/(D.time[1] - D.time[0])/1000)*1000.0
-#             print('down sample with q={:d}, fs={:g}'.format(q, D.fs))
+    def filt(self, dnum, name, fL, fH, b=0.08, verbose=0):
+        D = self.Dlist[dnum]
 
-# ############################# data filtering functions #########################
+        # select filter except svd
+        if name[0:3] == 'FIR': 
+            filter = ft.FirFilter(name, D.fs, fL, fH, b)
 
-#     def filt(self, dnum, name, fL, fH, b=0.08, verbose=0):
-#         D = self.Dlist[dnum]
+        for c in range(len(D.clist)):
+            x = np.copy(D.data[c,:])
+            D.data[c,:] = filter.apply(x)
 
-#         # select filter except svd
-#         if name[0:3] == 'FIR': 
-#             filter = ft.FirFilter(name, D.fs, fL, fH, b)
+        print('dnum {:d} filter {:s} with fL {:g} fH {:g} b {:g}'.format(dnum, name, fL, fH, b))
 
-#         for c in range(len(D.clist)):
-#             x = np.copy(D.data[c,:])
-#             D.data[c,:] = filter.apply(x)
+    def svd_filt(self, dnum, cutoff=0.9, verbose=0):
+        D = self.Dlist[dnum]
 
-#         print('dnum {:d} filter {:s} with fL {:g} fH {:g} b {:g}'.format(dnum, name, fL, fH, b))
+        svd = ft.SvdFilter(cutoff = cutoff)
 
-#     def svd_filt(self, dnum, cutoff=0.9, verbose=0):
-#         D = self.Dlist[dnum]
+        D.data = svd.apply(D.data, verbose=verbose)
 
-#         svd = ft.SvdFilter(cutoff = cutoff)
+        print('dnum {:d} svd filter with cutoff {:g}'.format(dnum, cutoff))
 
-#         D.data = svd.apply(D.data, verbose=verbose)
+############################# spectral methods #############################
 
-#         print('dnum {:d} svd filter with cutoff {:g}'.format(dnum, cutoff))
+    def fftbins(self, nfft, window, overlap, detrend, full=0):
+        # IN : self, data set number, nfft, window name, detrend or not
+        # OUT : bins x N FFT of time series data; frequency axis
+        # self.list_data()
 
-# ############################# spectral methods #############################
+        for d, D in enumerate(self.Dlist):
+            # get bins and window function
+            tnum = len(D.time)
+            bins, win = sp.fft_window(tnum, nfft, window, overlap)
+            dt = D.time[1] - D.time[0]  # time step
 
-#     def fftbins(self, nfft, window, overlap, detrend, full=0):
-#         # IN : self, data set number, nfft, window name, detrend or not
-#         # OUT : bins x N FFT of time series data; frequency axis
-#         # self.list_data()
+            D.window = window
+            D.overlap = overlap
+            D.detrend = detrend
+            D.bins = bins
 
-#         for d, D in enumerate(self.Dlist):
-#             # get bins and window function
-#             tnum = len(D.time)
-#             bins, win = sp.fft_window(tnum, nfft, window, overlap)
-#             dt = D.time[1] - D.time[0]  # time step
+            # make fft data
+            cnum = len(D.data)
+            if full == 1: # full shift to -fN ~ 0 ~ fN
+                if np.mod(nfft, 2) == 0:  # even nfft
+                    D.spdata = np.zeros((cnum, bins, nfft+1), dtype=np.complex_)
+                else:  # odd nfft
+                    D.spdata = np.zeros((cnum, bins, nfft), dtype=np.complex_)
+            else: # half 0 ~ fN
+                D.spdata = np.zeros((cnum, bins, int(nfft/2+1)), dtype=np.complex_)
 
-#             D.window = window
-#             D.overlap = overlap
-#             D.detrend = detrend
-#             D.bins = bins
+            for c in range(cnum):
+                x = D.data[c,:]
+                D.ax, D.spdata[c,:,:], D.win_factor = sp.fftbins(x, dt, nfft, window, overlap, detrend, full)
 
-#             # make fft data
-#             cnum = len(D.data)
-#             if full == 1: # full shift to -fN ~ 0 ~ fN
-#                 if np.mod(nfft, 2) == 0:  # even nfft
-#                     D.spdata = np.zeros((cnum, bins, nfft+1), dtype=np.complex_)
-#                 else:  # odd nfft
-#                     D.spdata = np.zeros((cnum, bins, nfft), dtype=np.complex_)
-#             else: # half 0 ~ fN
-#                 D.spdata = np.zeros((cnum, bins, int(nfft/2+1)), dtype=np.complex_)
+            # update attributes
+            if np.mod(nfft, 2) == 0:
+                D.nfft = nfft + 1
+            else:
+                D.nfft = nfft
 
-#             for c in range(cnum):
-#                 x = D.data[c,:]
-#                 D.ax, D.spdata[c,:,:], D.win_factor = sp.fftbins(x, dt, nfft, window, overlap, detrend, full)
+            print('dnum {:d} fftbins {:d} with {:s} size {:d} overlap {:g} detrend {:d} full {:d}'.format(d, bins, window, nfft, overlap, detrend, full))
 
-#             # update attributes
-#             if np.mod(nfft, 2) == 0:
-#                 D.nfft = nfft + 1
-#             else:
-#                 D.nfft = nfft
-
-#             print('dnum {:d} fftbins {:d} with {:s} size {:d} overlap {:g} detrend {:d} full {:d}'.format(d, bins, window, nfft, overlap, detrend, full))
 
 #     def cwt(self, df): ## problem in recovering the signal
 #         for d, D in enumerate(self.Dlist):
@@ -333,47 +334,48 @@ class FluctData(object):
 #             D.cwtdj = dj
 #             D.cwtts = ts
 
-#     def cross_power(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
-#         # IN : data number one (ref), data number two (cmp), etc
-#         # OUT : x-axis (ax), y-axis (val)
+    def cross_power(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
+        # IN : data number one (ref), data number two (cmp), etc
+        # OUT : x-axis (ax), y-axis (val)
 
-#         self.Dlist[dtwo].vkind = 'cross_power'
+        self.Dlist[dtwo].vkind = 'cross_power'
 
-#         if done_subset is not None: 
-#             rnum = len(done_subset)
-#         else:
-#             rnum = len(self.Dlist[done].data)  # number of ref channels
-#             done_subset = range(rnum)
+        if done_subset is not None: 
+            rnum = len(done_subset)
+        else:
+            rnum = len(self.Dlist[done].data)  # number of ref channels
+            done_subset = range(rnum)
 
-#         if dtwo_subset is not None:
-#             cnum = len(dtwo_subset)
-#         else:
-#             cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
-#             dtwo_subset = range(cnum)
+        if dtwo_subset is not None:
+            cnum = len(dtwo_subset)
+        else:
+            cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
+            dtwo_subset = range(cnum)
 
 
-#         # reference channel names
-#         self.Dlist[dtwo].rname = []
+        # reference channel names
+        self.Dlist[dtwo].rname = []
 
-#         # value dimension
-#         self.Dlist[dtwo].val = np.zeros((cnum, len(self.Dlist[dtwo].ax)))
+        # value dimension
+        self.Dlist[dtwo].val = np.zeros((cnum, len(self.Dlist[dtwo].ax)))
 
-#         # calculation loop for multi channels
-#         for c in range(cnum):
-#             # reference channel number
-#             if rnum == 1:
-#                 self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[0]])
-#                 XX = self.Dlist[done].spdata[done_subset[0],:,:]
-#             else:
-#                 self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
-#                 XX = self.Dlist[done].spdata[done_subset[c],:,:]
+        # calculation loop for multi channels
+        for c in range(cnum):
+            # reference channel number
+            if rnum == 1:
+                self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[0]])
+                XX = self.Dlist[done].spdata[done_subset[0],:,:]
+            else:
+                self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
+                XX = self.Dlist[done].spdata[done_subset[c],:,:]
 
-#             YY = self.Dlist[dtwo].spdata[dtwo_subset[c],:,:]
+            YY = self.Dlist[dtwo].spdata[dtwo_subset[c],:,:]
 
-#             if self.Dlist[dtwo].ax[1] < 0: # full range
-#                 self.Dlist[dtwo].val[c,:] = sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)
-#             else: # half
-#                 self.Dlist[dtwo].val[c,:] = 2*sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)  # product 2 for half return
+            if self.Dlist[dtwo].ax[1] < 0: # full range
+                self.Dlist[dtwo].val[c,:] = sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)
+            else: # half
+                self.Dlist[dtwo].val[c,:] = 2*sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)  # product 2 for half return
+
 
 #     def coherence(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
 #         # IN : data number one (ref), data number two (cmp), etc

@@ -1,7 +1,8 @@
 # coding: UTF-8 -*-
 
-from fluctana.dummy import dummy
-
+import numpy as np
+#from fluctana.dummy import dummy
+from fluctana.fluctana import FluctData, FluctAna
 from diagnostics.ecei_channel_layout import ecei_channel_positions
 
 
@@ -29,6 +30,7 @@ class fluctana_task():
 
         self.data = {}
         self.fluctana = None
+        self.futures = None
 
 
     def update_data(self, ch_data, ch_name):
@@ -40,7 +42,51 @@ class fluctana_task():
 
 
     def create_fluctdata_object(self):
-        self.fluct_data = FluctData(0, self.channel_list, )
+        # Create a dummy time range
+        dummy_time = np.arange(self.data[next(iter(self.data))].size)
+
+        # Adapt data format to FluctData
+        rpos = [pos[0] for pos in [ecei_channel_positions[c] for c in ["L2403", "L2406"]]]
+        zpos = [pos[1] for pos in [ecei_channel_positions[c] for c in ["L2403", "L2406"]]]
+        apos = [pos[2] for pos in [ecei_channel_positions[c] for c in ["L2403", "L2406"]]]
+
+        # Flatten the channel data dictionary into a numpy array.
+        # dim0: channel_list[0], channel_list[1]...
+        # dim1: time, see dummy_time above
+        ch_data = np.zeros((len(self.data.keys()), dummy_time.size), dtype=np.float64)
+        for idx, kv_tuple in enumerate(self.data.items()):
+            ch_data[idx, :] = kv_tuple[1]
+
+        self.fluct_data = FluctData(18431, self.channel_list, dummy_time, ch_data, rpos, zpos, apos)
+
+
+    def dispatch_analysis_task(self, dask_client):
+        """Dispatches all analysis tasks to the workers.
+
+        Input:
+        ======
+        client: dask client
+
+        Output:
+        =======
+        future: dask future that holds the results of the analysis
+        """
+
+        # TODO: This deletes all previous futures. We should probably check if this
+        # needs some extra checking,
+        self.futures = []
+
+        fluct_ana = FluctAna()
+        fluct_ana.add_data(self.fluct_data, np.arange(10000), verbose=0)
+
+        self.future = dask_client.submit(fluct_ana.fftbins, self.param_list)
+
+#   A.fftbins(nfft=cfg['nfft'],window=cfg['window'],
+#              overlap=cfg['overlap'],detrend=cfg['detrend'],full=1)
+
+        #for analysis in self.analysis_list:
+
+
 
 
 

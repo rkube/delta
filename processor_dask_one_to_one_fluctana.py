@@ -76,8 +76,10 @@ while(True):
                 ecei_data = reader.Get("ECEI_" + channel)
                 task.update_data(ecei_data, channel)
 
-#             #task_futures.append(task.calculate(dask_client))
-#             task.calculate(dask_client)
+            task.create_fluctdata_object()
+
+            #task_futures.append(task.calculate(dask_client))
+            task.dispatch_analysis_task(dask_client)
 
     else:
         print("End of stream")
