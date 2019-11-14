@@ -27,6 +27,9 @@ python -u processor_dask.py
 
 """
 
+import sys
+sys.path.append("/global/homes/r/rkube/repos/delta")
+
 import numpy as np 
 
 import json
@@ -44,8 +47,7 @@ mongo_client = mongodb_backend()
 # Interface to worker nodes
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 # Upload files 
-#dask_client.upload_file("analysis/task_fluctana.py")
-#dask_client.upload_file("fluctana/specs.py")
+
 
 # Parse command line arguments and read configuration file
 parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
@@ -58,11 +60,10 @@ with open(args.config, "r") as df:
 
 # Build list of analysis tasks that are performed at any given time step
 task_list = []
-for task in cfg["task_list"]:
+for task_config in cfg["task_list"]:
     #task_list.append(task_fluctana(task["channels"], task["description"], 
     #                               task["analysis_list"], task["kw_dict"]))
-    task_list.append(task_dummy(task["channels"], task["description"], 
-                                task["analysis_list"], task["kw_dict"]))
+    task_list.append(task_dummy(cfg["shotnr"], task_config))
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -90,7 +91,7 @@ while(True):
             #task_futures.append(task.calculate(dask_client))
             #task.dispatch(dask_client)
 
-            task_futures.append(dask_client.submit(task.method(), task.data))
+            task_futures.append(dask_client.submit(task.method(), task.fluct_data))
 
     else:
         print("End of stream")

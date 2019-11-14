@@ -18,7 +18,9 @@ def do_work2():
 
 
 class task_fluctana():
-    """A prototype for dispatching tasks using kstar fluctana objects.
+    """A wrapper around methods of FluctAna
+    
+    A prototype for dispatching tasks using kstar fluctana objects.
     """
 
     def __init__(self, channel_list, description, analysis_list, param_list):
@@ -101,7 +103,7 @@ class task_fluctana():
 
 
     def method(self):
-        
+
 
 #   A.fftbins(nfft=cfg['nfft'],window=cfg['window'],
 #              overlap=cfg['overlap'],detrend=cfg['detrend'],full=1)

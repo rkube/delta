@@ -1,13 +1,20 @@
 {
-"datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
+ "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
  "shotnr": 18431,
  "task_list": [{
                     "channels": ["L2403", "L2406"],
                     "description" : "ralphs_task", 
+                    "ECEI_cfg": {"TriggerTime": [1.0, 2.0],
+                                 "SampleRate": [0.000001],
+                                 "TFcurrent": 1.0,
+                                 "Mode": "O",
+                                 "LoFreq": 1.0,
+                                 "LensFocus": 1.0,
+                                 "LensZoom": 1.0},
                     "analysis_list": ["cross_power"],
-                    "kw_dict" : {"nfft": 1000,
-                                 "window": "hann",
-                                 "overlap": 0.0,
-                                 "detrend": 1}
+                    "fft_params" : {"nfft": 1000,
+                                    "window": "hann",
+                                    "overlap": 0.0,
+                                    "detrend": 1}
                    }]
 }
