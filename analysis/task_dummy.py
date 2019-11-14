@@ -1,16 +1,8 @@
-# coding: UTF-8 -*-
+# Coding: UTF-8 -*-
 
 import numpy as np
-#from fluctana.dummy import dummy
-from fluctana.fluctana import FluctData, FluctAna
-from diagnostics.ecei_channel_layout import ecei_channel_positions
 
-
-
-class fluctana_task():
-    """A prototype for dispatching tasks using kstar fluctana objects.
-    """
-
+class task_dummy():
     def __init__(self, channel_list, description, analysis_list, param_list):
         """
         Defines a list of fluctana tasks
@@ -32,7 +24,6 @@ class fluctana_task():
         self.fluctana = None
         self.futures = None
 
-
     def update_data(self, ch_data, ch_name):
         """Updates data for a single channel.
         """
@@ -41,7 +32,7 @@ class fluctana_task():
         self.data[ch_name] = ch_data
 
 
-    def create_fluctdata_object(self):
+    def create_task_object(self):
         # Create a dummy time range
         dummy_time = np.arange(self.data[next(iter(self.data))].size)
 
@@ -60,34 +51,13 @@ class fluctana_task():
         self.fluct_data = FluctData(18431, self.channel_list, dummy_time, ch_data, rpos, zpos, apos)
 
 
-    def dispatch_analysis_task(self, dask_client):
-        """Dispatches all analysis tasks to the workers.
+    def method(self):
+        fun = lambda x: x
 
-        Input:
-        ======
-        client: dask client
+        return(fun)
 
-        Output:
-        =======
-        future: dask future that holds the results of the analysis
-        """
-
-        # TODO: This deletes all previous futures. We should probably check if this
-        # needs some extra checking,
-        self.futures = []
-
-        fluct_ana = FluctAna()
-        fluct_ana.add_data(self.fluct_data, np.arange(10000), verbose=0)
-
-        self.future = dask_client.submit(fluct_ana.fftbins, self.param_list)
-
-#   A.fftbins(nfft=cfg['nfft'],window=cfg['window'],
-#              overlap=cfg['overlap'],detrend=cfg['detrend'],full=1)
-
-        #for analysis in self.analysis_list:
+#    def data(self):
+#        return np.random.uniform(0.0, 1.0, 10)
 
 
-
-
-
-# End of file fluctana_task.py
+# End of file task_dummy.py

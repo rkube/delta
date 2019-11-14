@@ -43,11 +43,26 @@ class mongodb_backend():
         # Add a time stamp to the scheme
         storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        #print(storage_scheme)
-        #self.collection.insert_one(storage_scheme)
-        print("***mongodb_backend*** Storing...")
+        if dummy:
+            print(storage_scheme)
+        else:
+            self.collection.insert_one(storage_scheme)
+            print("***mongodb_backend*** Storing...")
 
         return None
 
+
+    def store(self, task, future, dummy=True):
+        """Similar to store, but the future is separate from the task object"""
+
+
+        storage_scheme = schemes_dict[task.task_name](task, future.result())
+        storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if dummy:
+            print(storage_scheme)
+        else:
+            self.collection.insert_one(storage_scheme)
+            print("***mongodb_backend*** Storing...")
 
 # End of file mongodb.py

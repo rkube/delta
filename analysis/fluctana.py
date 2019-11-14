@@ -7,10 +7,9 @@
 # Last updated
 #  2018.03.23 : version 0.10; even nfft -> odd nfft (for symmetry)
 
-#from scipy import signal
-#import math
+from scipy import signal
+import math
 #import itertools
-
 import numpy as np
 
 #import matplotlib.pyplot as plt
@@ -24,6 +23,16 @@ import numpy as np
 #from diiiddata import *  # needs pidly
 
 #import specs as sp
+
+import os
+
+#print("fluctana.py my name is {0:s}".format(__name__))
+#for root, dirs, files in os.walk("."):
+#    for filename in files:
+#        print(filename)
+
+from . import specs as sp
+from . import filtdata as ft
 #import stats as st
 #import massdata as ms
 #import filtdata as ft
@@ -99,6 +108,7 @@ class FluctAna(object):
         self.Dlist = []
 
     def add_data(self, D, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
+
         D.get_data(trange, norm=norm, atrange=atrange, res=res, verbose=verbose)
         self.Dlist.append(D)
 
@@ -118,7 +128,8 @@ class FluctAna(object):
 
     def add_channel(self, dnum, clist):  # re-do fftbins after add channels
         old_clist = self.Dlist[dnum].clist
-         # add channels (no duplicates)
+
+        # add channels (no duplicates)
         clist = expand_clist(clist)
         clist = [c for c in clist if c not in self.Dlist[dnum].clist]
 
@@ -176,25 +187,25 @@ class FluctAna(object):
             for c in range(cnum):
                 D.data[c,:] = signal.decimate(raw_data[c,:], q)
 
-            #     if verbose == 1:
-            #         # plot info
-            #         pshot = D.shot
-            #         pname = D.clist[c]
+                if verbose == 1:
+                    # plot info
+                    pshot = D.shot
+                    pname = D.clist[c]
 
-            #         # set axes
-            #         if c == 0:
-            #             plt.subplots_adjust(hspace = 0.5, wspace = 0.3)
-            #             axes1 = plt.subplot(row,col,c+1)
-            #             axprops = dict(sharex = axes1, sharey = axes1)
-            #         elif c > 0:
-            #             plt.subplot(row,col,c+1, **axprops)
+                    # set axes
+                    if c == 0:
+                        plt.subplots_adjust(hspace = 0.5, wspace = 0.3)
+                        axes1 = plt.subplot(row,col,c+1)
+                        axprops = dict(sharex = axes1, sharey = axes1)
+                    elif c > 0:
+                        plt.subplot(row,col,c+1, **axprops)
 
-            #         plt.plot(raw_time, raw_data[c,:])
-            #         plt.plot(D.time, D.data[c,:])
+                    plt.plot(raw_time, raw_data[c,:])
+                    plt.plot(D.time, D.data[c,:])
 
-            #         plt.title('#{:d}, {:s}'.format(pshot, pname), fontsize=10)
+                    plt.title('#{:d}, {:s}'.format(pshot, pname), fontsize=10)
 
-            # plt.show()
+            plt.show()
 
             D.fs = round(1/(D.time[1] - D.time[0])/1000)*1000.0
             print('down sample with q={:d}, fs={:g}'.format(q, D.fs))
@@ -262,7 +273,6 @@ class FluctAna(object):
                 D.nfft = nfft
 
             print('dnum {:d} fftbins {:d} with {:s} size {:d} overlap {:g} detrend {:d} full {:d}'.format(d, bins, window, nfft, overlap, detrend, full))
-
 
 #     def cwt(self, df): ## problem in recovering the signal
 #         for d, D in enumerate(self.Dlist):
@@ -334,48 +344,47 @@ class FluctAna(object):
 #             D.cwtdj = dj
 #             D.cwtts = ts
 
-    def cross_power(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
-        # IN : data number one (ref), data number two (cmp), etc
-        # OUT : x-axis (ax), y-axis (val)
+#     def cross_power(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
+#         # IN : data number one (ref), data number two (cmp), etc
+#         # OUT : x-axis (ax), y-axis (val)
 
-        self.Dlist[dtwo].vkind = 'cross_power'
+#         self.Dlist[dtwo].vkind = 'cross_power'
 
-        if done_subset is not None: 
-            rnum = len(done_subset)
-        else:
-            rnum = len(self.Dlist[done].data)  # number of ref channels
-            done_subset = range(rnum)
+#         if done_subset is not None: 
+#             rnum = len(done_subset)
+#         else:
+#             rnum = len(self.Dlist[done].data)  # number of ref channels
+#             done_subset = range(rnum)
 
-        if dtwo_subset is not None:
-            cnum = len(dtwo_subset)
-        else:
-            cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
-            dtwo_subset = range(cnum)
+#         if dtwo_subset is not None:
+#             cnum = len(dtwo_subset)
+#         else:
+#             cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
+#             dtwo_subset = range(cnum)
 
 
-        # reference channel names
-        self.Dlist[dtwo].rname = []
+#         # reference channel names
+#         self.Dlist[dtwo].rname = []
 
-        # value dimension
-        self.Dlist[dtwo].val = np.zeros((cnum, len(self.Dlist[dtwo].ax)))
+#         # value dimension
+#         self.Dlist[dtwo].val = np.zeros((cnum, len(self.Dlist[dtwo].ax)))
 
-        # calculation loop for multi channels
-        for c in range(cnum):
-            # reference channel number
-            if rnum == 1:
-                self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[0]])
-                XX = self.Dlist[done].spdata[done_subset[0],:,:]
-            else:
-                self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
-                XX = self.Dlist[done].spdata[done_subset[c],:,:]
+#         # calculation loop for multi channels
+#         for c in range(cnum):
+#             # reference channel number
+#             if rnum == 1:
+#                 self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[0]])
+#                 XX = self.Dlist[done].spdata[done_subset[0],:,:]
+#             else:
+#                 self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
+#                 XX = self.Dlist[done].spdata[done_subset[c],:,:]
 
-            YY = self.Dlist[dtwo].spdata[dtwo_subset[c],:,:]
+#             YY = self.Dlist[dtwo].spdata[dtwo_subset[c],:,:]
 
-            if self.Dlist[dtwo].ax[1] < 0: # full range
-                self.Dlist[dtwo].val[c,:] = sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)
-            else: # half
-                self.Dlist[dtwo].val[c,:] = 2*sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)  # product 2 for half return
-
+#             if self.Dlist[dtwo].ax[1] < 0: # full range
+#                 self.Dlist[dtwo].val[c,:] = sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)
+#             else: # half
+#                 self.Dlist[dtwo].val[c,:] = 2*sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)  # product 2 for half return
 
 #     def coherence(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
 #         # IN : data number one (ref), data number two (cmp), etc

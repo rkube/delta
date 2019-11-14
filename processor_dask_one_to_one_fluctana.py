@@ -35,12 +35,17 @@ from distributed import Client, progress
 
 from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
-from analysis.fluctana_task import fluctana_task
+
+#from analysis.task_fluctana import task_fluctana
+from analysis.task_dummy import task_dummy
 
 # This object manages storage to a backend.
 mongo_client = mongodb_backend()
 # Interface to worker nodes
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
+# Upload files 
+#dask_client.upload_file("analysis/task_fluctana.py")
+#dask_client.upload_file("fluctana/specs.py")
 
 # Parse command line arguments and read configuration file
 parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
@@ -54,8 +59,10 @@ with open(args.config, "r") as df:
 # Build list of analysis tasks that are performed at any given time step
 task_list = []
 for task in cfg["task_list"]:
-    task_list.append(fluctana_task(task["channels"], task["description"], 
-                                   task["analysis_list"], task["kw_dict"]))
+    #task_list.append(task_fluctana(task["channels"], task["description"], 
+    #                               task["analysis_list"], task["kw_dict"]))
+    task_list.append(task_dummy(task["channels"], task["description"], 
+                                task["analysis_list"], task["kw_dict"]))
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -71,15 +78,19 @@ while(True):
     # Iterate over the task list and update the required data at the current time step
     if stepStatus:
         print("ok")
+        task_futures = []
+
         for task in task_list:
             for channel in task.channel_list:
                 ecei_data = reader.Get("ECEI_" + channel)
                 task.update_data(ecei_data, channel)
 
-            task.create_fluctdata_object()
+            task.create_task_object()
 
             #task_futures.append(task.calculate(dask_client))
-            task.dispatch_analysis_task(dask_client)
+            #task.dispatch(dask_client)
+
+            task_futures.append(dask_client.submit(task.method(), task.data))
 
     else:
         print("End of stream")
@@ -91,6 +102,8 @@ while(True):
 #     for task in task_list:
 #         mongo_client.store(task)
 
+    for task, future in zip(task_list, task_futures):
+        print(task, future)
 
     # Do only 10 time steps for now
     s -= -1
