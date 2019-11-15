@@ -193,14 +193,19 @@ class KstarEcei(object):
             if len(fulltime) > ENUM:
                 break
 
+
+
         return fulltime[0:ENUM] #RMC - Changed from (ENUM+1), to make array size ENUM
 
     def time_base(self, trange):
         fulltime = self.time_base_full()
+        #print("kstarecei: fulltime = ", fulltime)
+        idx = np.where((fulltime >= trange[0])*(fulltime <= trange[-1]))
 
-        idx = np.where((fulltime >= trange[0])*(fulltime <= trange[1]))
+        #print("kstarecei time_base: ", fulltime[0], fulltime[-1], trange[0], trange[-1], idx)
         idx1 = int(idx[0][0])
         idx2 = int(idx[0][-1]+1)
+        #print(idx1, idx2)
 
         if self.toff < 0:
             oidx = np.where((fulltime >= self.toff)*(fulltime <= self.toff+0.01))
@@ -210,6 +215,8 @@ class KstarEcei(object):
             print('#### offset from end in KstarEcei.time_base ####')
             oidx1 = int(ENUM - 0.01*self.fs)
             oidx2 = int(ENUM - 1)
+
+        #print("kstarecei timebase: ", idx1, idx2, oidx1, oidx2)
 
         return fulltime[idx1:idx2], idx1, idx2, oidx1, oidx2
 

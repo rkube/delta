@@ -81,14 +81,10 @@ while(True):
         task_futures = []
 
         # generate a dummy time-base for the data of the current chunk
-        dummy_tb = np.arange(0.0, 1e-2, 1e-6) * float(s)
+        dummy_tb = np.arange(0.0, 1e-2, 2e-6) * float(s+1)
         for task in task_list:
-            # Create a channel list object for the current task
-            #
             ecei_data = reader.Get(task.ch_list)
-
-            print(np.shape(ecei_data))
-            #task.update_data(ecei_data, dummy_tb)
+            task.update_data(ecei_data, dummy_tb)
             #for channel in task.channel_list:
             #    ecei_data = reader.Get("ECEI_" + channel)
             #    task.update_data(ecei_data, channel, dummy_tb)

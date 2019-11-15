@@ -37,26 +37,41 @@ class task_fluctana():
 
         
         data_obj = KstarEcei(shotnr, [c.to_str() for c in self.ch_list], config)
+
+        print("Init...", data_obj.tt)
         self.fluctana = FluctAna()
         self.fluctana.Dlist.append(data_obj)
 
+        # Flag that is set to False after first call to update_data
+        self.first_call = True
 
-    def update_data(self, ch_data, ch_name, trange):
-        """Updates data for a single channel.
+
+    def update_data(self, ch_data, trange):
+        """Updates data for all channels.
+        Inputs:
+        =======
+        ch_data: ndarray, shape(M, N) where M is the number of channels and N the number of data points
+        trange: ndarray, shape(1,N) where N is the number of data points.
+
+        Returns:
+        ========
+        None
+
         """
-
-        assert(ch_name in self.channel_list)
-        print("Updating data for channel {0:s}".format(ch_name), ", shape: ", ch_data.shape)
         
         # First we update the time range
-        self.fluctana.Dlist[0].time, _ = self.fluctana.Dlist[0].time_base(trange)
+        print("Updating. trnage = ", trange, trange.shape)
+        self.fluctana.Dlist[0].time, _, _, _, _ = self.fluctana.Dlist[0].time_base(trange)
+        print("Updated time: ", self.fluctana.Dlist[0].time)
         # Now we update the data
         self.fluctana.Dlist[0].data = ch_data
 
-        self.fluctana.fftbins(nfft=config["fft_params"]["nfft"], window=config["fft_params"]['window'], 
-                              overlap=config["fft_params"]['overlap'], 
-                              detrend=config["fft_params"]['detrend'], full=1)       
+        if self.first_call:
 
+            self.fluctana.fftbins(nfft=self.fft_params["nfft"], window=self.fft_params['window'], 
+                                  overlap=self.fft_params['overlap'], 
+                                  detrend=self.fft_params['detrend'], full=1)
+            self.first_call = False
 
     def create_task_object(self):
         # Create a dummy time range

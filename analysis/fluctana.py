@@ -100,6 +100,9 @@ class FluctData(object):
         idx1 = int(idx[0][0])
         idx2 = int(idx[0][-1]+2)
 
+
+
+
         return time[idx1:idx2], idx1, idx2
         
 
@@ -187,25 +190,25 @@ class FluctAna(object):
             for c in range(cnum):
                 D.data[c,:] = signal.decimate(raw_data[c,:], q)
 
-                if verbose == 1:
-                    # plot info
-                    pshot = D.shot
-                    pname = D.clist[c]
+                # if verbose == 1:
+                #     # plot info
+                #     pshot = D.shot
+                #     pname = D.clist[c]
 
-                    # set axes
-                    if c == 0:
-                        plt.subplots_adjust(hspace = 0.5, wspace = 0.3)
-                        axes1 = plt.subplot(row,col,c+1)
-                        axprops = dict(sharex = axes1, sharey = axes1)
-                    elif c > 0:
-                        plt.subplot(row,col,c+1, **axprops)
+                #     # set axes
+                #     if c == 0:
+                #         plt.subplots_adjust(hspace = 0.5, wspace = 0.3)
+                #         axes1 = plt.subplot(row,col,c+1)
+                #         axprops = dict(sharex = axes1, sharey = axes1)
+                #     elif c > 0:
+                #         plt.subplot(row,col,c+1, **axprops)
 
-                    plt.plot(raw_time, raw_data[c,:])
-                    plt.plot(D.time, D.data[c,:])
+                #     plt.plot(raw_time, raw_data[c,:])
+                #     plt.plot(D.time, D.data[c,:])
 
-                    plt.title('#{:d}, {:s}'.format(pshot, pname), fontsize=10)
+                #     plt.title('#{:d}, {:s}'.format(pshot, pname), fontsize=10)
 
-            plt.show()
+            # plt.show()
 
             D.fs = round(1/(D.time[1] - D.time[0])/1000)*1000.0
             print('down sample with q={:d}, fs={:g}'.format(q, D.fs))
@@ -244,6 +247,7 @@ class FluctAna(object):
         for d, D in enumerate(self.Dlist):
             # get bins and window function
             tnum = len(D.time)
+            print("D.time = ", D.time)
             bins, win = sp.fft_window(tnum, nfft, window, overlap)
             dt = D.time[1] - D.time[0]  # time step
 
