@@ -2,7 +2,7 @@
  "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
  "shotnr": 18431,
  "task_list": [{
-                    "channels": ["L2403", "L2406"],
+                    "channels": ["L2201", "L2202"],
                     "description" : "ralphs_task", 
                     "ECEI_cfg": {"TriggerTime": [1.0, 2.0],
                                  "SampleRate": [0.000001],

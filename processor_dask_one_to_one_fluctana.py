@@ -27,6 +27,8 @@ python -u processor_dask.py
 
 """
 
+# Add project directory into the python path so that imports work in code that is
+# distributed to dask worker clients
 import sys
 sys.path.append("/global/homes/r/rkube/repos/delta")
 
@@ -38,15 +40,13 @@ from distributed import Client, progress
 
 from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
+from analysis.task_fluctana import task_fluctana
 
-#from analysis.task_fluctana import task_fluctana
-from analysis.task_dummy import task_dummy
 
 # This object manages storage to a backend.
 mongo_client = mongodb_backend()
 # Interface to worker nodes
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
-# Upload files 
 
 
 # Parse command line arguments and read configuration file
@@ -61,9 +61,8 @@ with open(args.config, "r") as df:
 # Build list of analysis tasks that are performed at any given time step
 task_list = []
 for task_config in cfg["task_list"]:
-    #task_list.append(task_fluctana(task["channels"], task["description"], 
-    #                               task["analysis_list"], task["kw_dict"]))
-    task_list.append(task_dummy(cfg["shotnr"], task_config))
+    task_list.append(task_fluctana(cfg["shotnr"], task_config))
+
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -81,12 +80,20 @@ while(True):
         print("ok")
         task_futures = []
 
+        # generate a dummy time-base for the data of the current chunk
+        dummy_tb = np.arange(0.0, 1e-2, 1e-6) * float(s)
         for task in task_list:
-            for channel in task.channel_list:
-                ecei_data = reader.Get("ECEI_" + channel)
-                task.update_data(ecei_data, channel)
+            # Create a channel list object for the current task
+            #
+            ecei_data = reader.Get(task.ch_list)
 
-            task.create_task_object()
+            print(np.shape(ecei_data))
+            #task.update_data(ecei_data, dummy_tb)
+            #for channel in task.channel_list:
+            #    ecei_data = reader.Get("ECEI_" + channel)
+            #    task.update_data(ecei_data, channel, dummy_tb)
+
+            #task.create_task_object()
 
             #task_futures.append(task.calculate(dask_client))
             #task.dispatch(dask_client)
@@ -108,7 +115,7 @@ while(True):
 
     # Do only 10 time steps for now
     s -= -1
-    if s >= 5:
+    if s >= 2:
         break
 
 

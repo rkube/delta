@@ -2,6 +2,7 @@
 
 import adios2
 import numpy as np
+from analysis.channels import channel, channel_list
 
 
 class reader_base():
@@ -46,13 +47,37 @@ class reader_base():
 
     
     def Get(self, varname):
-        """Get data from varname at current step"""
+        """Get data from varname at current step.
+        Inputs:
+        =======
+        varname: Either a string or a list of channels
+        
+        Returns:
+        ========
+        io_array: numpy ndarray for the data
+        """
 
-        var = self.IO.InquireVariable(varname)
-        io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
-        self.reader.Get(var, io_array, adios2.Mode.Sync)
+        if (isinstance(varname, str)):
+        #if True:
+            var = self.IO.InquireVariable("ECEI_" + varname)
+            io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
+            self.reader.Get(var, io_array, adios2.Mode.Sync)
+            return(io_array)
 
-        return(io_array)
+
+        elif (isinstance(varname, channel_list)):
+        #elif False:
+            data_list = []
+            for v in varname:
+                var = self.IO.InquireVariable("ECEI_" + v.to_str())
+                print(v.to_str() + " Reader::GET: ", var)
+                io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
+                self.reader.Get(var, io_array, adios2.Mode.Sync)
+                data_list.append(io_array)
+
+            return np.array(data_list)
+
+        return None
 
 
 class reader_bpfile(reader_base):
@@ -60,7 +85,6 @@ class reader_bpfile(reader_base):
         super().__init__(shotnr)
         self.IO.SetEngine("BP4")
         self.reader = None
-
 
 
 # End of file reader_one_to_one.py

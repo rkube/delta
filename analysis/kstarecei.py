@@ -46,7 +46,8 @@ class KstarEcei(object):
         #    elif 19391 < shot:
         #        self.data_path = '/eceidata2/exp_2018/'
 
-        self.clist = expand_clist(clist)
+        #self.clist = expand_clist(clist)
+        self.clist = clist
 
         print(self.clist)
 
@@ -81,6 +82,8 @@ class KstarEcei(object):
 
         # get channel posistion
         self.channel_position()
+        #
+        self.time = None
 
     def read_init(self, dset):
         self.tt = dset['TriggerTime'] # in [s]
@@ -102,7 +105,7 @@ class KstarEcei(object):
         self.sz = dset['LensZoom']
 
 
-    def get_data(self, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
+    def update_data(self, new_data, new_trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
         self.trange = trange
 
         # norm = 0 : no normalization
@@ -117,45 +120,45 @@ class KstarEcei(object):
             if verbose == 1: print('Data is normalized by atrange average ECEI')
 
         # get time base
-        time, idx1, idx2, oidx1, oidx2 = self.time_base(trange)
+        time, idx1, idx2, oidx1, oidx2 = self.time_base(new_trange)
 
         if norm == 2:
             _, aidx1, aidx2, _, _ = self.time_base(atrange)
 
-        # get data
-        with h5py.File(self.fname, 'r') as f:
-            # time series length
-            tnum = idx2 - idx1
+        # # get data
+        # with h5py.File(self.fname, 'r') as f:
+        #     # time series length
+        #     tnum = idx2 - idx1
 
-            # number of channels
-            cnum = len(self.clist)
+        #     # number of channels
+        #     cnum = len(self.clist)
 
-            data = np.zeros((cnum, tnum))
-            for i in range(cnum):
-                node = "/ECEI/" + self.clist[i] + "/Voltage"
+        #     data = np.zeros((cnum, tnum))
+        #     for i in range(cnum):
+        #         node = "/ECEI/" + self.clist[i] + "/Voltage"
 
-                ov = f[node][oidx1:oidx2]/10000.0
-                v = f[node][idx1:idx2]/10000.0
+        #         ov = f[node][oidx1:oidx2]/10000.0
+        #         v = f[node][idx1:idx2]/10000.0
 
-                self.offlev[i] = np.median(ov)
-                self.offstd[i] = np.std(ov)
+        #         self.offlev[i] = np.median(ov)
+        #         self.offstd[i] = np.std(ov)
 
-                v = v - self.offlev[i]
+        #         v = v - self.offlev[i]
 
-                self.siglev[i] = np.median(v)
-                self.sigstd[i] = np.std(v)
+        #         self.siglev[i] = np.median(v)
+        #         self.sigstd[i] = np.std(v)
 
-                if norm == 1:
-                    v = v/np.mean(v) - 1
-                elif norm == 2:
-                    av = f[node][aidx1:aidx2]/10000.0
-                    v = v/np.mean(av) - 1
+        #         if norm == 1:
+        #             v = v/np.mean(v) - 1
+        #         elif norm == 2:
+        #             av = f[node][aidx1:aidx2]/10000.0
+        #             v = v/np.mean(av) - 1
 
-                data[i,:] = v
+        #         data[i,:] = v
 
-            self.data = data
+        self.data = new_data
 
-        self.time = time
+        self.time = new_time
 
         # check data quality
         self.find_bad_channel()
@@ -257,14 +260,15 @@ class KstarEcei(object):
             self.zpos[c], self.apos[c] = self.beam_path(self.rpos[c], vn)
 
     def show_ch_position(self):
-        fig, (a1) = plt.subplots(1,1, figsize=(6,6))
-        a1.plot(self.rpos, self.zpos, 'o')
-        for c, cname in enumerate(self.clist):
-            a1.annotate(cname[5:], (self.rpos[c], self.zpos[c]))
-        a1.set_title('ABCD positions (need corrections from syndia)')
-        a1.set_xlabel('R [m]')
-        a1.set_ylabel('z [m]')
-        plt.show()
+        #fig, (a1) = plt.subplots(1,1, figsize=(6,6))
+        #a1.plot(self.rpos, self.zpos, 'o')
+        #for c, cname in enumerate(self.clist):
+        #    a1.annotate(cname[5:], (self.rpos[c], self.zpos[c]))
+        #a1.set_title('ABCD positions (need corrections from syndia)')
+        #a1.set_xlabel('R [m]')
+        #a1.set_ylabel('z [m]')
+        #plt.show()
+        None
 
     def beam_path(self, rpos, vn):
         # IN : shot, device name, R posistion [m], vertical channel number
@@ -443,56 +447,6 @@ def expand_clist(clist):
     return clist
 
 
-class channel():
-    """Represents an ECEI channel.
-    The ECEI array has 24 horizontal channels and 8 vertical channels.
-
-    They are commonly represented as
-    L2203
-    where L denotes ???, 22 is the horizontal channel and 08 is the vertical channel.
-    """
-
-    def __init__(self, dev, ch_v, ch_h):
-        """
-        Input:
-        ======
-        dev: string, must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
-        ch_num: int, channel number
-        """
-
-        assert(dev in ['L', 'H', 'G', 'HT', 'GR', 'HR'])
-        # 8 vertical channels
-        assert((ch_v > 0) & (ch_v < 8))
-        # 24 horizontal channels
-        assert((ch_h > 0) & (ch_h  < 24))
-
-        self.ch_v = ch_v
-        self.ch_h = ch_h
-        self.dev = dev
-
-    @classmethod
-    def from_str(cls, ch_str):
-        """Generates a channel object from a string, such as L2204 or GT1606."""
-        import re
-        m = re.search('[A-Z]{1,2}', ch_str)
-        try:
-            dev = m.group(0)
-        except:
-            raise AttributeError("Could not parse channel string {0:s)".format(ch_str))
-
-        m = re.search('[0-9]{4}', ch_str)
-        ch_num = int(m.group(0))
-        
-        ch_v = (ch_num % 100)
-        ch_h = int(ch_num // 100)
-
-        channel1 = cls(dev, ch_v, ch_h)
-
-        return(channel1)
-
-    def to_str(self):
-        """Returns a standardized string"""
-        ch_str = "{0:s}{1:02d}{2:02d}".format(self.dev, self.ch_h, self.ch_v)
 
 
 
