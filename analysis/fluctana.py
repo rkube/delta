@@ -44,66 +44,63 @@ from . import filtdata as ft
 #CM = plt.cm.get_cmap('hot')
 
 
-class FluctData(object):
-    def __init__(self, shot, clist, time, data, rpos, zpos, apos):
-        self.shot = shot
-        self.clist = clist
-        self.time = time # 1xN [time] 
-        self.data = data # MxN [channel,time]  
-        self.rpos = rpos # 1XM [channel]
-        self.zpos = zpos # 1XM [channel]
-        self.apos = apos # 1XM [channel]
+# class FluctData(object):
+#     def __init__(self, shot, clist, time, data, rpos, zpos, apos):
+#         self.shot = shot
+#         self.clist = clist
+#         self.time = time # 1xN [time] 
+#         self.data = data # MxN [channel,time]  
+#         self.rpos = rpos # 1XM [channel]
+#         self.zpos = zpos # 1XM [channel]
+#         self.apos = apos # 1XM [channel]
 
-    def get_data(self, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
-        # trim, normalize data
-        self.trange = trange
+#     def get_data(self, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
+#         # trim, normalize data
+#         self.trange = trange
 
-        if norm == 0:
-            if verbose == 1: print('Data is not normalized')
-        elif norm == 1:
-            if verbose == 1: print('Data is normalized by trange average')
-        elif norm == 2:
-            if verbose == 1: print('Data is normalized by atrange average')
+#         if norm == 0:
+#             if verbose == 1: print('Data is not normalized')
+#         elif norm == 1:
+#             if verbose == 1: print('Data is normalized by trange average')
+#         elif norm == 2:
+#             if verbose == 1: print('Data is normalized by atrange average')
 
-        # trim time
-        time, idx1, idx2 = self.time_base(trange)
+#         # trim time
+#         time, idx1, idx2 = self.time_base(trange)
 
-        if norm == 2:
-            _, aidx1, aidx2 = self.time_base(atrange)
+#         if norm == 2:
+#             _, aidx1, aidx2 = self.time_base(atrange)
 
-        # time series length
-        tnum = idx2 - idx1
-        # number of channels
-        cnum = len(self.clist)
+#         # time series length
+#         tnum = idx2 - idx1
+#         # number of channels
+#         cnum = len(self.clist)
 
-        raw_data = self.data
-        data = np.zeros((cnum, tnum))
-        for i in range(cnum):
-            v = raw_data[i,idx1:idx2]
+#         raw_data = self.data
+#         data = np.zeros((cnum, tnum))
+#         for i in range(cnum):
+#             v = raw_data[i,idx1:idx2]
 
-            if norm == 1:
-                v = v/np.mean(v) - 1
-            elif norm == 2:
-                v = v/np.mean(raw_data[i,aidx1:aidx2]) - 1
+#             if norm == 1:
+#                 v = v/np.mean(v) - 1
+#             elif norm == 2:
+#                 v = v/np.mean(raw_data[i,aidx1:aidx2]) - 1
 
-            data[i,:] = v
+#             data[i,:] = v
 
-        self.data = data
-        self.time = time
+#         self.data = data
+#         self.time = time
 
-        return time, data
+#         return time, data
 
-    def time_base(self, trange):
-        time = self.time
+#     def time_base(self, trange):
+#         time = self.time
         
-        idx = np.where((time >= trange[0])*(time <= trange[1]))
-        idx1 = int(idx[0][0])
-        idx2 = int(idx[0][-1]+2)
+#         idx = np.where((time >= trange[0])*(time <= trange[1]))
+#         idx1 = int(idx[0][0])
+#         idx2 = int(idx[0][-1]+2)
 
-
-
-
-        return time[idx1:idx2], idx1, idx2
+#         return time[idx1:idx2], idx1, idx2
         
 
 class FluctAna(object):
@@ -111,7 +108,6 @@ class FluctAna(object):
         self.Dlist = []
 
     def add_data(self, D, trange, norm=1, atrange=[1.0, 1.01], res=0, verbose=1):
-
         D.get_data(trange, norm=norm, atrange=atrange, res=res, verbose=verbose)
         self.Dlist.append(D)
 
@@ -247,7 +243,6 @@ class FluctAna(object):
         for d, D in enumerate(self.Dlist):
             # get bins and window function
             tnum = len(D.time)
-            print("D.time = ", D.time)
             bins, win = sp.fft_window(tnum, nfft, window, overlap)
             dt = D.time[1] - D.time[0]  # time step
 
@@ -267,6 +262,7 @@ class FluctAna(object):
                 D.spdata = np.zeros((cnum, bins, int(nfft/2+1)), dtype=np.complex_)
 
             for c in range(cnum):
+                print(c, cnum)
                 x = D.data[c,:]
                 D.ax, D.spdata[c,:,:], D.win_factor = sp.fftbins(x, dt, nfft, window, overlap, detrend, full)
 
@@ -348,47 +344,46 @@ class FluctAna(object):
 #             D.cwtdj = dj
 #             D.cwtts = ts
 
-#     def cross_power(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
-#         # IN : data number one (ref), data number two (cmp), etc
-#         # OUT : x-axis (ax), y-axis (val)
+    # def cross_power(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
+    #     # IN : data number one (ref), data number two (cmp), etc
+    #     # OUT : x-axis (ax), y-axis (val)
 
-#         self.Dlist[dtwo].vkind = 'cross_power'
+    #     self.Dlist[dtwo].vkind = 'cross_power'
 
-#         if done_subset is not None: 
-#             rnum = len(done_subset)
-#         else:
-#             rnum = len(self.Dlist[done].data)  # number of ref channels
-#             done_subset = range(rnum)
+    #     if done_subset is not None: 
+    #         rnum = len(done_subset)
+    #     else:
+    #         rnum = len(self.Dlist[done].data)  # number of ref channels
+    #         done_subset = range(rnum)
 
-#         if dtwo_subset is not None:
-#             cnum = len(dtwo_subset)
-#         else:
-#             cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
-#             dtwo_subset = range(cnum)
+    #     if dtwo_subset is not None:
+    #         cnum = len(dtwo_subset)
+    #     else:
+    #         cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
+    #         dtwo_subset = range(cnum)
 
+    #     # reference channel names
+    #     self.Dlist[dtwo].rname = []
 
-#         # reference channel names
-#         self.Dlist[dtwo].rname = []
+    #     # value dimension
+    #     self.Dlist[dtwo].val = np.zeros((cnum, len(self.Dlist[dtwo].ax)))
 
-#         # value dimension
-#         self.Dlist[dtwo].val = np.zeros((cnum, len(self.Dlist[dtwo].ax)))
+    #     # calculation loop for multi channels
+    #     for c in range(cnum):
+    #         # reference channel number
+    #         if rnum == 1:
+    #             self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[0]])
+    #             XX = self.Dlist[done].spdata[done_subset[0],:,:]
+    #         else:
+    #             self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
+    #             XX = self.Dlist[done].spdata[done_subset[c],:,:]
 
-#         # calculation loop for multi channels
-#         for c in range(cnum):
-#             # reference channel number
-#             if rnum == 1:
-#                 self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[0]])
-#                 XX = self.Dlist[done].spdata[done_subset[0],:,:]
-#             else:
-#                 self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
-#                 XX = self.Dlist[done].spdata[done_subset[c],:,:]
+    #         YY = self.Dlist[dtwo].spdata[dtwo_subset[c],:,:]
 
-#             YY = self.Dlist[dtwo].spdata[dtwo_subset[c],:,:]
-
-#             if self.Dlist[dtwo].ax[1] < 0: # full range
-#                 self.Dlist[dtwo].val[c,:] = sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)
-#             else: # half
-#                 self.Dlist[dtwo].val[c,:] = 2*sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)  # product 2 for half return
+    #         if self.Dlist[dtwo].ax[1] < 0: # full range
+    #             self.Dlist[dtwo].val[c,:] = sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)
+    #         else: # half
+    #             self.Dlist[dtwo].val[c,:] = 2*sp.cross_power(XX, YY, self.Dlist[dtwo].win_factor)  # product 2 for half return
 
 #     def coherence(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None):
 #         # IN : data number one (ref), data number two (cmp), etc

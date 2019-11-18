@@ -29,8 +29,8 @@ python -u processor_dask.py
 
 # Add project directory into the python path so that imports work in code that is
 # distributed to dask worker clients
-import sys
-sys.path.append("/global/homes/r/rkube/repos/delta")
+#import sys
+#sys.path.append("/global/homes/r/rkube/repos/delta")
 
 import numpy as np 
 
@@ -49,6 +49,14 @@ mongo_client = mongodb_backend()
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 
 
+# Add the source path to all workers so that the imports are working :)
+def add_path():
+    import sys
+    sys.path.append("/global/homes/r/rkube/repos/delta")
+
+dask_client.run(add_path)
+
+
 # Parse command line arguments and read configuration file
 parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one_fluctana.json')
@@ -62,7 +70,6 @@ with open(args.config, "r") as df:
 task_list = []
 for task_config in cfg["task_list"]:
     task_list.append(task_fluctana(cfg["shotnr"], task_config))
-
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -81,23 +88,16 @@ while(True):
         task_futures = []
 
         # generate a dummy time-base for the data of the current chunk
-        dummy_tb = np.arange(0.0, 1e-2, 2e-6) * float(s+1)
+        dummy_tb = np.arange(0.0, 2e-2, 2e-6) * float(s+1)
         for task in task_list:
             ecei_data = reader.Get(task.ch_list)
-
-            print("Ecei_data: min={0:4f}, max={1:4f}, mean={2:4f}".format(ecei_data.min(), ecei_data.max(), ecei_data.mean()))
-
             task.update_data(ecei_data, dummy_tb)
-            #for channel in task.channel_list:
-            #    ecei_data = reader.Get("ECEI_" + channel)
-            #    task.update_data(ecei_data, channel, dummy_tb)
 
-            #task.create_task_object()
+            # Method 1: Pass dask_client to object
+            #task_futures.append(task.method(dask_client))
 
-            #task_futures.append(task.calculate(dask_client))
-            #task.dispatch(dask_client)
-
-            task_futures.append(dask_client.submit(task.method(), task.fluct_data))
+            # Method 2: Get method and data from object
+            task_futures.append(dask_client.submit(task.get_method(), task.get_data()))
 
     else:
         print("End of stream")
@@ -110,7 +110,7 @@ while(True):
 #         mongo_client.store(task)
 
     for task, future in zip(task_list, task_futures):
-        print(task, future)
+        print(task, future.result())
 
     # Do only 10 time steps for now
     s -= -1
