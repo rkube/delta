@@ -16,7 +16,7 @@ class reader_base():
         """Opens a new channel"""
         from os.path import join
 
-        self.channel_name = join(datapath, "KSTAR_{0:06d}.bp".format(self.shotnr))
+        self.channel_name = join(datapath, "KSTAR.bp".format(self.shotnr))
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
 

@@ -1,5 +1,5 @@
 {
- "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
+ "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
  "shotnr": 18431,
  "task_list": [{
                     "channels": ["L0101", "L0102"],

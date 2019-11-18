@@ -84,6 +84,9 @@ while(True):
         dummy_tb = np.arange(0.0, 1e-2, 2e-6) * float(s+1)
         for task in task_list:
             ecei_data = reader.Get(task.ch_list)
+
+            print("Ecei_data: min={0:4f}, max={1:4f}, mean={2:4f}".format(ecei_data.min(), ecei_data.max(), ecei_data.mean()))
+
             task.update_data(ecei_data, dummy_tb)
             #for channel in task.channel_list:
             #    ecei_data = reader.Get("ECEI_" + channel)

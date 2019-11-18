@@ -66,7 +66,7 @@ for chlist, bp_var_list in zip([chlist_g, chlist_h, chlist_l],
         var = bpIO.DefineVariable(ch_name, dummy_arr, dummy_shape, dummy_start, dummy_count, adios2.ConstantDims)
         bp_var_list.append(var)
 
- #for tstep in range(num_timesteps):
+for tstep in range(num_timesteps):
     t0 = tstep * num_per_chunk
     t1 = (tstep + 1) * num_per_chunk
     print("Time step {0:d}: {1:d} - {2:d}".format(tstep, t0, t1))
