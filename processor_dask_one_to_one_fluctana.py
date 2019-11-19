@@ -33,6 +33,7 @@ python -u processor_dask.py
 #sys.path.append("/global/homes/r/rkube/repos/delta")
 
 import numpy as np 
+import dask.array as da
 
 import json
 import argparse
@@ -41,6 +42,7 @@ from distributed import Client, progress
 from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fluctana import task_fluctana
+from analysis.task_fft import task_fft_scipy
 
 
 # This object manages storage to a backend.
@@ -66,15 +68,23 @@ with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
 
+# Sample rate in Hz
+cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
+
+
 # Build list of analysis tasks that are performed at any given time step
 task_list = []
 for task_config in cfg["task_list"]:
-    task_list.append(task_fluctana(cfg["shotnr"], task_config))
+    task_list.append(task_fluctana(cfg["shotnr"], task_config, cfg["ECEI_cfg"]))
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
 reader = reader_bpfile(shotnr)
 reader.Open(cfg["datapath"])
+
+# Create the FFT task
+my_fft = task_fft_scipy(10_000, cfg["fft_params"], normalize=True, detrend=True)
+
 
 print("Starting main loop")
 s = 0
@@ -90,14 +100,23 @@ while(True):
         # generate a dummy time-base for the data of the current chunk
         dummy_tb = np.arange(0.0, 2e-2, 2e-6) * float(s+1)
         for task in task_list:
-            ecei_data = reader.Get(task.ch_list)
-            task.update_data(ecei_data, dummy_tb)
+            # Get the raw data from the stream
+            raw_data = reader.Get(task.ch_list)
+            # Create a dask array
+            # See http://matthewrocklin.com/blog/work/2017/01/17/dask-images
+            raw_data = da.from_array(raw_data, chunks=(1, 10_000))
+            dask_client.persist(raw_data)
+
+            # Perform a FFT pm the raw data
+            data_ft = my_fft.do_fft(dask_client, raw_data)
+
+            #task.update_data(data_ft, dummy_tb)
 
             # Method 1: Pass dask_client to object
             #task_futures.append(task.method(dask_client))
 
             # Method 2: Get method and data from object
-            task_futures.append(dask_client.submit(task.get_method(), task.get_data()))
+            #task_futures.append(dask_client.submit(task.get_method(), task.get_data()))
 
     else:
         print("End of stream")

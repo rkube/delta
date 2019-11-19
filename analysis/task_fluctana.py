@@ -77,7 +77,7 @@ def test_cross_power(args):
 
 class task_fluctana():
     """A wrapper around FluctAna objects to be submitted to dask worker clients"""
-    def __init__(self, shotnr, config):
+    def __init__(self, shotnr, config, ecei_config):
         """
         Defines a list of fluctana tasks
 
@@ -85,15 +85,16 @@ class task_fluctana():
         ======
         shotnr: int, Shot number
         config: Dictionary 
+        ecei_config, passed to KstarEcei
         """  
 
         self.ch_list = channel_list(channel.from_str(config["channels"][0]),
                                     channel.from_str(config["channels"][-1]))
         self.description = config["description"]
         self.analysis = config["analysis"]
-        self.fft_params = config["fft_params"]
+        #self.fft_params = config["fft_params"]
 
-        data_obj = KstarEcei(shotnr, [c.to_str() for c in self.ch_list], config)
+        data_obj = KstarEcei(shotnr, [c.__str__() for c in self.ch_list], ecei_config)
 
         self.fluctana = FluctAna()
         self.fluctana.Dlist.append(data_obj)
@@ -122,11 +123,11 @@ class task_fluctana():
         self.fluctana.Dlist[0].trange = trange
         self.fluctana.list_data()
 
-        if self.first_call:
-            self.fluctana.fftbins(nfft=self.fft_params["nfft"], window=self.fft_params['window'], 
-                                  overlap=self.fft_params['overlap'], 
-                                  detrend=self.fft_params['detrend'], full=1)
-            self.first_call = False
+        # if self.first_call:
+        #     self.fluctana.fftbins(nfft=self.fft_params["nfft"], window=self.fft_params['window'], 
+        #                           overlap=self.fft_params['overlap'], 
+        #                           detrend=self.fft_params['detrend'], full=1)
+        #     self.first_call = False
 
     def method(self, dask_client):
         """Creates a wrapper to call the appropriate analysis function"""

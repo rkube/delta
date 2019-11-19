@@ -20,12 +20,12 @@ VN = 24  # number of vertical arrays
 
 
 class KstarEcei(object):
-    def __init__(self, shot, clist, cfg):
+    def __init__(self, shot, clist, ECEI_cfg):
         self.shot = shot
         
-        if cfg is not None:
+        #if ECEI_cfg is not None:
             #TODO: Change to something more informative?
-            self.data_path = 'adios_streaming'
+        self.data_path = 'adios_streaming'
         #elif data_path is not None:
         #    self.data_path = data_path
         #else:
@@ -66,7 +66,7 @@ class KstarEcei(object):
 
         # get attributes
         #if cfg is not None:
-        self.read_init(cfg["ECEI_cfg"])
+        self.read_init(ECEI_cfg)
         #else:
         #    with h5py.File(self.fname, 'r') as f:
         #        # get attributes
@@ -88,7 +88,7 @@ class KstarEcei(object):
     def read_init(self, dset):
         self.tt = dset['TriggerTime'] # in [s]
         self.toff = self.tt[0]+0.001
-        self.fs = dset['SampleRate'][0]*1000.0  # in [Hz] same sampling rate
+        self.fs = dset['SampleRate']*1000.0  # in [Hz] same sampling rate
         self.itf = dset['TFcurrent']*1.0e3  # [A]
         try:
             self.mode = dset['Mode'].strip().decode()

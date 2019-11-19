@@ -1,10 +1,10 @@
-# Coding: UTF-8 -*-
+# Encoding: UTF-8 -*-
 import time
 
 import numpy as np
+import dask.array as da
 from scipy import signal
 
-#import matplotlib.pyplot as plt
 
 def fft_window(tnum, nfft, window, overlap):
     # IN : full length of time series, nfft, window name, overlap ratio
@@ -469,3 +469,6 @@ def get_kidx(full):
         kidx.append(idx)
 
     return kidx
+
+
+# End of file specs.py

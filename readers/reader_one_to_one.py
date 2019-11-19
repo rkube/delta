@@ -67,7 +67,8 @@ class reader_base():
         elif (isinstance(varname, channel_list)):
             data_list = []
             for v in varname:
-                var = self.IO.InquireVariable("ECEI_" + v.to_str())
+                #print("Inquiring: " + "ECEI_" + str(v))
+                var = self.IO.InquireVariable("ECEI_" + str(v))
                 io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
                 self.reader.Get(var, io_array, adios2.Mode.Sync)
                 data_list.append(io_array)
