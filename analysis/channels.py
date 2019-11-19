@@ -8,10 +8,11 @@ def ch_num_to_hv(ch_num):
     return(ch_h, ch_v)
 
 
-def ch_hv_to_num(ch_h, ch_v):
+def ch_hv_to_num(ch_h, ch_v, debug=False):
     """Returns the channel number 1..192 from a channel h and v"""
-    assert((ch_v > 0) & (ch_v < 9))
-    assert((ch_h > 0) & (ch_h < 25))
+    if debug:
+        assert((ch_v > 0) & (ch_v < 9))
+        assert((ch_h > 0) & (ch_h < 25))
 
     return(ch_h * 8 + ch_v)
 
@@ -36,9 +37,11 @@ class channel_list:
         self.ch_hi, self.ch_vi = ch_start.ch_h, ch_start.ch_v
         self.ch_hf, self.ch_vf = ch_end.ch_h, ch_end.ch_v
 
-
         self.ch_h = self.ch_hi
         self.ch_v = self.ch_vi
+
+        assert(mode in ["linear", "rectangle"])
+        self.mode = mode
 
 
     def __iter__(self):
@@ -46,6 +49,42 @@ class channel_list:
         self.ch_v = self.ch_vi
 
         return(self)
+
+    def __next__(self):
+
+        # Test if we are on the last iteration
+        if self.mode == "linear":
+            # Remember to set debug=False so that we don't raise out-of-bounds errors
+            # when generating the linear indices
+            if(ch_hv_to_num(self.ch_h, self.ch_v, debug=False) > ch_hv_to_num(self.ch_hf, self.ch_vf, debug=False)):
+                raise StopIteration
+
+        elif self.mode == "rectangle":
+            if((self.ch_h > self.ch_hf) | (self.ch_v > self.ch_vf)):
+                raise StopIteration
+
+        # IF we are not out of bounds, make a copy of the current h and v
+        ch_h = self.ch_h
+        ch_v = self.ch_v
+
+        # Increase the horizontal channel and reset vertical channel number.
+        # When iterating linearly, set v to 1
+        if self.mode == "linear":
+            if(self.ch_v == 8):
+                self.ch_v = 1
+                self.ch_h += 1
+            else:
+                self.ch_v += 1
+
+        elif self.mode == "rectangle":
+            if(self.ch_v == self.ch_vf):
+                self.ch_v = self.ch_vi 
+                self.ch_h += 1
+            else:
+                self.ch_v += 1
+
+        # Return a channel with the previous ch_h 
+        return channel(self.dev, ch_h, ch_v)
 
 
     @classmethod
@@ -78,31 +117,7 @@ class channel_list:
         ch_hf = int(ch_f // 100)
         ch_f = channel(dev, ch_hf, ch_vf)
 
-
         return channel_list(ch_i, ch_f)
-
-
-
-        ch_v = (ch_num % 100)
-        ch_h = int(ch_num // 100)
-
-        channel1 = cls(dev, ch_h, ch_v)
-
-
-    def __next__(self):
-        ch_h = self.ch_h
-        ch_v = self.ch_v
-
-        if((self.ch_h >= self.ch_hf) & (self.ch_v > self.ch_vf)):
-            raise StopIteration
-
-        if(self.ch_v == 8):
-            self.ch_v = 1
-            self.ch_h -= -1
-        else:
-            self.ch_v -= -1
-
-        return channel(self.dev, ch_h, ch_v)    
 
 
 
@@ -155,11 +170,15 @@ class channel():
 
         return(channel1)
 
-    def to_str(self):
+    def __str__(self):
         """Returns a standardized string"""
         ch_str = "{0:s}{1:02d}{2:02d}".format(self.dev, self.ch_h, self.ch_v)
 
         return(ch_str)
+
+    def idx(self):
+        """Returns the linear index corresponding to ch_h and ch_v"""
+        return ch_hv_to_num(self.ch_h, self.ch_v)
 
 
 # End of file channels.py
