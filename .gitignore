@@ -3,3 +3,5 @@ __pycache__
 *.bp
 worker-*
 *lock
+*npz
+tests_div/.ipynb_checkpoints/

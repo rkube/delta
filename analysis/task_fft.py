@@ -3,7 +3,7 @@
 
 """
 This defines a task that performs a FFT of the stremed chunks for the dask application.
-All helper functions are defined locally and adapted from specs.py
+All helper functions are defined locally and adapted from specs.py anf fluctana.py
 """
 
 import numpy as np
@@ -89,8 +89,9 @@ def allocate_fft_data(nfft, bins, full):
 
 
 
-class task_fft():
-    """Performs a DFT for incoming data chunks."""
+class task_fft_kstar():
+    """Performs a DFT for incoming data chunks. This class uses the methods provided in
+    the fluctana package for the DFTs."""
     def __init__(self, data_per_chunk, fft_params, normalize=True, detrend=True):
         """
         Inputs:
@@ -182,18 +183,42 @@ class task_fft_scipy():
 
 
     def do_fft(self, dask_client, raw_data):
-        
+        """Dispatch a STFT to the workers.
+        For details on how the STFT relates to other spectrograms, see
+        tests_div/scipy_compare_spectrograms.ipynb
+
+        The spectrogram is computed using
+        *self.nfft points per fft
+        *self.window as the windowing function
+        *self.nfft as nperseg
+        *self.noverlap = int(self.nfft * self.overlap) the overlap
+        linear detrending
+
+        The returned spectrogram is the average of all calculated fourier transformations.
+
+        Input:
+        ======
+        dask_client:
+        raw_data:
+
+        Returns:
+        ========
+
+        List of futures
+        """
+
         def stft_scipy(data_in, idx):
             res = spectrogram(data_in, nfft=self.nfft, window=self.window,
                               nperseg=self.nfft,
                               detrend="linear", noverlap=self.noverlap,
                               scaling="spectrum", mode="complex", return_onesided=False)
-            return res[2]
+            #print("***do_fft() stft_scipy: ", type(res[2]), res[2].shape)
+            return res[2].mean(axis=1)
 
-        futures = dask_client.map(stft_scipy, raw_data, range(2))
-        results = dask_client.gather(futures)
+        # Distribute the stft function to the workers
+        futures = dask_client.map(stft_scipy, raw_data, range(8))
 
-        return(results)
+        return(futures)
 
 
 # End of file task_fft.py

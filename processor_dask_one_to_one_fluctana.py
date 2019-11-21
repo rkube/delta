@@ -41,7 +41,7 @@ from distributed import Client, progress
 
 from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
-from analysis.task_fluctana import task_fluctana
+#from analysis.task_fluctana import task_fluctana
 from analysis.task_fft import task_fft_scipy
 
 
@@ -99,17 +99,32 @@ while(True):
 
         # generate a dummy time-base for the data of the current chunk
         dummy_tb = np.arange(0.0, 2e-2, 2e-6) * float(s+1)
+  
+        # Get the raw data from the stream
+        raw_data = reader.Get()
+        # Create a dask array
+        # See http://matthewrocklin.com/blog/work/2017/01/17/dask-images
+        raw_data = da.from_array(raw_data, chunks=(1, 10_000))
+        dask_client.persist(raw_data)
+
+        # Perform a FFT on the raw data
+        fft_futures = my_fft.do_fft(dask_client, raw_data)
+        # gather pulls the result of the operation: 
+        # https://docs.dask.org/en/latest/futures.html#distributed.Client.gather
+        results = dask_client.gather(fft_futures)
+
+        #print(type(results))
+        #for r in results:
+        #    print("***main: type(r): ", type(r))
+
+        fft_data = da.from_array(results)
+        #
+        if (s == 0):
+            print("***computing fft_data: ", type(fft_data.compute()))
+            np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
+
         for task in task_list:
-            # Get the raw data from the stream
-            raw_data = reader.Get(task.ch_list)
-            # Create a dask array
-            # See http://matthewrocklin.com/blog/work/2017/01/17/dask-images
-            raw_data = da.from_array(raw_data, chunks=(1, 10_000))
-            dask_client.persist(raw_data)
-
-            # Perform a FFT pm the raw data
-            data_ft = my_fft.do_fft(dask_client, raw_data)
-
+            pass
             #task.update_data(data_ft, dummy_tb)
 
             # Method 1: Pass dask_client to object

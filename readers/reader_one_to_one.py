@@ -46,29 +46,40 @@ class reader_base():
         return(res)
 
     
-    def Get(self, varname):
+    def Get(self, channels=None):
         """Get data from varname at current step.
         Inputs:
         =======
-        varname: Either a string or a list of channels
+        channels: Either None, a string or a list of channels. Attempt to read all ECEI channels
+                  if channels is None
         
         Returns:
         ========
         io_array: numpy ndarray for the data
         """
 
-        if (isinstance(varname, str)):
+        if (isinstance(channels, str)):
             var = self.IO.InquireVariable("ECEI_" + varname)
             io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
             self.reader.Get(var, io_array, adios2.Mode.Sync)
             return(io_array)
 
-
-        elif (isinstance(varname, channel_list)):
+        elif (isinstance(channels, channel_list)):
             data_list = []
-            for v in varname:
-                #print("Inquiring: " + "ECEI_" + str(v))
-                var = self.IO.InquireVariable("ECEI_" + str(v))
+            for c in channels:
+                var = self.IO.InquireVariable("ECEI_" + str(c))
+                io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
+                self.reader.Get(var, io_array, adios2.Mode.Sync)
+                data_list.append(io_array)
+
+            return np.array(data_list)
+
+        elif isinstance(channels, type(None)):
+            data_list = []
+            print("Reader::Get*** Default reading channels L0101-L0108")
+            clist = channel_list(channel("L", 1, 1), channel("L", 1, 8))
+            for c in clist:
+                var = self.IO.InquireVariable("ECEI_" + str(c))
                 io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
                 self.reader.Get(var, io_array, adios2.Mode.Sync)
                 data_list.append(io_array)
