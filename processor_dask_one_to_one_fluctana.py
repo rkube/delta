@@ -39,13 +39,15 @@ from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 
-from analysis.task_spectral import task_spectral, task_cross_phase
+from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_xspec
 
 
 # task_object_dict maps the string-value of the analysis field in the json file
 # to an object that defines an appropriate analysis function.
-task_object_dict = {"cross_phase": task_cross_phase}
-
+task_object_dict = {"cross_phase": task_cross_phase,
+                    "cross_power": task_cross_power,
+                    "coherence": task_coherence,
+                    "xspec": task_xspec}
 
 
 # This object manages storage to a backend.
@@ -117,7 +119,7 @@ while(True):
         # Option 2)
         # Scatter the raw data to the workers. To reference the t
         stream_data_future = dask_client.scatter(stream_data, broadcast=True)
-        print("*** types(stream_data_future), ", type(stream_data_future), stream_data_future)
+        print("*** main_loop: types(stream_data_future), ", type(stream_data_future), stream_data_future)
 
         # Perform a FFT on the raw data
         fft_future = my_fft.do_fft(dask_client, stream_data_future)
@@ -137,9 +139,10 @@ while(True):
         #    np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
 
 
-        print("*** type(fft_future) = ", type(fft_future))
+        print("*** main_loop: type(fft_future) = ", type(fft_future), fft_future)
 
         for task in task_list:
+            print("*** main_loop: ", task.description)
             task.calculate(dask_client, fft_future)
             #task.update_data(data_ft, dummy_tb)
 

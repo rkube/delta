@@ -4,24 +4,11 @@ from analysis.channels import channel, channel_list
 #import numpy as np
 
 
-def cross_phase(fft_data, ch0, ch1):
-    """Kernel that calculates the cross-phase between two channels.
-    Input:
-    ======
-    fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
-    ch0: int, index for first channel
-    ch1: int, index for second channel
 
-    Returns:
-    ========
-    cp: float, the cross phase
-    """    
 
-    from math import atan2
-    _tmp1 = (fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().compute()
-    #print(dir(_tmp1), type(_tmp1))
-    #return(0.0)
-    return(atan2(_tmp1.real, _tmp1.imag).real)
+
+
+
 
 
 
@@ -55,7 +42,8 @@ class task_spectral():
         except KeyError:
             self.kwargs = None
 
-        self.storage_scheme = None
+        self.storage_scheme =  {"ref_channels": self.ref_channels.to_str(),
+                                "cross_channels": self.x_channels.to_str()}
 
 
     def calculate(self, *args):
@@ -66,11 +54,8 @@ class task_cross_phase(task_spectral):
     """This class calculates the cross-phase via the calculate method."""
     def __init__(self, task_config):
         super().__init__(task_config)
+        self.storage_scheme["analysis_name"] = "cross_phase"
 
-
-        self.storage_scheme = {"analysis_name": "cross_phase",
-                               "ref_channels": self.ref_channels.to_str(),
-                               "cross_channels": self.ref_channels.to_str()}
 
 
     def calculate(self, dask_client, fft_future):
@@ -99,11 +84,27 @@ class task_cross_phase(task_spectral):
         future: dask future that holds the result of the analysis.
         """
 
+        # Somehow dask complains when we don't define the function in the local scope.
+        def cross_phase(fft_data, ch0, ch1):
+            """Kernel that calculates the cross-phase between two channels.
+            Input:
+            ======
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: int, index for first channel
+            ch1: int, index for second channel
 
-        print("Calculating cross-phase")
+            Returns:
+            ========
+            cp: float, the cross phase
+            """    
+
+            from math import atan2
+            _tmp1 = (fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().compute()
+            return(atan2(_tmp1.real, _tmp1.imag).real)
+
 
         #self.futures_list = []
-        # TODO: We dispatc each cross_phase calculation to a kernel function.
+        # TODO: We dispatch each cross_phase calculation to a kernel function.
         # See how the performance of this method stacks against using dask array methods directly.
         # Compare to tests_analysis/test_crossphase.py
         #for ch_r in self.ref_channels:
@@ -113,9 +114,122 @@ class task_cross_phase(task_spectral):
 
         self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
 
-
-
         return None
+
+
+class task_cross_power(task_spectral):
+    """This class calculates the cross-power between two channels."""
+    def __init__(self, task_config):
+        super().__init__(task_config)
+        self.storage_scheme["analysis_name"] = "cross_power"
+ 
+
+    def calculate(self, dask_client, fft_future):
+        def cross_power(fft_data, ch0, ch1):
+            """Kernel that calculates the cross-power between two channels.
+            Input:
+            ======    
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: int, index for first channel
+            ch1: int, index for second channel
+
+            Returns:
+            ========
+            cross_power, float.
+            """
+            return((fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().__abs__().compute())
+    
+
+        self.futures_list = [dask_client.submit(cross_power, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
+        return None        
+
+
+class task_coherence(task_spectral):
+    """This class calculates the coherence between two channels."""
+    def __init__(self, task_config):
+        super().__init__(task_config)
+        self.storage_scheme["analysis_name"] = "coherence"
+
+    
+    def calculate(self, dask_client, fft_future):
+        def coherence(fft_data, ch0, ch1):
+            """Kernel that calculates the coherence between two channels.
+            Input:
+            ======    
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: int, index for first channel
+            ch1: int, index for second channel
+
+            Returns:
+            ========
+            coherence, float.
+            """
+
+            from numpy import sqrt, mean, fabs
+            X = fft_data[ch0, :].compute()
+            Y = fft_data[ch1, :].compute()
+            Gxy = fabs(mean(X * Y.conj() / sqrt(X * X.conj() * Y * Y.conj())).real)
+
+            return(Gxy)
+
+        self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
+        return None  
+
+
+class task_xspec(task_spectral):
+    """This class calculates the coherence between two channels."""
+    def __init__(self, task_config):
+        super().__init__(task_config)
+        self.storage_scheme["analysis_name"] = "xspec"
+    
+    def calculate(self, dask_client, fft_future):
+        def xspec(fft_data, ch0, ch1):
+            """Kernel that calculates the coherence between two channels.
+            Input:
+            ======    
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: int, index for first channel
+            ch1: int, index for second channel
+
+            Returns:
+            ========
+            coherence, float.
+            """
+
+           return 0.0
+
+        #self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
+        raise NotImplementedError
+        return None  
+
+
+class task_bicoherence(task_spectral):
+    """This class calculates the bicoherence between two channels."""
+    def __init__(self, task_config):
+        super().__init__(task_config)
+        self.storage_scheme["analysis_name"] = "xspec"
+    
+    def calculate(self, dask_client, fft_future):
+        def bicoherence(fft_data, ch0, ch1): 
+            """Kernel that calculates the bi-coherence between two channels.
+            Input:
+            ======    
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: int, index for first channel
+            ch1: int, index for second channel
+
+            Returns:
+            ========
+            bicoherence, float.
+            """
+            import numpy as np
+
+            X = fft_data[ch0, :].compute()
+            Y = fft_data[ch1, :].compute()
+
+            
+
+
 
 
 
@@ -124,12 +238,7 @@ class task_cross_phase(task_spectral):
     #         raise NotImplementedError
     #     # 3)
     #     elif self.analysis == "coherence":
-    #         raise NotImplementedError
-
-    #     # 4) 
-    #     elif self.analysis == "cross-power":
-    #         raise NotImplementedError
-        
+    #         raise NotImplementedError        
     #     # 5)
     #     elif self.analysis == "correlation":
     #         raise NotImplementedError
@@ -138,9 +247,6 @@ class task_cross_phase(task_spectral):
     #     elif self.analysis == "corr_coeff":
     #         raise NotImplementedError
 
-    #     # 7)
-    #     elif self.analysis == "xspec":
-    #         raise NotImplementedError
 
     #     # 8)
     #     elif self.analysis == "skw":

@@ -4,17 +4,6 @@ from pymongo import MongoClient
 from bson.binary import Binary
 import datetime
 
-# Schemes that describe how results from a given analysis is stored in the database
-#schemes_dict={"power_spectrum": lambda task, result: {"routine_name": task.task_name,
-#                                                      "channel": task.channel_list[0],
-#                                                      "kwargs": task.kw_dict,
-#                                                      "f": result[0].tolist(),
-#                                                      "Pxx": result[1].tolist()},
-#              "cross_phase": lambda task, result: {"analysis_name": task.analysis,
-#                                                   "ref_channels" : task.ref_channels.to_str(),
-#                                                   "cross_channels" : task.x_channels.to_str(),
-#                                                   "result": ["{0:8.6f}".format(r) for r in result]}}
-
 
 class mongodb_backend():
     def __init__(self, rank=0, channel_list=[]):
