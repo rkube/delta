@@ -14,7 +14,7 @@ def ch_hv_to_num(ch_h, ch_v, debug=False):
         assert((ch_v > 0) & (ch_v < 9))
         assert((ch_h > 0) & (ch_h < 25))
 
-    return(ch_h * 8 + ch_v)
+    return((ch_h - 1) * 8 + ch_v - 1)
 
 
 class channel_list:
@@ -102,10 +102,7 @@ class channel_list:
         except:
             raise AttributeError("Could not parse channel string {0:s}".format(ch_str))
 
-
         m = re.findall('[0-9]{4}', range_str)
-
-        print(m)
 
         ch_i = int(m[0])
         ch_vi = ch_i % 100
@@ -118,6 +115,21 @@ class channel_list:
         ch_f = channel(dev, ch_hf, ch_vf)
 
         return channel_list(ch_i, ch_f)
+
+    def length(self):
+        """Calculates the number of channels in the list."""
+
+        chnum_f = ch_hv_to_num(self.ch_hf, self.ch_vf)
+        chnum_i = ch_hv_to_num(self.ch_hi, self.ch_vi)
+
+        return(chnum_f - chnum_i + 1)
+
+    
+    def to_str(self):
+        """Formats the channel list as f.ex. GT1207-2201"""
+
+        ch_str = "{0:s}{1:02d}{2:02d}-{3:02d}{4:02d}".format(self.dev, self.ch_hi, self.ch_vi, self.ch_hf, self.ch_vf)
+        return(ch_str)
 
 
 

@@ -164,8 +164,6 @@ class task_fft_scipy():
         detrend: bool, If true, detrend data before applying FFTs.
         """
 
-        print("init: fft_params = ", fft_params)
-
         self.ndata = data_per_chunk
         # nfft: Number of data points per fft
         self.nfft = fft_params["nfft"]
@@ -182,7 +180,7 @@ class task_fft_scipy():
         self.noverlap = int(self.nfft * self.overlap)
 
 
-    def do_fft(self, dask_client, raw_data):
+    def do_fft(self, dask_client, stream_data_future):
         """Dispatch a STFT to the workers.
         For details on how the STFT relates to other spectrograms, see
         tests_div/scipy_compare_spectrograms.ipynb
@@ -199,7 +197,7 @@ class task_fft_scipy():
         Input:
         ======
         dask_client:
-        raw_data:
+        stream_data_future:
 
         Returns:
         ========
@@ -208,7 +206,8 @@ class task_fft_scipy():
         """
 
         def stft_scipy(data_in, idx):
-            res = spectrogram(data_in, nfft=self.nfft, window=self.window,
+            #print("***do_fft() stft_scipy: idx=", idx, ", data_in.shape=", data_in.shape)
+            res = spectrogram(data_in[idx, :], nfft=self.nfft, window=self.window,
                               nperseg=self.nfft,
                               detrend="linear", noverlap=self.noverlap,
                               scaling="spectrum", mode="complex", return_onesided=False)
@@ -216,7 +215,7 @@ class task_fft_scipy():
             return res[2].mean(axis=1)
 
         # Distribute the stft function to the workers
-        futures = dask_client.map(stft_scipy, raw_data, range(8))
+        futures = [dask_client.submit(stft_scipy, stream_data_future, idx) for idx in range(192)]
 
         return(futures)
 

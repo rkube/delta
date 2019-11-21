@@ -8,7 +8,9 @@
               "LensFocus": 80,
               "LensZoom": 340},
  "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
- "task_list": [{"channels": ["L0101", "L0102"],
-                "description" : "ralphs_task", 
-                "analysis": "cross_power"}]                   
+ "task_list": [{"description" : "ralphs_task", 
+                "analysis": "cross_phase",
+                "kwargs" : {"ref_channels" : ["L0101-0101"],
+                            "x_channels" : ["L0101-0108"]}}]
+
 }

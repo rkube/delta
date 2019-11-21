@@ -76,8 +76,8 @@ class reader_base():
 
         elif isinstance(channels, type(None)):
             data_list = []
-            print("Reader::Get*** Default reading channels L0101-L0108")
-            clist = channel_list(channel("L", 1, 1), channel("L", 1, 8))
+            print("Reader::Get*** Default reading channels L0101-L2408")
+            clist = channel_list(channel("L", 1, 1), channel("L", 24, 8))
             for c in clist:
                 var = self.IO.InquireVariable("ECEI_" + str(c))
                 io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)

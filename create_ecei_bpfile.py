@@ -45,7 +45,7 @@ for h5_fname, chlist in zip([h5fname_g, h5fname_h, h5fname_l],
 adios = adios2.ADIOS(adios2.DebugON)
 bpIO = adios.DeclareIO("KSTAR")
 bpIO.SetEngine("BP4")
-bpWriter = bpIO.Open(join(scratch_dir, datadir, "KSTAR.bp"), adios2.Mode.Write)
+bpWriter = bpIO.Open(join(scratch_dir, datadir, "KSTAR_018431_f32.bp"), adios2.Mode.Write)
 
 
 # # Add all fields from the three H5 files to our bp file.
@@ -55,7 +55,7 @@ bp_var_list_h = []
 bp_var_list_l = []
 
 # # Add all the channels as variables to the bp file
-dummy_arr = np.zeros(num_per_chunk, dtype=np.float64)
+dummy_arr = np.zeros(num_per_chunk, dtype=np.float32)
 dummy_shape = [num_per_chunk]
 dummy_start = [0]
 dummy_count = [num_per_chunk]
@@ -79,7 +79,7 @@ for tstep in range(num_timesteps):
         with h5py.File(h5_fname) as h5file:
             for ch, bp_var in zip(ch_list, bp_var_list):
                 h5data = h5file["/ECEI/{0:s}/Voltage".format(ch)][t0:t1]
-                bpWriter.Put(bp_var, h5data.astype(np.float64), adios2.Mode.Sync)
+                bpWriter.Put(bp_var, h5data.astype(np.float32), adios2.Mode.Sync)
                               
     bpWriter.EndStep()
 

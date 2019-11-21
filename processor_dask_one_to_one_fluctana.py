@@ -27,10 +27,6 @@ python -u processor_dask.py
 
 """
 
-# Add project directory into the python path so that imports work in code that is
-# distributed to dask worker clients
-#import sys
-#sys.path.append("/global/homes/r/rkube/repos/delta")
 
 import numpy as np 
 import dask.array as da
@@ -41,8 +37,15 @@ from distributed import Client, progress
 
 from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
-#from analysis.task_fluctana import task_fluctana
 from analysis.task_fft import task_fft_scipy
+
+from analysis.task_spectral import task_spectral, task_cross_phase
+
+
+# task_object_dict maps the string-value of the analysis field in the json file
+# to an object that defines an appropriate analysis function.
+task_object_dict = {"cross_phase": task_cross_phase}
+
 
 
 # This object manages storage to a backend.
@@ -73,9 +76,13 @@ cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
 
 
 # Build list of analysis tasks that are performed at any given time step
+# Here we iterate over the task list defined in the json file
+# Each task needs to define the field 'analysis' that describes an analysis to be performed
+# The dictionary task_object_dict maps the string value of this field to an object that is later
+# called to perform the analysis.
 task_list = []
 for task_config in cfg["task_list"]:
-    task_list.append(task_fluctana(cfg["shotnr"], task_config, cfg["ECEI_cfg"]))
+    task_list.append(task_object_dict[task_config["analysis"]](task_config))
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -101,30 +108,39 @@ while(True):
         dummy_tb = np.arange(0.0, 2e-2, 2e-6) * float(s+1)
   
         # Get the raw data from the stream
-        raw_data = reader.Get()
-        # Create a dask array
+        stream_data = reader.Get()
+        # Option 1) Create a dask array
         # See http://matthewrocklin.com/blog/work/2017/01/17/dask-images
-        raw_data = da.from_array(raw_data, chunks=(1, 10_000))
-        dask_client.persist(raw_data)
+        #raw_data = da.from_array(raw_data, chunks=(1, 10_000))
+        #dask_client.persist(raw_data)
+
+        # Option 2)
+        # Scatter the raw data to the workers. To reference the t
+        stream_data_future = dask_client.scatter(stream_data, broadcast=True)
+        print("*** types(stream_data_future), ", type(stream_data_future), stream_data_future)
 
         # Perform a FFT on the raw data
-        fft_futures = my_fft.do_fft(dask_client, raw_data)
+        fft_future = my_fft.do_fft(dask_client, stream_data_future)
         # gather pulls the result of the operation: 
         # https://docs.dask.org/en/latest/futures.html#distributed.Client.gather
-        results = dask_client.gather(fft_futures)
+        results = dask_client.gather(fft_future)
 
         #print(type(results))
         #for r in results:
         #    print("***main: type(r): ", type(r))
-
         fft_data = da.from_array(results)
-        #
-        if (s == 0):
-            print("***computing fft_data: ", type(fft_data.compute()))
-            np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
+        #dask_client.persist(fft_data)
+        fft_future = dask_client.scatter(fft_data, broadcast=True)
+        
+        #if (s == 0):
+        #    print("***storing fft_data: ", type(fft_data.compute()))
+        #    np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
+
+
+        print("*** type(fft_future) = ", type(fft_future))
 
         for task in task_list:
-            pass
+            task.calculate(dask_client, fft_future)
             #task.update_data(data_ft, dummy_tb)
 
             # Method 1: Pass dask_client to object
@@ -139,12 +155,10 @@ while(True):
 
     reader.EndStep()
 
-#     # Pass the task object to our backend for storage
-#     for task in task_list:
-#         mongo_client.store(task)
-
-    for task, future in zip(task_list, task_futures):
-        print(task, future.result())
+    # Pass the task object to our backend for storage
+    for task in task_list:
+        #print(task.futures_list)
+         mongo_client.store(task, dummy=True)
 
     # Do only 10 time steps for now
     s -= -1
