@@ -1,6 +1,6 @@
 {"datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431",
  "shotnr": 18431,
- "channel_lists": [[2203, 2204], [2101, 2102]],
+ "channel_range": [[2203, 2204], [2101, 2102]],
  "analysis": [{"name" : "power_spectrum", 
                "config" : {"nperseg": 32, "fs": 1.0}},
                {"name" : "an_honest_mistake",

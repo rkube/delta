@@ -7,7 +7,7 @@ import numpy as np
 #sys.path.append("/global/homes/r/rkube/repos/delta")
 #from diagnostics.ecei_channel_layout import ecei_channel_positions
 
-from analysis.channels import channel, channel_list
+from analysis.channels import channel, channel_range
 from analysis.fluctana import FluctAna
 from analysis.kstarecei import KstarEcei
 from analysis import specs as sp
@@ -19,7 +19,7 @@ def test_cross_power(args):
     Inputs:
     =======
     Dlist: kstar_ecei object
-    channel_list: channel_list that labels the data in Dlist
+    channel_range: channel_range that labels the data in Dlist
 
 
     Outputs:
@@ -28,13 +28,13 @@ def test_cross_power(args):
     # OUT : x-axis (ax), y-axis (val)
 
     """
-    Dlist, channel_list = args
+    Dlist, channel_range = args
 
     print("Dlist = ", Dlist)
-    print("Channel_list = ", channel_list)
+    print("Channel_range = ", channel_range)
 
 
-    for ch in channel_list:
+    for ch in channel_range:
         print(ch.to_str())
 
     # #Dlist[dtwo].vkind = 'cross_power'
@@ -88,8 +88,8 @@ class task_fluctana():
         ecei_config, passed to KstarEcei
         """  
 
-        self.ch_list = channel_list(channel.from_str(config["channels"][0]),
-                                    channel.from_str(config["channels"][-1]))
+        self.ch_list = channel_range(channel.from_str(config["channels"][0]),
+                                     channel.from_str(config["channels"][-1]))
         self.description = config["description"]
         self.analysis = config["analysis"]
         #self.fft_params = config["fft_params"]

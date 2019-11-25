@@ -33,12 +33,12 @@ datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
 
 # Enforce 1:1 mapping of channels and tasks
-assert(len(cfg["channel_lists"]) == size)
+assert(len(cfg["channel_ranges"]) == size)
 # Channels this process is reading
-my_channel_list = cfg["channel_lists"][rank]
-gen_id = 100000 * rank + my_channel_list[0]
+my_channel_range = cfg["channel_ranges"][rank]
+gen_id = 100000 * rank + my_channel_range[0]
 
-print("Rank: {0:d}".format(rank), ", channel_list: ", my_channel_list, ", id = ", gen_id)
+print("Rank: {0:d}".format(rank), ", channel_range: ", my_channel_range, ", id = ", gen_id)
 
 # Hard-code the total number of data points
 data_pts = int(5e6)
@@ -49,7 +49,7 @@ num_batches = data_pts // data_per_batch
 
 # Get a data_loader
 dl = data_loader(path.join(datapath, "ECEI.018431.LFS.h5"),
-                 channel_list=my_channel_list,
+                 channel_range=my_channel_range,
                  batch_size=1000)
 
 # data_arr is a list

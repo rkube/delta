@@ -6,7 +6,7 @@ import datetime
 
 
 class mongodb_backend():
-    def __init__(self, rank=0, channel_list=[]):
+    def __init__(self, rank=0, channel_range=[]):
         # Connect to mongodb
         self.client = MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 
                                   username="delta-fusion_admin",

@@ -37,20 +37,20 @@ with open(args.config, "r") as df:
     df.close()
 
 # "Enforce" 1:1 mapping of reader processes on analysis tasks
-assert(len(cfg["channel_lists"]) == size)
+assert(len(cfg["channel_ranges"]) == size)
 assert(len(cfg["analysis"]) == size)
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
 my_analysis = cfg["analysis"][rank]
-my_channel_list = cfg["channel_lists"][rank]
-gen_id = 100000 * rank + my_channel_list[0]
-num_channels = len(my_channel_list)
+my_channel_range = cfg["channel_ranges"][rank]
+gen_id = 100000 * rank + my_channel_range[0]
+num_channels = len(my_channel_range)
 
 reader = reader_many_to_many_bpfile(shotnr, gen_id)
 reader.Open()
 
-backend = mongo_backend(rank, my_channel_list)
+backend = mongo_backend(rank, my_channel_range)
 
 #print("Starting main loop")
 

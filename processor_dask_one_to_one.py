@@ -67,7 +67,7 @@ while(True):
     # Iterate over the task list and add the required data at the current time step
     if stepStatus:
         for task in task_list:
-            for channel in task.channel_list:
+            for channel in task.channel_range:
                 ecei_data = reader.Get("ECEI_" + channel)
                 task.update_data(ecei_data, channel)
 

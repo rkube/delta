@@ -17,7 +17,7 @@ def ch_hv_to_num(ch_h, ch_v, debug=False):
     return((ch_h - 1) * 8 + ch_v - 1)
 
 
-class channel_list:
+class channel_range:
     def __init__(self, ch_start, ch_end, mode="linear"):
         """Generates an iterator over channels.
         Input:
@@ -90,7 +90,7 @@ class channel_list:
     @classmethod
     def from_str(cls, range_str):
         """
-        Generates a channel_list from a range, specified as
+        Generates a channel_range from a range, specified as
         'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
         """
 
@@ -114,7 +114,7 @@ class channel_list:
         ch_hf = int(ch_f // 100)
         ch_f = channel(dev, ch_hf, ch_vf)
 
-        return channel_list(ch_i, ch_f)
+        return channel_range(ch_i, ch_f)
 
     def length(self):
         """Calculates the number of channels in the list."""

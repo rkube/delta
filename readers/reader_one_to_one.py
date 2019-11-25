@@ -2,7 +2,7 @@
 
 import adios2
 import numpy as np
-from analysis.channels import channel, channel_list
+from analysis.channels import channel, channel_range
 
 
 class reader_base():
@@ -64,7 +64,7 @@ class reader_base():
             self.reader.Get(var, io_array, adios2.Mode.Sync)
             return(io_array)
 
-        elif (isinstance(channels, channel_list)):
+        elif (isinstance(channels, channel_range)):
             data_list = []
             for c in channels:
                 var = self.IO.InquireVariable("ECEI_" + str(c))
@@ -77,7 +77,7 @@ class reader_base():
         elif isinstance(channels, type(None)):
             data_list = []
             print("Reader::Get*** Default reading channels L0101-L2408")
-            clist = channel_list(channel("L", 1, 1), channel("L", 24, 8))
+            clist = channel_range(channel("L", 1, 1), channel("L", 24, 8))
             for c in clist:
                 var = self.IO.InquireVariable("ECEI_" + str(c))
                 io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)

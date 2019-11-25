@@ -1,15 +1,9 @@
 # coding: UTF-8 -*-
 
-from analysis.channels import channel, channel_list
+from analysis.channels import channel, channel_range
+import itertools
+
 #import numpy as np
-
-
-
-
-
-
-
-
 
 
 class task_spectral():
@@ -21,7 +15,7 @@ class task_spectral():
 
         Inputs:
         =======
-        channel_list: list of strings, defines the name of the channels. This should probably match the
+        channel_range: list of strings, defines the name of the channels. This should probably match the
                       name of the channels in the BP file.
         task_name: string, defines the name of the analysis to be performed
         kw_dict: dict, is passed to the analysis routine
@@ -36,9 +30,9 @@ class task_spectral():
         try:
             kwargs = task_config["kwargs"]
             # These channels serve as reference for the spectral diagnostics
-            self.ref_channels = channel_list.from_str(kwargs["ref_channels"][0])
+            self.ref_channels = channel_range.from_str(kwargs["ref_channels"][0])
             # These channels serve as the cross-data for the spectrail diagnostics
-            self.x_channels = channel_list.from_str(kwargs["x_channels"][0])
+            self.x_channels = channel_range.from_str(kwargs["x_channels"][0])
         except KeyError:
             self.kwargs = None
 
@@ -107,10 +101,8 @@ class task_cross_phase(task_spectral):
         # TODO: We dispatch each cross_phase calculation to a kernel function.
         # See how the performance of this method stacks against using dask array methods directly.
         # Compare to tests_analysis/test_crossphase.py
-        #for ch_r in self.ref_channels:
-        #    for ch_x in self.x_channels:
-        #        print(ch_r, " x ", ch_x, ": Submitting cross-phase. Indices {0:d} {1:d}".format(ch_r.idx(), ch_x.idx()))
-        #        self.futures_list.append(dask_client.submit(cross_phase, fft_future, ch_r.idx(), ch_x.idx()))
+
+        # We need to calculate 
 
         self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
 
