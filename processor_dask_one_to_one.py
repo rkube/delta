@@ -36,6 +36,8 @@ from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.tasks import analysis_task
 
+print("******* THIS IS AN OUTDATED VERSION. Run processor_dask_one_to_one_fluctana.py **********")
+
 
 mongo_client = mongodb_backend()
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")

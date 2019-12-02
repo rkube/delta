@@ -8,6 +8,7 @@ All helper functions are defined locally and adapted from specs.py anf fluctana.
 
 import numpy as np
 import dask.array as da
+#from dask.distributed import get_worker
 from scipy.signal import detrend, spectrogram
 from math import floor
 
@@ -206,7 +207,7 @@ class task_fft_scipy():
         """
 
         def stft_scipy(data_in, idx):
-            #print("***do_fft() stft_scipy: idx=", idx, ", data_in.shape=", data_in.shape)
+            #print("***do_fft() stft_scipy: worker.id = {0:s}, idx={1:d}".format(get_worker().id, idx), ", data_in.shape=", data_in.shape)
             res = spectrogram(data_in[idx, :], nfft=self.nfft, window=self.window,
                               nperseg=self.nfft,
                               detrend="linear", noverlap=self.noverlap,

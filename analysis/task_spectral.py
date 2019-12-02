@@ -83,7 +83,7 @@ class task_cross_phase(task_spectral):
             """Kernel that calculates the cross-phase between two channels.
             Input:
             ======
-            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            fft_data: ndarray, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
             ch0: int, index for first channel
             ch1: int, index for second channel
 
@@ -93,7 +93,7 @@ class task_cross_phase(task_spectral):
             """    
 
             from math import atan2
-            _tmp1 = (fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().compute()
+            _tmp1 = (fft_data[ch0, :] * fft_data[ch1, :].conj()).mean()#.compute()
             return(atan2(_tmp1.real, _tmp1.imag).real)
 
 
@@ -121,7 +121,7 @@ class task_cross_power(task_spectral):
             """Kernel that calculates the cross-power between two channels.
             Input:
             ======    
-            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            fft_data: ndarray, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
             ch0: int, index for first channel
             ch1: int, index for second channel
 
@@ -129,7 +129,7 @@ class task_cross_power(task_spectral):
             ========
             cross_power, float.
             """
-            return((fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().__abs__().compute())
+            return((fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().__abs__())
     
 
         self.futures_list = [dask_client.submit(cross_power, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
@@ -148,7 +148,7 @@ class task_coherence(task_spectral):
             """Kernel that calculates the coherence between two channels.
             Input:
             ======    
-            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            fft_data: ndarray, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
             ch0: int, index for first channel
             ch1: int, index for second channel
 
@@ -158,8 +158,8 @@ class task_coherence(task_spectral):
             """
 
             from numpy import sqrt, mean, fabs
-            X = fft_data[ch0, :].compute()
-            Y = fft_data[ch1, :].compute()
+            X = fft_data[ch0, :]#.compute()
+            Y = fft_data[ch1, :]#.compute()
             Gxy = fabs(mean(X * Y.conj() / sqrt(X * X.conj() * Y * Y.conj())).real)
 
             return(Gxy)
@@ -188,7 +188,7 @@ class task_xspec(task_spectral):
             coherence, float.
             """
 
-           return 0.0
+            return 0.0
 
         #self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
         raise NotImplementedError
@@ -216,8 +216,8 @@ class task_bicoherence(task_spectral):
             """
             import numpy as np
 
-            X = fft_data[ch0, :].compute()
-            Y = fft_data[ch1, :].compute()
+            X = fft_data[ch0, :]#.compute()
+            Y = fft_data[ch1, :]#.compute()
 
             
 
