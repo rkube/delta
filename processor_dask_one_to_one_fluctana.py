@@ -29,7 +29,7 @@ python -u processor_dask.py
 
 
 import numpy as np 
-import dask.array as da
+#import dask.array as da
 
 import json
 import argparse
@@ -39,7 +39,7 @@ from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 
-from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_xspec
+from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_xspec, task_cross_correlation
 
 
 import timeit
@@ -50,7 +50,8 @@ import timeit
 task_object_dict = {"cross_phase": task_cross_phase,
                     "cross_power": task_cross_power,
                     "coherence": task_coherence,
-                    "xspec": task_xspec}
+                    "xspec": task_xspec,
+                    "cross_correlation": task_cross_correlation}
 
 
 # This object manages storage to a backend.
@@ -79,6 +80,9 @@ with open(args.config, "r") as df:
 # Sample rate in Hz
 cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
 
+# Create the FFT task
+my_fft = task_fft_scipy(10_000, cfg["fft_params"], normalize=True, detrend=True)
+fft_params = my_fft.get_fft_params()
 
 # Build list of analysis tasks that are performed at any given time step
 # Here we iterate over the task list defined in the json file
@@ -87,16 +91,10 @@ cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
 # called to perform the analysis.
 task_list = []
 for task_config in cfg["task_list"]:
-    task_list.append(task_object_dict[task_config["analysis"]](task_config))
+    task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params))
 
-datapath = cfg["datapath"]
-shotnr = cfg["shotnr"]
-reader = reader_bpfile(shotnr)
+reader = reader_bpfile(cfg["shotnr"])
 reader.Open(cfg["datapath"])
-
-# Create the FFT task
-my_fft = task_fft_scipy(10_000, cfg["fft_params"], normalize=True, detrend=True)
-
 
 print("Starting main loop")
 s = 0
@@ -115,6 +113,11 @@ while(True):
   
         # Get the raw data from the stream
         stream_data = reader.Get()
+
+
+        
+
+        np.savez("stream_data_s{0:03d}.npz".format(s), stream_data=stream_data)
         # There are basically two options of distributing the FFT of the stream_data
         # among the workers.
         # Option 1) Create a dask array
@@ -136,9 +139,12 @@ while(True):
         toc_fft = timeit.default_timer()
         print("*** main_loop: FFT took {0:f}s".format(toc_fft - tic_fft))
 
-
         # concatenate the results into a numpy array
         fft_data = np.array(results)
+
+        #print("Assembled fft_data array. shape = ", fft_data.shape)
+        #raise AttributeErrort
+
         # Broadcast the fourier-transformed data to all workers
         fft_future = dask_client.scatter(fft_data, broadcast=True)
 
@@ -169,19 +175,26 @@ while(True):
 
     reader.EndStep()
 
-    tic_mongo = timeit.default_timer()
-    # Pass the task object to our backend for storage
+    # Store result in npz file for quick comparison
     for task in task_list:
-        #print(task.futures_list)
-         mongo_client.store(task, dummy=True)
-    toc_mongo = timeit.default_timer()
-    print("Storing data: Elapsed time: ", toc_mongo - tic_mongo)
+        res = []
+        for f in task.futures_list:
+            res.append(f.result())
+        res = np.array(res)
+        fname = "{0:s}_{1:03d}.npz".format(task.description, s)
+        print("...saving to {0:s}".format(fname))
+        np.savez(fname, res=res)
 
+
+    #tic_mongo = timeit.default_timer()
+    # Pass the task object to our backend for storage
+    #for task in task_list:
+    #     mongo_client.store(task, dummy=True)
+    #toc_mongo = timeit.default_timer()
+    #print("Storing data: Elapsed time: ", toc_mongo - tic_mongo)
 
     toc_tstep = timeit.default_timer()
     print("Processed timestep {0:d}: Elapsed time:".format(s), toc_tstep - tic_tstep)
-
-
 
     # Do only 10 time steps for now
     s -= -1

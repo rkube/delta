@@ -180,6 +180,60 @@ class task_fft_scipy():
 
         self.noverlap = int(self.nfft * self.overlap)
 
+        _, win = self.build_fft_window(self.ndata, self.nfft, self.window, self.overlap)
+        self.win_factor = np.mean(win**2.0)
+
+        print("Overlap = {0}, win_factor = {1}".format(self.overlap, self.win_factor))
+
+        
+    def build_fft_window(self, tnum, nfft, window, overlap):
+        """Builds the window used in the STFTs. Taken from KSTAR/specs.py
+
+        Input:
+        ======
+        tnum: int, length of the input time series
+        nfft: int, data points used in FFT
+        window: string, defines the window to use. See corresponding numpy functions.
+        overlap: float, Overlap between ffts, relative to nfft.
+
+        Returns:
+        ========
+        bins: int, The number of individual data points performed on the input time series
+        win: ndarray, flot, The window function applied to input-segments of the FFT
+        """
+
+        # use overlapping
+        bins = int(np.fix((int(tnum/nfft) - overlap)/(1.0 - overlap)))
+
+        # window function
+        if window == 'rectwin':  # overlap = 0.5
+            win = np.ones(nfft)
+        elif window == 'hann':  # overlap = 0.5
+            win = np.hanning(nfft)
+        elif window == 'hamm':  # overlap = 0.5
+            win = np.hamming(nfft)
+        elif window == 'kaiser':  # overlap = 0.62
+            win = np.kaiser(nfft, beta=30)
+        elif window == 'HFT248D':  # overlap = 0.84
+            z = 2*np.pi/nfft*np.arange(0,nfft)
+            win = 1 - 1.985844164102*np.cos(z) + 1.791176438506*np.cos(2*z) - 1.282075284005*np.cos(3*z) + \
+                0.667777530266*np.cos(4*z) - 0.240160796576*np.cos(5*z) + 0.056656381764*np.cos(6*z) - \
+                0.008134974479*np.cos(7*z) + 0.000624544650*np.cos(8*z) - 0.000019808998*np.cos(9*z) + \
+                0.000000132974*np.cos(10*z)
+
+        return bins, win
+
+
+    def get_fft_params(self):
+        """Returns parameters of the fft in dictionary form."""
+
+        fft_params = {"nfft": self.nfft, "window": self.window, "overlap": self.overlap,
+                      "detrend": self.detrend, "fs": self.fs, "noverlap": self.noverlap,
+                      "win_factor": self.win_factor, "full": self.full}
+
+        return fft_params
+
+
 
     def do_fft(self, dask_client, stream_data_future):
         """Dispatch a STFT to the workers.
@@ -206,14 +260,26 @@ class task_fft_scipy():
         List of futures
         """
 
-        def stft_scipy(data_in, idx):
-            #print("***do_fft() stft_scipy: worker.id = {0:s}, idx={1:d}".format(get_worker().id, idx), ", data_in.shape=", data_in.shape)
-            res = spectrogram(data_in[idx, :], nfft=self.nfft, window=self.window,
+        def stft_scipy(data_in, ch_idx):
+            """ Calculates short-time fourier transformations using scipy.signal.spectrogram
+            Inputs
+            ======
+            data_in: ndarray, float. Time-data to be Fourier-Transformed. dim0: channel, dim1: time
+            ch_idx: int, Index of the channel to apply the STFT to.
+
+            Returns:
+            ========
+            res[2]: The third element of the return-tuple from spectrogram.
+                    ndarray, complex dim0: Fourier Coefficients. dim1: index of the n-th stft.
+            """
+
+            #print("***do_fft() stft_scipy: worker.id = {0:s}, idx={1:d}".format(get_worker().id, ch_idx), ", data_in.shape=", data_in.shape)
+            res = spectrogram(data_in[ch_idx, :], nfft=self.nfft, window=self.window,
                               nperseg=self.nfft,
                               detrend="linear", noverlap=self.noverlap,
                               scaling="spectrum", mode="complex", return_onesided=False)
             #print("***do_fft() stft_scipy: ", type(res[2]), res[2].shape)
-            return res[2].mean(axis=1)
+            return res[2]#.mean(axis=1)
 
         # Distribute the stft function to the workers
         futures = [dask_client.submit(stft_scipy, stream_data_future, idx) for idx in range(192)]

@@ -6,10 +6,15 @@ from analysis.channels import channel, channel_range
 
 
 class reader_base():
-    def __init__(self, shotnr):
+    def __init__(self, shotnr, toff=0.0):
         self.adios = adios2.ADIOS()
         self.shotnr = shotnr
         self.IO = self.adios.DeclareIO("KSTAR_18431")
+
+        # Keeps track of the past chunk sizes. This allows to construct a dummy time base
+        self.chunk_sizes = []
+        # Initialize the reader with an offset for the dummy time base
+        self.toff = toff
 
 
     def Open(self, datapath):
@@ -45,6 +50,12 @@ class reader_base():
         res = self.IO.InquireVariable(varname)
         return(res)
 
+
+    def gen_timebase(self, toff, fs):
+        """Create a dummy time base"""
+
+
+
     
     def Get(self, channels=None):
         """Get data from varname at current step.
@@ -76,13 +87,16 @@ class reader_base():
 
         elif isinstance(channels, type(None)):
             data_list = []
-            print("Reader::Get*** Default reading channels L0101-L2408")
+            print("Reader::Get*** Default reading channels L0101-L2408. Step no. {0:d}".format(self.CurrentStep()))
             clist = channel_range(channel("L", 1, 1), channel("L", 24, 8))
             for c in clist:
                 var = self.IO.InquireVariable("ECEI_" + str(c))
                 io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
                 self.reader.Get(var, io_array, adios2.Mode.Sync)
                 data_list.append(io_array)
+
+            chunk_data = np.array(data_list)
+            print(chunk_data.shape
 
             return np.array(data_list)
 

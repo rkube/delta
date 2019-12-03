@@ -19,7 +19,7 @@ for c in clist:
 
 # Test naive iteration where we just take the outer product of two lists:
 crg1 = channel_range.from_str("L0101-0104")
-crg2 = channel_range.from_str("L0201-0204")
+crg2 = channel_range.from_str("L0101-0104")
 
 print("Testing naive iteration...")
 res = ["{0:d} x {1:d}".format(c1.idx(), c2.idx()) for c1 in clist1 for c2 in clist2]

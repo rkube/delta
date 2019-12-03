@@ -1,8 +1,11 @@
 #Coding: UTF-8 -*-
 
+import datetime
+import numpy as np
+import pickle
+
 from pymongo import MongoClient
 from bson.binary import Binary
-import datetime
 
 
 class mongodb_backend():
@@ -33,20 +36,32 @@ class mongodb_backend():
         """
 
         # Gather the results from all futures in the task
-        result_list = []
+        # This locks until all futures are evaluated.
+        result = []
         for future in task.futures_list:
-            result_list.append(future.result())
+            result.append(future.result())
+        result = np.array(result)
+        print("***Backend.store: result = ", result.shape)
+
+        # Get the 
+
 
         # Write results to the backend
-        #for future in task.futures_list:
         storage_scheme = task.storage_scheme
         # Add a time stamp to the scheme
         storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        storage_scheme["results"] = ["{0:8.6f}".format(r) for r in result_list]
+
+
+        for it in task.get_dispatch_sequence():
+            print(it)
+
+        
 
         if dummy:
+            storage_scheme["results"] = result
             print(storage_scheme)
         else:
+            storage_scheme["results"] = Binary(pickle.dumps(result))
             self.collection.insert_one(storage_scheme)
             print("***mongodb_backend*** Storing...")
 
