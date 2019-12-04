@@ -70,16 +70,22 @@ class task_cross_phase(task_spectral):
         The data is assumed to be distributed to the clients.
         Before calling this method the following steps needs to be done:
         
+        Set up a task
+        >>> task = task_cross_phase(task_config, fft_config)
         Scatter time-chunk data to the cluster
         >>> data_future = client.scatter(data, broadcast=True)
         Calculate the fft. Do this with a special method, so we don't use dask array
         >>> fft_future = my_fft.do_fft(client, data_future)
         Gather the results
         >>> results = client.gather(fft_future)
-        Create a dask array from the fourier-transformed data
-        >>> fft_data = da.from_array(results)
+        Create an np array from the fourier-transformed data
+        >>> fft_data = np.array(results)
         Scatter the dask array to all clients.
         >>> fft_future = client.scatter(fft_data, broadcast=True)
+        Execute a task on the transformed data
+        >>> task.calculate(dask_client, fft_future)        
+        
+
 
         Input:
         ======
@@ -182,14 +188,14 @@ class task_coherence(task_spectral):
         self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r, ch_x in self.get_dispatch_sequence()]
         return None  
 
-    def store(self, mongo_client):
-        for future in future_list:
-            dask_client.submit(mongo_client.store, future)
+#    def store(self, mongo_client):
+#        for future in future_list:
+#            dask_client.submit(mongo_client.store, future)
 
 
-class mongo_client:
-    def store(self, future):
-        self.collection.insert_one(future.result())
+#class mongo_client:
+#    def store(self, future):
+#        self.collection.insert_one(future.result())
 
 
 class task_xspec(task_spectral):

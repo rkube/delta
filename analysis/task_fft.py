@@ -176,14 +176,14 @@ class task_fft_scipy():
         self.detrend = fft_params["detrend"]
         # Sampling frequency of the data
         self.fs = fft_params["fsample"]
-        self.full = True
+        self.full = fft_params["full"]
 
         self.noverlap = int(self.nfft * self.overlap)
 
         _, win = self.build_fft_window(self.ndata, self.nfft, self.window, self.overlap)
         self.win_factor = np.mean(win**2.0)
 
-        print("Overlap = {0}, win_factor = {1}".format(self.overlap, self.win_factor))
+        #print("Overlap = {0}, win_factor = {1}".format(self.overlap, self.win_factor))
 
         
     def build_fft_window(self, tnum, nfft, window, overlap):

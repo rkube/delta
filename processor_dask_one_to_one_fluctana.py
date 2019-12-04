@@ -93,7 +93,7 @@ task_list = []
 for task_config in cfg["task_list"]:
     task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params))
 
-reader = reader_bpfile(cfg["shotnr"])
+reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
 reader.Open(cfg["datapath"])
 
 print("Starting main loop")
@@ -113,11 +113,8 @@ while(True):
   
         # Get the raw data from the stream
         stream_data = reader.Get()
+        tb = reader.gen_timebase()
 
-
-        
-
-        np.savez("stream_data_s{0:03d}.npz".format(s), stream_data=stream_data)
         # There are basically two options of distributing the FFT of the stream_data
         # among the workers.
         # Option 1) Create a dask array
@@ -128,7 +125,7 @@ while(True):
         # Option 2)
         # Scatter the raw data to the workers.
         stream_data_future = dask_client.scatter(stream_data, broadcast=True)
-        print("*** main_loop: types(stream_data_future), ", type(stream_data_future), stream_data_future)
+        #print("*** main_loop: types(stream_data_future), ", type(stream_data_future), stream_data_future)
 
         tic_fft = timeit.default_timer()
         # Perform a FFT on the raw data
@@ -141,6 +138,7 @@ while(True):
 
         # concatenate the results into a numpy array
         fft_data = np.array(results)
+        np.savez("fft_data_s{0:04d}.npz".format(s), fft_data=fft_data)
 
         #print("Assembled fft_data array. shape = ", fft_data.shape)
         #raise AttributeErrort
@@ -156,7 +154,7 @@ while(True):
         #    np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
 
 
-        print("*** main_loop: type(fft_future) = ", type(fft_future), fft_future)
+        #print("*** main_loop: type(fft_future) = ", type(fft_future), fft_future)
 
         for task in task_list:
             print("*** main_loop: ", task.description)
@@ -198,7 +196,7 @@ while(True):
 
     # Do only 10 time steps for now
     s -= -1
-    if s >= 2:
+    if s > 2:
         break
 
 
