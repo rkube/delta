@@ -9,7 +9,7 @@ All helper functions are defined locally and adapted from specs.py anf fluctana.
 import numpy as np
 import dask.array as da
 #from dask.distributed import get_worker
-from scipy.signal import detrend, spectrogram
+from scipy.signal import detrend, spectrogram, stft
 from math import floor
 
 
@@ -273,13 +273,11 @@ class task_fft_scipy():
                     ndarray, complex dim0: Fourier Coefficients. dim1: index of the n-th stft.
             """
 
-            #print("***do_fft() stft_scipy: worker.id = {0:s}, idx={1:d}".format(get_worker().id, ch_idx), ", data_in.shape=", data_in.shape)
-            res = spectrogram(data_in[ch_idx, :], nfft=self.nfft, window=self.window,
-                              nperseg=self.nfft,
-                              detrend="linear", noverlap=self.noverlap,
-                              scaling="spectrum", mode="complex", return_onesided=False)
-            #print("***do_fft() stft_scipy: ", type(res[2]), res[2].shape)
-            return res[2]#.mean(axis=1)
+            res = stft(data_in[ch_idx, :], fs=self.fs, nperseg=self.nfft, window=self.window,
+                       detrend=self.detrend, noverlap=self.noverlap, padded=False,
+                       return_onesided=False, boundary=None)
+
+            return res[2]
 
         # Distribute the stft function to the workers
         futures = [dask_client.submit(stft_scipy, stream_data_future, idx) for idx in range(192)]

@@ -125,7 +125,6 @@ while(True):
         # Option 2)
         # Scatter the raw data to the workers.
         stream_data_future = dask_client.scatter(stream_data, broadcast=True)
-        #print("*** main_loop: types(stream_data_future), ", type(stream_data_future), stream_data_future)
 
         tic_fft = timeit.default_timer()
         # Perform a FFT on the raw data
@@ -140,9 +139,6 @@ while(True):
         fft_data = np.array(results)
         np.savez("fft_data_s{0:04d}.npz".format(s), fft_data=fft_data)
 
-        #print("Assembled fft_data array. shape = ", fft_data.shape)
-        #raise AttributeErrort
-
         # Broadcast the fourier-transformed data to all workers
         fft_future = dask_client.scatter(fft_data, broadcast=True)
 
@@ -150,8 +146,8 @@ while(True):
         #dask_client.persist(fft_data)
         #fft_future = dask_client.scatter(fft_data, broadcast=True)
         #if (s == 0):
-        #    print("***storing fft_data: ", type(fft_data.compute()))
-        #    np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
+        #print("***storing fft_data: ", type(fft_data.compute()))
+        #np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
 
 
         #print("*** main_loop: type(fft_future) = ", type(fft_future), fft_future)

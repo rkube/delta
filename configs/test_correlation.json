@@ -8,7 +8,7 @@
               "LoFreq": 81,
               "LensFocus": 80,
               "LensZoom": 340},
- "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": 0, "full": true},
+ "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "ralphs_task", 
                 "analysis": "cross_correlation",
                 "kwargs" : {"ref_channels" : ["L1102-1102"],

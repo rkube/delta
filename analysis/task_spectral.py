@@ -252,8 +252,13 @@ class task_cross_correlation(task_spectral):
             from numpy.fft import ifftshift, ifft, fftshift
 
             # Perform fftshift on the fourier coefficient axis (dim1)
-            X = fft_data[ch0, :, :]
-            Y = fft_data[ch1, :, :]
+            X = fftshift(fft_data[ch0, :, :], axes=0)
+            Y = fftshift(fft_data[ch1, :, :], axes=0)
+
+            if(ch0 == 81 and ch1 == 69):
+                print("ch0 = {0:d}, ch1 = {1:d}".format(ch0, ch1), " X.shape = ", X.shape, ", Y.shape = ", Y.shape)
+
+                print("{0:d} x {1:d}".format(ch0, ch1), " X[:3,:3] = ", X[:3, :3])
 
             _tmp = ifftshift(X * Y.conj(), axes=0) / fft_params['win_factor']
             _tmp = ifft(_tmp, n=fft_params['nfft'], axis=0) * fft_params['nfft']
