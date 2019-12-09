@@ -4,7 +4,6 @@ from analysis.channels import channel, channel_range
 import itertools
 
 
-
 class task_spectral():
     """Serves as the super-class for analysis methods. Do not instantiate directly"""
 
@@ -255,11 +254,6 @@ class task_cross_correlation(task_spectral):
             X = fftshift(fft_data[ch0, :, :], axes=0)
             Y = fftshift(fft_data[ch1, :, :], axes=0)
 
-            if(ch0 == 81 and ch1 == 69):
-                print("ch0 = {0:d}, ch1 = {1:d}".format(ch0, ch1), " X.shape = ", X.shape, ", Y.shape = ", Y.shape)
-
-                print("{0:d} x {1:d}".format(ch0, ch1), " X[:3,:3] = ", X[:3, :3])
-
             _tmp = ifftshift(X * Y.conj(), axes=0) / fft_params['win_factor']
             _tmp = ifft(_tmp, n=fft_params['nfft'], axis=0) * fft_params['nfft']
             _tmp = fftshift(_tmp, axes=0)
@@ -270,39 +264,86 @@ class task_cross_correlation(task_spectral):
 
 
         #print("task_cross_corr: fft_config = ", self.fft_config)
-        print("Disptach sequence")
-        for ch_r, ch_x in self.get_dispatch_sequence():
-            print(ch_r, ch_x)
+        #print("Dispatch sequence")
+        #for ch_r, ch_x in self.get_dispatch_sequence():
+        #    print(ch_r, ch_x)
 
         self.futures_list = [dask_client.submit(cross_corr, fft_future, ch_r.idx(), ch_x.idx(), self.fft_config) for ch_r, ch_x in self.get_dispatch_sequence()]
         return None 
 
 
-# class task_bicoherence(task_spectral):
-#     """This class calculates the bicoherence between two channels."""
-#     def __init__(self, task_config):
-#         super().__init__(task_config)
-#         self.storage_scheme["analysis_name"] = "xspec"
+class task_bicoherence(task_spectral):
+    """This class calculates the bicoherence between two channels."""
+    def __init__(self, task_config, fft_config):
+        super().__init__(task_config, fft_config)
+        self.storage_scheme["analysis_name"] = "xspec"
     
-#     def calculate(self, dask_client, fft_future):
-#         def bicoherence(fft_data, ch0, ch1): 
-#             """Kernel that calculates the bi-coherence between two channels.
-#             Input:
-#             ======    
-#             fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
-#             ch0: int, index for first channel
-#             ch1: int, index for second channel
+    def calculate(self, dask_client, fft_future):
+        def bicoherence(fft_data, ch0, ch1): 
+            """Kernel that calculates the bi-coherence between two channels.
+            Input:
+            ======    
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: int, index for first channel
+            ch1: int, index for second channel
 
-#             Returns:
-#             ========
-#             bicoherence, float.
-#             """
-#             import numpy as np
+            Returns:
+            ========
+            bicoherence, float.
+            """
+            import numpy as np
 
-#             X = fft_data[ch0, :]#.compute()
-#             Y = fft_data[ch1, :]#.compute()
+            # Transpose to make array layout compatible with code from specs.py
+            XX = np.fft.fftshift(fft_data[ch0, :, :], axes=0).T
+            YY = np.fft.fftshift(fft_data[ch1, :, :], axes=0).T
 
-            
+            bins, full = XX.shape
+            half = full // 2 + 1
+
+            # calculate bicoherence
+            B = np.zeros((full, half), dtype=np.complex_)
+            P12 = np.zeros((full, half))
+            P3 = np.zeros((full, half))
+            val = np.zeros((full, half))
+
+            for b in range(bins):
+                X = XX[b,:] # full -fN ~ fN
+                Y = YY[b,:] # full -fN ~ fN
+
+                Xhalf = np.fft.ifftshift(X) # full 0 ~ fN, -fN ~ -f1
+                Xhalf = Xhalf[0:half] # half 0 ~ fN
+
+                X1 = np.transpose(np.tile(X, (half, 1)))
+                X2 = np.tile(Xhalf, (full, 1))
+                X3 = np.zeros((full, half), dtype=np.complex_)
+                for j in range(half):
+                    if j == 0:
+                        X3[0:, j] = Y[j:]
+                    else:
+                        X3[0:(-j), j] = Y[j:]
+
+                B = B + X1 * X2 * np.matrix.conjugate(X3) / bins #  complex bin average
+                P12 = P12 + (np.abs(X1 * X2).real)**2 / bins # real average
+                P3 = P3 + (np.abs(X3).real)**2 / bins # real average
+
+            # val = np.log10(np.abs(B)**2) # bispectrum
+            val = (np.abs(B)**2) / P12 / P3 # bicoherence
+
+            # summation over pairs
+            sum_val = np.zeros(full)
+            for i in range(half):
+                if i == 0:
+                    sum_val = sum_val + val[:,i]
+                else:
+                    sum_val[i:] = sum_val[i:] + val[:-i,i]
+
+            N = np.array([i+1 for i in range(half)] + [half for i in range(full-half)])
+            sum_val = sum_val / N # element wise division
+
+            return (val, sum_val)
+
+        self.futures_list = [dask_client.submit(bicoherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r, ch_x in self.get_dispatch_sequence()]
+        return None 
 
 
 
@@ -325,9 +366,6 @@ class task_cross_correlation(task_spectral):
     #     elif self.analysis == "skw":
     #         raise NotImplementedError
 
-    #     # 9)
-    #     elif self.analysis == "bicoherence":
-    #         raise NotImplementedError
 
     #     print(self.futures_list)
 

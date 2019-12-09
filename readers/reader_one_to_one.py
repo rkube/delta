@@ -148,14 +148,14 @@ class reader_base():
                 self.offset_std = io_array[:, tnorm_idx].std(axis=1)
                 self.is_data_normalized = True
 
-                np.savez("offset_lvl.npz", offset_lvl = self.offset_lvl)
+                np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
 
         if self.is_data_normalized:
             print("*** Reader:Get: io_array.shape = ", io_array.shape)
-            np.savez("io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
             io_array = io_array - self.offset_lvl
             io_array = io_array / io_array.mean(axis=1, keepdims=True) - 1.0
-            np.savez("io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            np.savez("test_data/io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
 
 
         return io_array

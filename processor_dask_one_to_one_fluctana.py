@@ -39,7 +39,7 @@ from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 
-from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_xspec, task_cross_correlation
+from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_xspec, task_cross_correlation
 
 
 import timeit
@@ -50,6 +50,7 @@ import timeit
 task_object_dict = {"cross_phase": task_cross_phase,
                     "cross_power": task_cross_power,
                     "coherence": task_coherence,
+                    "bicoherence": task_bicoherence,
                     "xspec": task_xspec,
                     "cross_correlation": task_cross_correlation}
 
@@ -137,7 +138,7 @@ while(True):
 
         # concatenate the results into a numpy array
         fft_data = np.array(results)
-        np.savez("fft_data_s{0:04d}.npz".format(s), fft_data=fft_data)
+        np.savez("test_data/fft_data_s{0:04d}.npz".format(s), fft_data=fft_data)
 
         # Broadcast the fourier-transformed data to all workers
         fft_future = dask_client.scatter(fft_data, broadcast=True)
@@ -147,7 +148,7 @@ while(True):
         #fft_future = dask_client.scatter(fft_data, broadcast=True)
         #if (s == 0):
         #print("***storing fft_data: ", type(fft_data.compute()))
-        #np.savez("dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
+        #np.savez("test_data/dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
 
 
         #print("*** main_loop: type(fft_future) = ", type(fft_future), fft_future)
@@ -173,9 +174,9 @@ while(True):
     for task in task_list:
         res = []
         for f in task.futures_list:
-            res.append(f.result())
+            res.append(f.result()[1])
         res = np.array(res)
-        fname = "{0:s}_{1:03d}.npz".format(task.description, s)
+        fname = "test_data/{0:s}_{1:03d}.npz".format(task.description, s)
         print("...saving to {0:s}".format(fname))
         np.savez(fname, res=res)
 
@@ -188,7 +189,7 @@ while(True):
     #print("Storing data: Elapsed time: ", toc_mongo - tic_mongo)
 
     toc_tstep = timeit.default_timer()
-    print("Processed timestep {0:d}: Elapsed time:".format(s), toc_tstep - tic_tstep)
+    print("Processed timestep {0:d}: Elapsed time: {1:6.3f}s".format(s, toc_tstep - tic_tstep))
 
     # Do only 10 time steps for now
     s -= -1
