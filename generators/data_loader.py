@@ -17,7 +17,7 @@ class data_loader(object):
 
         """
         
-        self. = channel_range
+        self.channel_range = channel_range
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
         self.channel_range_hdf5 = ["/ECEI/ECEI_L{0:4d}/Voltage".format(c) for c in self.channel_range]
         self.filename = filename
@@ -40,7 +40,7 @@ class data_loader(object):
         print("rank: {0:d} batch: {1:d}".format(rank,  self.current_batch), ", channel list: ", self.channel_range)
 
 
-        with h5py.File(self.filename, "r", driver='mpio', comm=MPI.COMM_WORLD) as df:
+        with h5py.File(self.filename, "r") as df:
             for ch in self.channel_range_hdf5:
                 print("Accessing channel ", ch)
                 data_list.append(df[ch][self.current_batch * self.batch_size:
