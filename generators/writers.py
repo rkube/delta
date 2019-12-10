@@ -4,7 +4,6 @@ from mpi4py import MPI
 import adios2
 import numpy as np
 
-
 class writer_base():
     def __init__(self, shotnr, id):
         comm = MPI.COMM_WORLD
@@ -69,17 +68,33 @@ class writer_dataman(writer_base):
         super().__init__(shotnr, id)
         self.IO.SetEngine("DataMan")
         dataman_port = 12300 + self.rank
-        transport_params = {"IPAddress": "127.0.0.1",
+        transport_params = {"IPAddress": "203.230.120.125",
                             "Port": "{0:5d}".format(dataman_port),
                             "OpenTimeoutSecs": "600",
                             "Verbose": "20"}
         self.IO.SetParameters(transport_params)
-
 
 class writer_bpfile(writer_base):
     def __init__(self, shotnr, id):
         super().__init__(shotnr, id)
         self.IO.SetEngine("BP4")
         
+class writer_sst(writer_base):
+    def __init__(self, shotnr, id):
+        super().__init__(shotnr, id)
+        self.IO.SetEngine("SST")
+        self.IO.SetParameter("OpenTimeoutSecs", "600")
+
+class writer_gen(writer_base):
+    """ General writer to be initialized by name and parameters
+    """
+    def __init__(self, shotnr, id, engine, params):
+        super().__init__(shotnr, id)
+        self.IO.SetEngine(engine)
+        _params = params
+        if engine.lower() == "dataman":
+            dataman_port = 12300 + self.rank
+            _params.update(Port = "{0:5d}".format(dataman_port))
+        self.IO.SetParameters(_params)
 
 # End of file a2_sender.py
