@@ -32,13 +32,13 @@ with open(args.config, "r") as df:
     df.close()
 
 # "Enforce" 1:1 mapping of reader processes on analysis tasks
-assert(len(cfg["channel_lists"]) == size)
+assert(len(cfg["channel_range"]) == size)
 assert(len(cfg["analysis"]) == size)
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
 my_analysis = cfg["analysis"][rank]
-my_channel_list = cfg["channel_lists"][rank]
+my_channel_list = cfg["channel_range"][rank]
 gen_id = 100000 * rank + my_channel_list[0]
 num_channels = len(my_channel_list)
 
