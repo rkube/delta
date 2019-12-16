@@ -39,7 +39,7 @@ from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 
-from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_xspec, task_cross_correlation
+from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_xspec, task_cross_correlation, task_skw
 
 
 import timeit
@@ -52,7 +52,8 @@ task_object_dict = {"cross_phase": task_cross_phase,
                     "coherence": task_coherence,
                     "bicoherence": task_bicoherence,
                     "xspec": task_xspec,
-                    "cross_correlation": task_cross_correlation}
+                    "cross_correlation": task_cross_correlation,
+                    "skw": task_skw}
 
 
 # This object manages storage to a backend.
@@ -92,7 +93,7 @@ fft_params = my_fft.get_fft_params()
 # called to perform the analysis.
 task_list = []
 for task_config in cfg["task_list"]:
-    task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params))
+    task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
 
 reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
 reader.Open(cfg["datapath"])
@@ -115,16 +116,6 @@ while(True):
         # Get the raw data from the stream
         stream_data = reader.Get()
         tb = reader.gen_timebase()
-
-        # There are basically two options of distributing the FFT of the stream_data
-        # among the workers.
-        # Option 1) Create a dask array
-        # See http://matthewrocklin.com/blog/work/2017/01/17/dask-images
-        #raw_data = da.from_array(raw_data, chunks=(1, 10_000))
-        #dask_client.persist(raw_data)
-
-        # Option 2)
-        # Scatter the raw data to the workers.
         stream_data_future = dask_client.scatter(stream_data, broadcast=True)
 
         tic_fft = timeit.default_timer()
@@ -141,17 +132,8 @@ while(True):
         np.savez("test_data/fft_data_s{0:04d}.npz".format(s), fft_data=fft_data)
 
         # Broadcast the fourier-transformed data to all workers
+        # Pas this future to worker tasks as a reference to fft_data
         fft_future = dask_client.scatter(fft_data, broadcast=True)
-
-        #fft_data = da.from_array(results)
-        #dask_client.persist(fft_data)
-        #fft_future = dask_client.scatter(fft_data, broadcast=True)
-        #if (s == 0):
-        #print("***storing fft_data: ", type(fft_data.compute()))
-        #np.savez("test_data/dask_fft_data_s{0:04d}.npz".format(s), fft_data=fft_data.compute())
-
-
-        #print("*** main_loop: type(fft_future) = ", type(fft_future), fft_future)
 
         for task in task_list:
             print("*** main_loop: ", task.description)

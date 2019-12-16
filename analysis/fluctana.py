@@ -676,106 +676,106 @@ class FluctAna(object):
 
 #         if plot: plt.show()
 
-#     def skw(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None, kstep=0.01, plot=True, **kwargs):
-#         # calculate for each pair of done and dtwo and average
-#         # number of cmp channels = number of ref channels
-#         # kstep [cm^-1]
+    def skw(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None, kstep=0.01, plot=True, **kwargs):
+        # calculate for each pair of done and dtwo and average
+        # number of cmp channels = number of ref channels
+        # kstep [cm^-1]
 
-#         self.Dlist[dtwo].vkind = 'local_SKw'
+        self.Dlist[dtwo].vkind = 'local_SKw'
 
-#         if done_subset is not None: 
-#             rnum = len(done_subset)
-#         else:
-#             rnum = len(self.Dlist[done].data)  # number of ref channels
-#             done_subset = range(rnum)
+        if done_subset is not None: 
+            rnum = len(done_subset)
+        else:
+            rnum = len(self.Dlist[done].data)  # number of ref channels
+            done_subset = range(rnum)
 
-#         if dtwo_subset is not None:
-#             cnum = len(dtwo_subset)
-#         else:
-#             cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
-#             dtwo_subset = range(cnum)
-#         bins = self.Dlist[dtwo].bins  # number of bins
-#         win_factor = self.Dlist[dtwo].win_factor  # window factors
+        if dtwo_subset is not None:
+            cnum = len(dtwo_subset)
+        else:
+            cnum = len(self.Dlist[dtwo].data)  # number of cmp channels
+            dtwo_subset = range(cnum)
+        bins = self.Dlist[dtwo].bins  # number of bins
+        win_factor = self.Dlist[dtwo].win_factor  # window factors
 
-#         # reference channel names
-#         self.Dlist[dtwo].rname = []
+        # reference channel names
+        self.Dlist[dtwo].rname = []
 
-#         # distance
-#         self.Dlist[dtwo].dist = np.zeros(cnum)
-#         for c in range(cnum):
-#             self.Dlist[dtwo].dist[dtwo_subset[c]] = np.sqrt((self.Dlist[dtwo].rpos[dtwo_subset[c]] - self.Dlist[done].rpos[done_subset[c]])**2 + \
-#             (self.Dlist[dtwo].zpos[dtwo_subset[c]] - self.Dlist[done].zpos[done_subset[c]])**2)
+        # distance
+        self.Dlist[dtwo].dist = np.zeros(cnum)
+        for c in range(cnum):
+            self.Dlist[dtwo].dist[dtwo_subset[c]] = np.sqrt((self.Dlist[dtwo].rpos[dtwo_subset[c]] - self.Dlist[done].rpos[done_subset[c]])**2 + \
+            (self.Dlist[dtwo].zpos[dtwo_subset[c]] - self.Dlist[done].zpos[done_subset[c]])**2)
 
-#         # k-axes
-#         dmin = self.Dlist[dtwo].dist.min()*100 # [cm]
-#         kax = np.arange(-np.pi/dmin, np.pi/dmin, kstep) # [cm^-1]
-#         self.Dlist[dtwo].kax = kax
+        # k-axes
+        dmin = self.Dlist[dtwo].dist.min()*100 # [cm]
+        kax = np.arange(-np.pi/dmin, np.pi/dmin, kstep) # [cm^-1]
+        self.Dlist[dtwo].kax = kax
 
-#         nkax = len(kax)
-#         nfft = len(self.Dlist[dtwo].ax)
+        nkax = len(kax)
+        nfft = len(self.Dlist[dtwo].ax)
 
-#         # value dimension
-#         Pxx = np.zeros((bins, nfft), dtype=np.complex_)
-#         Pyy = np.zeros((bins, nfft), dtype=np.complex_)
-#         Kxy = np.zeros((bins, nfft), dtype=np.complex_)
-#         val = np.zeros((cnum, nkax, nfft), dtype=np.complex_)
-#         self.Dlist[dtwo].val = np.zeros((nkax, nfft))
-#         sklw = np.zeros((nkax, nfft), dtype=np.complex_)
-#         K = np.zeros((cnum, nfft), dtype=np.complex_)
-#         sigK = np.zeros((cnum, nfft), dtype=np.complex_)
+        # value dimension
+        Pxx = np.zeros((bins, nfft), dtype=np.complex_)
+        Pyy = np.zeros((bins, nfft), dtype=np.complex_)
+        Kxy = np.zeros((bins, nfft), dtype=np.complex_)
+        val = np.zeros((cnum, nkax, nfft), dtype=np.complex_)
+        self.Dlist[dtwo].val = np.zeros((nkax, nfft))
+        sklw = np.zeros((nkax, nfft), dtype=np.complex_)
+        K = np.zeros((cnum, nfft), dtype=np.complex_)
+        sigK = np.zeros((cnum, nfft), dtype=np.complex_)
 
-#         # calculation loop for multi channels
-#         for c in range(cnum):
-#             # reference channel name
-#             self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
-#             print('pair of {:s} and {:s}'.format(self.Dlist[dtwo].rname[dtwo_subset[c]], self.Dlist[dtwo].clist[dtwo_subset[c]]))
+        # calculation loop for multi channels
+        for c in range(cnum):
+            # reference channel name
+            self.Dlist[dtwo].rname.append(self.Dlist[done].clist[done_subset[c]])
+            print('pair of {:s} and {:s}'.format(self.Dlist[dtwo].rname[dtwo_subset[c]], self.Dlist[dtwo].clist[dtwo_subset[c]]))
 
-#             # calculate auto power and cross phase (wavenumber)
-#             for b in range(bins):
-#                 X = self.Dlist[done].spdata[done_subset[c],b,:]
-#                 Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
+            # calculate auto power and cross phase (wavenumber)
+            for b in range(bins):
+                X = self.Dlist[done].spdata[done_subset[c],b,:]
+                Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
 
-#                 Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
-#                 Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
-#                 Pxy = X*np.matrix.conjugate(Y)
-#                 Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (self.Dlist[dtwo].dist[dtwo_subset[c]]*100) # [cm^-1]
+                Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
+                Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
+                Pxy = X*np.matrix.conjugate(Y)
+                Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (self.Dlist[dtwo].dist[dtwo_subset[c]]*100) # [cm^-1]
 
-#                 # calculate SKw
-#                 for w in range(nfft):
-#                     idx = (Kxy[b,w] - kstep/2.0 < kax) * (kax < Kxy[b,w] + kstep/2.0)
-#                     val[c,:,w] = val[c,:,w] + (1.0/bins*(Pxx[b,w] + Pyy[b,w])/2.0) * idx
+                # calculate SKw
+                for w in range(nfft):
+                    idx = (Kxy[b,w] - kstep/2.0 < kax) * (kax < Kxy[b,w] + kstep/2.0)
+                    val[c,:,w] = val[c,:,w] + (1.0/bins*(Pxx[b,w] + Pyy[b,w])/2.0) * idx
 
-#             # calculate moments
-#             sklw = val[c,:,:] / np.tile(np.sum(val[c,:,:], 0), (nkax, 1))
-#             K[c, :] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, 0)
-#             for w in range(nfft):
-#                 sigK[c,w] = np.sqrt(np.sum( (kax - K[c,w])**2 * sklw[:,w] ))
+            # calculate moments
+            sklw = val[c,:,:] / np.tile(np.sum(val[c,:,:], 0), (nkax, 1))
+            K[c, :] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, 0)
+            for w in range(nfft):
+                sigK[c,w] = np.sqrt(np.sum( (kax - K[c,w])**2 * sklw[:,w] ))
 
-#         self.Dlist[dtwo].val[:,:] = np.mean(val, 0).real
-#         self.Dlist[dtwo].K = np.mean(K, 0)
-#         self.Dlist[dtwo].sigK = np.mean(sigK, 0)
+        self.Dlist[dtwo].val[:,:] = np.mean(val, 0).real
+        self.Dlist[dtwo].K = np.mean(K, 0)
+        self.Dlist[dtwo].sigK = np.mean(sigK, 0)
 
-#         pshot = self.Dlist[dtwo].shot
-#         pfreq = self.Dlist[dtwo].ax/1000
-#         pdata = self.Dlist[dtwo].val + 1e-10
+        pshot = self.Dlist[dtwo].shot
+        pfreq = self.Dlist[dtwo].ax/1000
+        pdata = self.Dlist[dtwo].val + 1e-10
 
-#         pdata = np.log10(pdata)
+        pdata = np.log10(pdata)
 
-#         if plot:
-#             plt.imshow(pdata, extent=(pfreq.min(), pfreq.max(), kax.min(), kax.max()), interpolation='none', aspect='auto', origin='lower', cmap=CM)
+        if plot:
+            plt.imshow(pdata, extent=(pfreq.min(), pfreq.max(), kax.min(), kax.max()), interpolation='none', aspect='auto', origin='lower', cmap=CM)
 
-#             plt.colorbar()
+            plt.colorbar()
 
-#             chpos = '({:.1f}, {:.1f})'.format(np.mean(self.Dlist[dtwo].rpos*100), np.mean(self.Dlist[dtwo].zpos*100)) # [cm]
-#             plt.title('#{:d}, {:s}'.format(pshot, chpos), fontsize=10)
-#             plt.xlabel('Frequency [kHz]')
-#             plt.ylabel('Local wavenumber [rad/cm]')
+            chpos = '({:.1f}, {:.1f})'.format(np.mean(self.Dlist[dtwo].rpos*100), np.mean(self.Dlist[dtwo].zpos*100)) # [cm]
+            plt.title('#{:d}, {:s}'.format(pshot, chpos), fontsize=10)
+            plt.xlabel('Frequency [kHz]')
+            plt.ylabel('Local wavenumber [rad/cm]')
 
-#             # plt.plot(pfreq, self.Dlist[dtwo].K, 'k')
-#             # plt.plot(pfreq, self.Dlist[dtwo].K + self.Dlist[dtwo].sigK, 'r')
-#             # plt.plot(pfreq, self.Dlist[dtwo].K - self.Dlist[dtwo].sigK, 'r')
+            # plt.plot(pfreq, self.Dlist[dtwo].K, 'k')
+            # plt.plot(pfreq, self.Dlist[dtwo].K + self.Dlist[dtwo].sigK, 'r')
+            # plt.plot(pfreq, self.Dlist[dtwo].K - self.Dlist[dtwo].sigK, 'r')
 
-#             plt.show()
+            plt.show()
 
 #     def bicoherence(self, done=0, dtwo=1, done_subset=None, dtwo_subset=None, cnl=[0], plot=True, **kwargs):
 #         # fftbins full = 1

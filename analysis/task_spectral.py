@@ -1,13 +1,13 @@
 # coding: UTF-8 -*-
 
-from analysis.channels import channel, channel_range
+from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 import itertools
 
 
 class task_spectral():
     """Serves as the super-class for analysis methods. Do not instantiate directly"""
 
-    def __init__(self, task_config, fft_config):
+    def __init__(self, task_config, fft_config, ecei_config):
         """Initialize the object with a fixed channel list, a fixed name of the analysis to be performed
         and a fixed set of parameters for the analysis routine.
 
@@ -36,6 +36,7 @@ class task_spectral():
             self.kwargs = None
 
         self.fft_config = fft_config
+        self.ecei_config = ecei_config
 
         self.storage_scheme =  {"ref_channels": self.ref_channels.to_str(),
                                 "cross_channels": self.x_channels.to_str()}
@@ -46,19 +47,18 @@ class task_spectral():
 
 
     def get_dispatch_sequence(self):
-        """Returns an iterator over the reference and cross channels."""
+        """Returns an iterable over the reference and cross channels."""
 
-        # Chain the iterators over ref_channels and x_channels into one iterator
-        crg_total = itertools.chain(self.ref_channels, self.x_channels)
-        # Define and return a new iterator over combinations with replacements of these two
-        # iterators
-        return(itertools.combinations_with_replacement(crg_total, 2))
+        channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.x_channels]
+        unique_channels = list(unique_everseen(channel_pairs))
+
+        return(unique_channels)
 
 
 class task_cross_phase(task_spectral):
     """This class calculates the cross-phase via the calculate method."""
-    def __init__(self, task_config, fft_config):
-        super().__init__(task_config, fft_config)
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
         # Append the analysis name to the storage scheme
         self.storage_scheme["analysis_name"] = "cross_phase"
 
@@ -116,15 +116,15 @@ class task_cross_phase(task_spectral):
             return(atan2(_tmp1.real, _tmp1.imag).real)
 
 
-        self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_r.idx(), ch_x.idx()) for ch_r, ch_x in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(cross_phase, fft_future, pair.ch1.idx(), pair.ch2.idx()) for pair in self.get_dispatch_sequence()]
 
         return None
 
 
 class task_cross_power(task_spectral):
     """This class calculates the cross-power between two channels."""
-    def __init__(self, task_config, fft_config):
-        super().__init__(task_config, fft_config)
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "cross_power"
 
     def calculate(self, dask_client, fft_future):
@@ -144,14 +144,14 @@ class task_cross_power(task_spectral):
             return((fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().__abs__())
     
 
-        self.futures_list = [dask_client.submit(cross_power, fft_future, ch_r.idx(), ch_x.idx()) for ch_r, ch_x in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(cross_power, fft_future, pair.ch1.idx(), pair.ch2.idx()) for pair in self.get_dispatch_sequence()]
         return None        
 
 
 class task_coherence(task_spectral):
     """This class calculates the coherence between two channels."""
-    def __init__(self, task_config, fft_config):
-        super().__init__(task_config, fft_config)
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "coherence"
 
     
@@ -184,7 +184,7 @@ class task_coherence(task_spectral):
 
             return(Gxy)
 
-        self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r, ch_x in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(coherence, fft_future, pair.ch1.idx(), pair.c2.idx()) for pair in self.get_dispatch_sequence()]
         return None  
 
 #    def store(self, mongo_client):
@@ -199,8 +199,8 @@ class task_coherence(task_spectral):
 
 class task_xspec(task_spectral):
     """This class calculates the coherence between two channels."""
-    def __init__(self, task_config, fft_config):
-        super().__init__(task_config, fft_config)
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "xspec"
     
     def calculate(self, dask_client, fft_future):
@@ -222,13 +222,12 @@ class task_xspec(task_spectral):
 
         #self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
         raise NotImplementedError
-        return None  
 
 
 class task_cross_correlation(task_spectral):
     """This class calculates the cross-correlation between two channels."""
-    def __init__(self, task_config, fft_config):
-        super().__init__(task_config, fft_config)
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "cross_correlation"
 
     def calculate(self, dask_client, fft_future):
@@ -268,14 +267,14 @@ class task_cross_correlation(task_spectral):
         #for ch_r, ch_x in self.get_dispatch_sequence():
         #    print(ch_r, ch_x)
 
-        self.futures_list = [dask_client.submit(cross_corr, fft_future, ch_r.idx(), ch_x.idx(), self.fft_config) for ch_r, ch_x in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(cross_corr, fft_future, pair.ch1.idx(), pair.ch2.idx(), self.fft_config) for pair in self.get_dispatch_sequence()]
         return None 
 
 
 class task_bicoherence(task_spectral):
     """This class calculates the bicoherence between two channels."""
-    def __init__(self, task_config, fft_config):
-        super().__init__(task_config, fft_config)
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "xspec"
     
     def calculate(self, dask_client, fft_future):
@@ -342,11 +341,117 @@ class task_bicoherence(task_spectral):
 
             return (val, sum_val)
 
-        self.futures_list = [dask_client.submit(bicoherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r, ch_x in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(bicoherence, fft_future, pair.ch1.idx(), pair.ch2.idx()) for pair in self.get_dispatch_sequence()]
         return None 
 
+class task_skw(task_spectral):
+    """This class calculates the bicoherence between two channels."""
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
+        self.storage_scheme["analysis_name"] = "xspec"
+    
+    def calculate(self, dask_client, fft_future):
+        def skw(fft_data, ch0, ch1, fft_params, ecei_config, kstep=0.01): 
+            """
+            Calculates the conditional spectrum S(k,w).
+
+            Input:
+            ======
+            fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
+            ch0: channel, first channel
+            ch1: channel, second channel
+            fft_params: dictionary, parameters for fft
+            ecei_config: dictionary, configuration of ecei diagnostic
 
 
+            Returns:
+            ========
+            bicoherence, float.
+            """
+
+            import numpy as np
+            from analysis.ecei_helper import channel_position
+
+            print("Calculating skw for channels {0:s}x{1:s}".format(ch0.__str__(), ch1.__str__()))
+
+
+
+            XX = np.fft.fftshift(fft_data[ch0.idx(), :, :], axes=0).T
+            YY = np.fft.fftshift(fft_data[ch1.idx(), :, :], axes=0).T
+
+            bins, _ = XX.shape
+            win_factor = fft_params["win_factor"]
+            cnum = 1
+
+            cpos_ref = channel_position(ch0, ecei_config)
+            cpos_cmp = channel_position(ch1, ecei_config)
+
+            # Calculate distance between channels
+            dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
+            dmin = dist * 1e2
+
+            kax = np.arange(-np.pi / dmin, np.pi / dmin, kstep)
+
+            nkax = kax.size
+            nfft = fft_params["nfft"]
+
+            if(ch0 == ch1):
+                # We can't calculate the cross-conditional spectrum for ch0==ch1
+                # since dmin=0
+                return(np.zeros(nkax, nfft)))
+
+            # value dimension
+            Pxx = np.zeros((bins, nfft), dtype=np.complex_)
+            Pyy = np.zeros((bins, nfft), dtype=np.complex_)
+            Kxy = np.zeros((bins, nfft), dtype=np.complex_)
+            val = np.zeros((nkax, nfft), dtype=np.complex_)
+
+            sklw = np.zeros((nkax, nfft), dtype=np.complex_)
+            K = np.zeros(nfft, dtype=np.complex_)
+            sigK = np.zeros(nfft, dtype=np.complex_)
+
+
+            print("nkax = {0:d}, nfft = {1:d}, dmin = {2:f}".format(nkax, nfft, dmin))
+
+            # calculate auto power and cross phase (wavenumber)
+            for b in range(bins):
+                #X = self.Dlist[done].spdata[done_subset[c],b,:]
+                #Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
+                X = XX[b, :]
+                Y = YY[b, :]
+
+                Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
+                Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
+                Pxy = X*np.matrix.conjugate(Y)
+                Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (dist * 100) # [cm^-1]
+                                                                  
+                # calculate SKw
+                for w in range(nfft):
+                    idx = (Kxy[b,w] - kstep * 0.5 < kax) * (kax < Kxy[b,w] + kstep * 0.5)
+                    val[:,w] = val[:,w] + (1.0 / bins * (Pxx[b,w] + Pyy[b,w]) * 0.5) * idx
+
+            # calculate moments
+            sklw = val / np.tile(val.sum(axis=0), (nkax, 1))
+            K[:] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, axis=0)
+            for w in range(nfft):
+                sigK[w] = np.sqrt(np.sum( (kax - K[w])**2 * sklw[:,w] ))
+
+            val = val.mean(axis=0).real
+            K = np.mean(K, axis=0)
+            sigK = np.mean(sigK, axis=0)
+
+            pdata = np.log10(val + 1e-10)
+
+            print(pdata.shape)
+
+            return(pdata)
+
+
+        for c in self.get_dispatch_sequence():
+            print(c.ch1.__str__(), c.ch2.__str__())
+
+        self.futures_list = [dask_client.submit(skw, fft_future, pair.ch1, pair.ch2, self.fft_config, self.ecei_config) for pair in self.get_dispatch_sequence()]
+        return None 
 
 
     #    # 1)
@@ -361,10 +466,6 @@ class task_bicoherence(task_spectral):
     #     elif self.analysis == "corr_coeff":
     #         raise NotImplementedError
 
-
-    #     # 8)
-    #     elif self.analysis == "skw":
-    #         raise NotImplementedError
 
 
     #     print(self.futures_list)

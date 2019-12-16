@@ -260,6 +260,9 @@ class KstarEcei(object):
             # assume cold resonance with Bt ~ 1/R
             self.rpos[c] = self.hn*e*mu0*ttn*self.itf/((2*np.pi)**2*me*((fn - 1)*0.9 + 2.6 + self.lo)*1e9)
 
+            print("KstarEcei: ")
+            print("**** ", vn, fn,ttn, self.itf, self.lo, rpos)
+
             # get vertical position and angle at rpos
             self.zpos[c], self.apos[c] = self.beam_path(self.rpos[c], vn)
 

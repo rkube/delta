@@ -1,5 +1,7 @@
 # Coding: UTF-8 -*-
 
+import itertools
+
 def ch_num_to_hv(ch_num):
     """Returns a tuple (ch_h, ch_v) for a channel number"""
     assert((ch_num > 0) & (ch_num < 193))
@@ -17,8 +19,62 @@ def ch_hv_to_num(ch_h, ch_v, debug=False):
     return((ch_h - 1) * 8 + ch_v - 1)
 
 
+def unique_everseen(iterable, key=None):
+    """List unique elements, preserving order. Remember all elements ever seen.
+    Taken from https://docs.python.org/3/library/itertools.html#itertools-recipes"""
+
+    seen = set()
+    seen_add = seen.add
+    if key is None:
+        for element in itertools.filterfalse(seen.__contains__, iterable):
+            seen_add(element)
+            yield element
+    else:
+        for element in iterable:
+            k = key(element)
+            if k not in seen:
+                seen_add(k)
+                yield element
+
+
+class channel_pair:
+    """Custom defined channel pair. 
+    This is just a tuple with an overloaded equality operator. It's also hashable
+    so one can use it in conjunction with sets
+
+    ch1 = channel('L', 13, 7)
+    ch2 = channel('L', 12, 7)
+    ch_pair = channel_pair(ch1, c2)
+
+    channel_pair(ch1, ch2) == channel_pair(ch2, c1)
+    True
+
+    The hash is that of a tuple consisting of the ordered channel indices of ch1 and ch2.
+
+
+    """
+    
+    def __init__(self, ch1, ch2):
+        self.ch1 = ch1
+        self.ch2 = ch2
+
+    def __eq__(self, other):
+        if ((self.ch1 == other.ch1) and (self.ch2 == other.ch2)) or\
+            ((self.ch1 == other.ch2) and (self.ch2 == other.ch1)):
+            return True
+        else:
+            return False
+
+    def __hash__(self):
+        """Implement hash so that we can use sets."""
+        #print("({0:s} x {1:s}) hash={2:d}".format(self.ch1.__str__(), self.ch2.__str__(),\
+        #    hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx()))))) 
+        
+        return hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx())))
+
+
 class channel_range:
-    def __init__(self, ch_start, ch_end, mode="linear"):
+    def __init__(self, ch_start, ch_end, mode="rectangle"):
         """Generates an iterator over channels.
         Input:
         ======
@@ -88,7 +144,7 @@ class channel_range:
 
 
     @classmethod
-    def from_str(cls, range_str):
+    def from_str(cls, range_str, mode="rectangle"):
         """
         Generates a channel_range from a range, specified as
         'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
@@ -100,7 +156,7 @@ class channel_range:
         try:
             dev = m.group(0)
         except:
-            raise AttributeError("Could not parse channel string {0:s}".format(ch_str))
+            raise AttributeError("Could not parse channel string {0:s}".format(range_str))
 
         m = re.findall('[0-9]{4}', range_str)
 
@@ -114,7 +170,7 @@ class channel_range:
         ch_hf = int(ch_f // 100)
         ch_f = channel(dev, ch_hf, ch_vf)
 
-        return channel_range(ch_i, ch_f)
+        return channel_range(ch_i, ch_f, mode)
 
     def length(self):
         """Calculates the number of channels in the list."""
@@ -187,6 +243,11 @@ class channel():
         ch_str = "{0:s}{1:02d}{2:02d}".format(self.dev, self.ch_h, self.ch_v)
 
         return(ch_str)
+
+
+    def __eq__(self, other):
+        """Define equality for two channels when all three, dev, ch_h, and ch_v are equal to one another."""
+        return (self.dev, self.ch_h, self.ch_v) == (other.dev, other.ch_h, other.ch_v)
 
     def idx(self):
         """Returns the linear index corresponding to ch_h and ch_v"""
