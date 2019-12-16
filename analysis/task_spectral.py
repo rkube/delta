@@ -2,6 +2,7 @@
 
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 import itertools
+import more_itertools
 
 
 class task_spectral():
@@ -41,18 +42,33 @@ class task_spectral():
         self.storage_scheme =  {"ref_channels": self.ref_channels.to_str(),
                                 "cross_channels": self.x_channels.to_str()}
 
+        # Construct a list of unique channels
+        # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
+        # The unique list of channels is then
+        # (1,1) x (1,1), (1,1) x (1,2)
+        # (1,2) x (1,2) !!! Omit (1,2) x (1,1)
+        # (1,3) x (1,1)
+        # (1,3) x (1,2)
+        channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.x_channels]
+        # Make a list, so that we don't exhause the iterator after the first call.
+        self.unique_channels = list(more_itertools.distinct_combinations(channel_pairs, 1))
+
 
     def calculate(self, *args):
         raise NotImplementedError
 
 
-    def get_dispatch_sequence(self):
-        """Returns an iterable over the reference and cross channels."""
+    def get_dispatch_sequence(self, niter=4):
+        """Returns an a list of iterables that together span all unique
+        combinations of ref_ch x cmp_ch.
 
-        channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.x_channels]
-        unique_channels = list(unique_everseen(channel_pairs))
+        Parameters:
+        ===========
+        niter, int: Length of the sub-lists we split the list of channel pairs into.
+        """
 
-        return(unique_channels)
+        all_chunks = more_itertools.chunked(self.unique_channels, niter)
+        return(all_chunks)
 
 
 class task_cross_phase(task_spectral):
@@ -97,26 +113,28 @@ class task_cross_phase(task_spectral):
         """
 
         # Somehow dask complains when we don't define the function in the local scope.
-        def cross_phase(fft_data, ch0, ch1):
+        def cross_phase(fft_data, ch_it):
             """Kernel that calculates the cross-phase between two channels.
             Input:
             ======
             fft_data: ndarray, float: Contains the fourier-transformed data. 
                       dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-            ch0: int, index for first channel
-            ch1: int, index for second channel
+            ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
 
             Returns:
             ========
-            cp: float, the cross phase
+            Axy: float, the cross phase
             """    
+            import numpy as np
+            
+            c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
+            c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+            
+            Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
 
-            from math import atan2
-            _tmp1 = (fft_data[ch0, :, :] * fft_data[ch1, :, :].conj()).mean(axis=1)#.compute()
-            return(atan2(_tmp1.real, _tmp1.imag).real)
+            return(np.arctan2(Pxy.real, Pxy.imag).real)
 
-
-        self.futures_list = [dask_client.submit(cross_phase, fft_future, pair.ch1.idx(), pair.ch2.idx()) for pair in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_it) for ch_it in self.get_dispatch_sequence(192)]
 
         return None
 
@@ -128,23 +146,31 @@ class task_cross_power(task_spectral):
         self.storage_scheme["analysis_name"] = "cross_power"
 
     def calculate(self, dask_client, fft_future):
-        def cross_power(fft_data, ch0, ch1):
+        def cross_power(fft_data, ch_it, fft_config):
             """Kernel that calculates the cross-power between two channels.
             Input:
             ======    
             fft_data: ndarray, float: Contains the fourier-transformed data. 
                       dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-            ch0: int, index for first channel
-            ch1: int, index for second channel
+            ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
+
 
             Returns:
             ========
             cross_power, float.
             """
-            return((fft_data[ch0, :] * fft_data[ch1, :].conj()).mean().__abs__())
+
+            import numpy as np
+            
+            c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
+            c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+
+            res = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2) / fft_config["win_factor"]
+            
+            return(res)
     
 
-        self.futures_list = [dask_client.submit(cross_power, fft_future, pair.ch1.idx(), pair.ch2.idx()) for pair in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(cross_power, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence(192)]
         return None        
 
 
@@ -156,35 +182,39 @@ class task_coherence(task_spectral):
 
     
     def calculate(self, dask_client, fft_future):
-        def coherence(fft_data, ch0, ch1):
+        def coherence(fft_data, ch_it):
             """Kernel that calculates the coherence between two channels.
             Input:
             ======    
             fft_data: ndarray, float: Contains the fourier-transformed data. 
                       dim0: channel, dim1: Fourier Coefficients. dim2: STFT (bins in fluctana code)
-            ch0: int, index for first channel
-            ch1: int, index for second channel
+            ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
+
 
             Returns:
             ========
             coherence, float.
             """
 
-            from numpy import sqrt, mean, fabs
-            X = fft_data[ch0, :, :]
-            Y = fft_data[ch1, :, :]
+            import numpy as np
+
+            c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
+            c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+
+            X = fft_data[c1_idx, :, :]
+            Y = fft_data[c2_idx, :, :]
 
             Pxx = X * X.conj()
             Pyy = Y * Y.conj()
 
-            Gxy = mean((X * Y.conj()) / sqrt(Pxx * Pyy), axis=1)
-            Gxy = fabs(Gxy).real
+            Gxy = np.mean((X * Y.conj()) / np.sqrt(Pxx * Pyy), axis=1)
+            Gxy = np.fabs(Gxy).real
 
             #Gxy = fabs(mean(X * Y.conj() / sqrt(X * X.conj() * Y * Y.conj())).real)
 
             return(Gxy)
 
-        self.futures_list = [dask_client.submit(coherence, fft_future, pair.ch1.idx(), pair.c2.idx()) for pair in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(coherence, fft_future, ch_it) for ch_it in self.get_dispatch_sequence(192)]
         return None  
 
 #    def store(self, mongo_client):
@@ -204,7 +234,7 @@ class task_xspec(task_spectral):
         self.storage_scheme["analysis_name"] = "xspec"
     
     def calculate(self, dask_client, fft_future):
-        def xspec(fft_data, ch0, ch1):
+        def xspec(fft_data, ch_it):
             """Kernel that calculates the coherence between two channels.
             Input:
             ======    
@@ -231,7 +261,7 @@ class task_cross_correlation(task_spectral):
         self.storage_scheme["analysis_name"] = "cross_correlation"
 
     def calculate(self, dask_client, fft_future):
-        def cross_corr(fft_data, ch0, ch1, fft_params):
+        def cross_corr(fft_data, ch_it, fft_params):
             """Defines a kernel that calculates the cross-correlation between two channels.
 
             Input:
@@ -247,15 +277,18 @@ class task_cross_correlation(task_spectral):
             cross-correlation, float array
             """
 
-            from numpy.fft import ifftshift, ifft, fftshift
+            import numpy as np
+
+            c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
+            c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
 
             # Perform fftshift on the fourier coefficient axis (dim1)
-            X = fftshift(fft_data[ch0, :, :], axes=0)
-            Y = fftshift(fft_data[ch1, :, :], axes=0)
+            X = np.fft.fftshift(fft_data[c1_idx, :, :], axes=0)
+            Y = np.fft.fftshift(fft_data[c2_idx, :, :], axes=0)
 
-            _tmp = ifftshift(X * Y.conj(), axes=0) / fft_params['win_factor']
-            _tmp = ifft(_tmp, n=fft_params['nfft'], axis=0) * fft_params['nfft']
-            _tmp = fftshift(_tmp, axes=0)
+            _tmp = np.fft.ifftshift(X * Y.conj(), axes=0) / fft_params['win_factor']
+            _tmp = np.fft.ifft(_tmp, n=fft_params['nfft'], axis=0) * fft_params['nfft']
+            _tmp = np.fft.fftshift(_tmp, axes=0)
 
             res = _tmp.mean(axis=1).real
 
@@ -267,7 +300,7 @@ class task_cross_correlation(task_spectral):
         #for ch_r, ch_x in self.get_dispatch_sequence():
         #    print(ch_r, ch_x)
 
-        self.futures_list = [dask_client.submit(cross_corr, fft_future, pair.ch1.idx(), pair.ch2.idx(), self.fft_config) for pair in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(cross_corr, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence(192)]
         return None 
 
 
@@ -278,7 +311,7 @@ class task_bicoherence(task_spectral):
         self.storage_scheme["analysis_name"] = "xspec"
     
     def calculate(self, dask_client, fft_future):
-        def bicoherence(fft_data, ch0, ch1): 
+        def bicoherence(fft_data, ch_it): 
             """Kernel that calculates the bi-coherence between two channels.
             Input:
             ======    
@@ -292,56 +325,63 @@ class task_bicoherence(task_spectral):
             """
             import numpy as np
 
-            # Transpose to make array layout compatible with code from specs.py
-            XX = np.fft.fftshift(fft_data[ch0, :, :], axes=0).T
-            YY = np.fft.fftshift(fft_data[ch1, :, :], axes=0).T
+            res_list = []
 
-            bins, full = XX.shape
-            half = full // 2 + 1
+            for ch in ch_it:
+                ch1_idx, ch2_idx = ch[0].ch1.idx(), ch[0].ch2.idx()
 
-            # calculate bicoherence
-            B = np.zeros((full, half), dtype=np.complex_)
-            P12 = np.zeros((full, half))
-            P3 = np.zeros((full, half))
-            val = np.zeros((full, half))
+                # Transpose to make array layout compatible with code from specs.py
+                XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
+                YY = np.fft.fftshift(fft_data[ch2_idx :, :], axes=0).T
 
-            for b in range(bins):
-                X = XX[b,:] # full -fN ~ fN
-                Y = YY[b,:] # full -fN ~ fN
+                bins, full = XX.shape
+                half = full // 2 + 1
 
-                Xhalf = np.fft.ifftshift(X) # full 0 ~ fN, -fN ~ -f1
-                Xhalf = Xhalf[0:half] # half 0 ~ fN
+                # calculate bicoherence
+                B = np.zeros((full, half), dtype=np.complex_)
+                P12 = np.zeros((full, half))
+                P3 = np.zeros((full, half))
+                val = np.zeros((full, half))
 
-                X1 = np.transpose(np.tile(X, (half, 1)))
-                X2 = np.tile(Xhalf, (full, 1))
-                X3 = np.zeros((full, half), dtype=np.complex_)
-                for j in range(half):
-                    if j == 0:
-                        X3[0:, j] = Y[j:]
+                for b in range(bins):
+                    X = XX[b,:] # full -fN ~ fN
+                    Y = YY[b,:] # full -fN ~ fN
+
+                    Xhalf = np.fft.ifftshift(X) # full 0 ~ fN, -fN ~ -f1
+                    Xhalf = Xhalf[0:half] # half 0 ~ fN
+
+                    X1 = np.transpose(np.tile(X, (half, 1)))
+                    X2 = np.tile(Xhalf, (full, 1))
+                    X3 = np.zeros((full, half), dtype=np.complex_)
+                    for j in range(half):
+                        if j == 0:
+                            X3[0:, j] = Y[j:]
+                        else:
+                            X3[0:(-j), j] = Y[j:]
+
+                    B = B + X1 * X2 * np.matrix.conjugate(X3) / bins #  complex bin average
+                    P12 = P12 + (np.abs(X1 * X2).real)**2 / bins # real average
+                    P3 = P3 + (np.abs(X3).real)**2 / bins # real average
+
+                # val = np.log10(np.abs(B)**2) # bispectrum
+                val = (np.abs(B)**2) / P12 / P3 # bicoherence
+
+                # summation over pairs
+                sum_val = np.zeros(full)
+                for i in range(half):
+                    if i == 0:
+                        sum_val = sum_val + val[:,i]
                     else:
-                        X3[0:(-j), j] = Y[j:]
+                        sum_val[i:] = sum_val[i:] + val[:-i,i]
 
-                B = B + X1 * X2 * np.matrix.conjugate(X3) / bins #  complex bin average
-                P12 = P12 + (np.abs(X1 * X2).real)**2 / bins # real average
-                P3 = P3 + (np.abs(X3).real)**2 / bins # real average
+                N = np.array([i+1 for i in range(half)] + [half for i in range(full-half)])
+                sum_val = sum_val / N # element wise division
 
-            # val = np.log10(np.abs(B)**2) # bispectrum
-            val = (np.abs(B)**2) / P12 / P3 # bicoherence
+                res_list.append(val, sum_val)
 
-            # summation over pairs
-            sum_val = np.zeros(full)
-            for i in range(half):
-                if i == 0:
-                    sum_val = sum_val + val[:,i]
-                else:
-                    sum_val[i:] = sum_val[i:] + val[:-i,i]
+            return (res_list)
 
-            N = np.array([i+1 for i in range(half)] + [half for i in range(full-half)])
-            sum_val = sum_val / N # element wise division
-
-            return (val, sum_val)
-
-        self.futures_list = [dask_client.submit(bicoherence, fft_future, pair.ch1.idx(), pair.ch2.idx()) for pair in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(bicoherence, fft_future, ch_it) for ch_it in self.get_dispatch_sequence()]
         return None 
 
 class task_skw(task_spectral):
@@ -351,7 +391,7 @@ class task_skw(task_spectral):
         self.storage_scheme["analysis_name"] = "xspec"
     
     def calculate(self, dask_client, fft_future):
-        def skw(fft_data, ch0, ch1, fft_params, ecei_config, kstep=0.01): 
+        def skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01): 
             """
             Calculates the conditional spectrum S(k,w).
 
@@ -372,85 +412,87 @@ class task_skw(task_spectral):
             import numpy as np
             from analysis.ecei_helper import channel_position
 
-            print("Calculating skw for channels {0:s}x{1:s}".format(ch0.__str__(), ch1.__str__()))
+            res_list = []
+            for ch in ch_it:
+                ch1_idx, ch2_idx = ch[0].ch1.idx(), ch[0].ch2.idx()
+                print("Calculating skw for channels {0:s}x{1:s}".format(ch[0].ch1, ch[0].ch2)
+
+                XX = np.fft.fftshift(fft_data[ch1.idx(), :, :], axes=0).T
+                YY = np.fft.fftshift(fft_data[ch2.idx(), :, :], axes=0).T
+
+                bins, _ = XX.shape
+                win_factor = fft_params["win_factor"]
+
+                cpos_ref = channel_position(ch1.idx(), ecei_config)
+                cpos_cmp = channel_position(ch2.idx(), ecei_config)
+
+                # Calculate distance between channels
+                dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
+                dmin = dist * 1e2
+
+                kax = np.arange(-np.pi / dmin, np.pi / dmin, kstep)
+
+                nkax = kax.size
+                nfft = fft_params["nfft"]
+
+                if(ch0 == ch1):
+                    # We can't calculate the cross-conditional spectrum for ch0==ch1
+                    # since dmin=0
+                    return(np.zeros(nkax, nfft))
+
+                # value dimension
+                Pxx = np.zeros((bins, nfft), dtype=np.complex_)
+                Pyy = np.zeros((bins, nfft), dtype=np.complex_)
+                Kxy = np.zeros((bins, nfft), dtype=np.complex_)
+                val = np.zeros((nkax, nfft), dtype=np.complex_)
+
+                sklw = np.zeros((nkax, nfft), dtype=np.complex_)
+                K = np.zeros(nfft, dtype=np.complex_)
+                sigK = np.zeros(nfft, dtype=np.complex_)
 
 
+                print("nkax = {0:d}, nfft = {1:d}, dmin = {2:f}".format(nkax, nfft, dmin))
 
-            XX = np.fft.fftshift(fft_data[ch0.idx(), :, :], axes=0).T
-            YY = np.fft.fftshift(fft_data[ch1.idx(), :, :], axes=0).T
+                # calculate auto power and cross phase (wavenumber)
+                for b in range(bins):
+                    #X = self.Dlist[done].spdata[done_subset[c],b,:]
+                    #Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
+                    X = XX[b, :]
+                    Y = YY[b, :]
 
-            bins, _ = XX.shape
-            win_factor = fft_params["win_factor"]
-            cnum = 1
+                    Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
+                    Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
+                    Pxy = X*np.matrix.conjugate(Y)
+                    Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (dist * 100) # [cm^-1]
+                                                                    
+                    # calculate SKw
+                    for w in range(nfft):
+                        idx = (Kxy[b,w] - kstep * 0.5 < kax) * (kax < Kxy[b,w] + kstep * 0.5)
+                        val[:,w] = val[:,w] + (1.0 / bins * (Pxx[b,w] + Pyy[b,w]) * 0.5) * idx
 
-            cpos_ref = channel_position(ch0, ecei_config)
-            cpos_cmp = channel_position(ch1, ecei_config)
-
-            # Calculate distance between channels
-            dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
-            dmin = dist * 1e2
-
-            kax = np.arange(-np.pi / dmin, np.pi / dmin, kstep)
-
-            nkax = kax.size
-            nfft = fft_params["nfft"]
-
-            if(ch0 == ch1):
-                # We can't calculate the cross-conditional spectrum for ch0==ch1
-                # since dmin=0
-                return(np.zeros(nkax, nfft)))
-
-            # value dimension
-            Pxx = np.zeros((bins, nfft), dtype=np.complex_)
-            Pyy = np.zeros((bins, nfft), dtype=np.complex_)
-            Kxy = np.zeros((bins, nfft), dtype=np.complex_)
-            val = np.zeros((nkax, nfft), dtype=np.complex_)
-
-            sklw = np.zeros((nkax, nfft), dtype=np.complex_)
-            K = np.zeros(nfft, dtype=np.complex_)
-            sigK = np.zeros(nfft, dtype=np.complex_)
-
-
-            print("nkax = {0:d}, nfft = {1:d}, dmin = {2:f}".format(nkax, nfft, dmin))
-
-            # calculate auto power and cross phase (wavenumber)
-            for b in range(bins):
-                #X = self.Dlist[done].spdata[done_subset[c],b,:]
-                #Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
-                X = XX[b, :]
-                Y = YY[b, :]
-
-                Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
-                Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
-                Pxy = X*np.matrix.conjugate(Y)
-                Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (dist * 100) # [cm^-1]
-                                                                  
-                # calculate SKw
+                # calculate moments
+                sklw = val / np.tile(val.sum(axis=0), (nkax, 1))
+                K[:] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, axis=0)
                 for w in range(nfft):
-                    idx = (Kxy[b,w] - kstep * 0.5 < kax) * (kax < Kxy[b,w] + kstep * 0.5)
-                    val[:,w] = val[:,w] + (1.0 / bins * (Pxx[b,w] + Pyy[b,w]) * 0.5) * idx
+                    sigK[w] = np.sqrt(np.sum( (kax - K[w])**2 * sklw[:,w] ))
 
-            # calculate moments
-            sklw = val / np.tile(val.sum(axis=0), (nkax, 1))
-            K[:] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, axis=0)
-            for w in range(nfft):
-                sigK[w] = np.sqrt(np.sum( (kax - K[w])**2 * sklw[:,w] ))
+                val = val.mean(axis=0).real
+                K = np.mean(K, axis=0)
+                sigK = np.mean(sigK, axis=0)
 
-            val = val.mean(axis=0).real
-            K = np.mean(K, axis=0)
-            sigK = np.mean(sigK, axis=0)
+                pdata = np.log10(val + 1e-10)
 
-            pdata = np.log10(val + 1e-10)
+                print(pdata.shape)
 
-            print(pdata.shape)
+                res_list.append(pdata)
 
-            return(pdata)
+            return(res_list)
 
 
         for c in self.get_dispatch_sequence():
             print(c.ch1.__str__(), c.ch2.__str__())
 
-        self.futures_list = [dask_client.submit(skw, fft_future, pair.ch1, pair.ch2, self.fft_config, self.ecei_config) for pair in self.get_dispatch_sequence()]
+        self.futures_list = [dask_client.submit(skw, fft_future, ch_it, self.fft_config, self.ecei_config) for ch_it in self.get_dispatch_sequence()]
         return None 
 
 

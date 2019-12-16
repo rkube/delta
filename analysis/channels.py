@@ -65,6 +65,13 @@ class channel_pair:
         else:
             return False
 
+    def __str__(self):
+        """Returns a standardized string"""
+
+        ch_str = "({0:s}, {1:s})".format(self.ch1.__str__(), self.ch2.__str__())
+        return(ch_str)
+
+
     def __hash__(self):
         """Implement hash so that we can use sets."""
         #print("({0:s} x {1:s}) hash={2:d}".format(self.ch1.__str__(), self.ch2.__str__(),\

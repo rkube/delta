@@ -63,11 +63,10 @@ dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 
 
 # Add the source path to all workers so that the imports are working :)
-def add_path():
-    import sys
-    sys.path.append("/global/homes/r/rkube/repos/delta")
-
-dask_client.run(add_path)
+#def add_path():
+#    import sys
+#    sys.path.append("/global/homes/r/rkube/repos/delta")
+#dask_client.run(add_path)
 
 
 # Parse command line arguments and read configuration file
