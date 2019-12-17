@@ -19,14 +19,14 @@ class backend_numpy(backend):
         # Counter for input files
         self.ctr = 0
 
-    def store(self, fname, data):
+    def store(self, fname, data, metadata):
         """Stores data and args in numpy file
 
         Input:
         ======
         fname, string: Filename the data is stored in
-        data, ndarray: Data to story in
-        *args, dict: descriptive meta-data
+        data, ndarray: Data to store in file
+        metadata, dict: Dictionary that is stored in file
         
         Returns:
         ========
@@ -35,7 +35,22 @@ class backend_numpy(backend):
         fname_fq = join(self.datadir, fname) + "_s{0:05d}".format(self.ctr) + ".npz"
 
         print("Storing data in " + fname_fq)
-        np.savez(fname_fq, data=data)
+        np.savez(fname_fq, data=data, **metadata)
+
+
+    def store_config(self, fname, metadata):
+        """Stores metadta in an numpy file
+
+        Input:
+        ======
+        fname, string: Filename
+        metadata, dict: metadata that is stored im file
+        """
+
+        fname_fq = join(self.datadir, fname) + "_metadata.npz"
+
+        print("Storing metadata in " + fname_fq)
+        np.savez(fname_fq, **metadata)
     
 
 

@@ -11,7 +11,7 @@
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "cross_correlation", 
                 "analysis": "cross_correlation",
-                "channel_chunk_size": 192, 
-                "kwargs" : {"ref_channels" : ["L0101-2408"],
-                            "x_channels" : ["L0101-2408"]}}]
+                "channel_chunk_size": 576, 
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"}]
 }

@@ -96,6 +96,7 @@ fft_params = my_fft.get_fft_params()
 task_list = []
 for task_config in cfg["task_list"]:
     task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
+    task_list[-1].store_metadata(store_backend)
 
 reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
 reader.Open(cfg["datapath"])
@@ -142,8 +143,13 @@ while(True):
 
         # Broadcast the fourier-transformed data to all workers
         # Pas this future to worker tasks as a reference to fft_data
+        tic_sc = timeit.default_timer()
         fft_future = dask_client.scatter(fft_data, broadcast=True)
+        toc_sc = timeit.default_timer()
+        print("*** main_loop scatter(fft_data) took {0:f}s.".format(toc_sc - tic_sc))
 
+
+        tic_task = timeit.default_timer()
         for task in task_list:
             print("*** main_loop: ", task.description)
             task.calculate(dask_client, fft_future)
@@ -155,6 +161,9 @@ while(True):
             # Method 2: Get method and data from object
             #task_futures.append(dask_client.submit(task.get_method(), task.get_data()))
 
+        toc_task = timeit.default_timer()
+        print("*** main_loop: dispatching tasks took {0:6.4f}s".format(toc_task - tic_task))
+
     else:
         print("End of stream")
         break
@@ -163,21 +172,12 @@ while(True):
 
     # Store result in npz file for quick access
     store_backend.ctr = s
+    tic_store = timeit.default_timer()
     for task in task_list:
-        task.store(store_backend)
-        #res = []
-        #for f in task.futures_list:
-        #    res.append(f.result()[1])
-        #res = np.array(res)
-        #fname = "test_data/{0:s}_{1:03d}.npz".format(task.description, s)
-        #print("...saving to {0:s}".format(fname))
-        #np.savez(fname, res=res)
+        task.store_data(store_backend, {"tstep": s})
+    toc_store = timeit.default_timer()
 
-    
-
-
-
-
+    print("*** main_loop store_data took {0:6.4f}s.".format(toc_store - tic_store))
 
     #tic_mongo = timeit.default_timer()
     # Pass the task object to our backend for storage

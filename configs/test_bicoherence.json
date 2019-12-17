@@ -11,6 +11,6 @@
  "fft_params" : {"nfft": 2048, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "ralphs_task", 
                 "analysis": "bicoherence",
-                "kwargs" : {"ref_channels" : ["L0702-0702"],
-                            "x_channels" : ["L1601-1601"]}}]
+                "ref_channels": "L0702-0702",
+                "cmp_channels": "L1601-1601"}]
 }

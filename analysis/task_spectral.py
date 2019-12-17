@@ -27,20 +27,17 @@ class task_spectral():
         self.analysis = task_config["analysis"]
         
         # Parse the reference and cross channels.
-        try:
-            kwargs = task_config["kwargs"]
-            # These channels serve as reference for the spectral diagnostics
-            self.ref_channels = channel_range.from_str(kwargs["ref_channels"][0])
-            # These channels serve as the cross-data for the spectrail diagnostics
-            self.x_channels = channel_range.from_str(kwargs["x_channels"][0])
-        except KeyError:
-            self.kwargs = None
+        self.ref_channels = channel_range.from_str(task_config["ref_channels"])
+        # These channels serve as the cross-data for the spectral diagnostics
+        self.cmp_channels = channel_range.from_str(task_config["cmp_channels"])
 
+
+        self.task_config = task_config
         self.fft_config = fft_config
         self.ecei_config = ecei_config
 
         self.storage_scheme =  {"ref_channels": self.ref_channels.to_str(),
-                                "cross_channels": self.x_channels.to_str()}
+                                "cmp_channels": self.cmp_channels.to_str()}
 
         # Construct a list of unique channels
         # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
@@ -49,7 +46,7 @@ class task_spectral():
         # (1,2) x (1,2) !!! Omit (1,2) x (1,1)
         # (1,3) x (1,1)
         # (1,3) x (1,2)
-        channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.x_channels]
+        channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.cmp_channels]
         # Make a list, so that we don't exhause the iterator after the first call.
         self.unique_channels = list(more_itertools.distinct_combinations(channel_pairs, 1))
         self.channel_chunk_size = task_config["channel_chunk_size"]
@@ -75,31 +72,49 @@ class task_spectral():
         return(all_chunks)
 
 
-    def store_data(self, backend, *args):
-        """Store results of computation in the backend"""
+    def store_data(self, backend, metadata):
+        """Store results of computation in the backend.
+
+        Input:
+        ======
+        backend: Backend to use
+        metadata, dict: Dictionary that is passed into the backend call
+        """
 
         # Gather the results
         print("*** Storing data. len(futures_list) = {0:d}".format(len(self.futures_list)))
         res = []
         for f in self.futures_list:
-            #print(f)
             res.append(f.result())
-        res = np.array(res)
+        res = np.concatenate(res, axis=0)
 
         #print("*** Done. futures_list = ", self.futures_list)
         print("*** res.shape = ", res.shape)
-        backend.store(self.description, res)
+        backend.store(self.description, res, metadata)
         
         
-    def store_config(self, backend, *args):
-        """Store meta-data that only depends on task configuration"""
+    def store_metadata(self, backend):
+        """Store meta-data that only depends on task configuration.
+        
+        Input:
+        ======
+        backend, Backend type to use
+        """
 
         # Get the channel list
-        all_chunks = get_dispatch_sequence()
+        all_chunks = self.get_dispatch_sequence()
 
         ll = list(all_chunks)
         flat_ll = [item for sublist in ll for item in sublist]
         flat_ll = [l[0] for l in flat_ll]
+
+
+        metadata = {"task_config": self.task_config, 
+                    "fft_config": self.fft_config,
+                    "ecei_config": self.ecei_config,
+                    "channel_list": flat_ll}
+
+        backend.store_config(self.description, metadata)
 
         
 
@@ -165,7 +180,7 @@ class task_cross_phase(task_spectral):
             Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
             return(np.arctan2(Pxy.real, Pxy.imag).real)
 
-        self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_it) for ch_it in self.get_dispatch_sequence(192)]
+        self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_it) for ch_it in self.get_dispatch_sequence()]
 
         return None
 
@@ -200,7 +215,7 @@ class task_cross_power(task_spectral):
             return(res)
     
 
-        self.futures_list = [dask_client.submit(cross_power, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence(192)]
+        self.futures_list = [dask_client.submit(cross_power, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
         return None        
 
 
@@ -244,7 +259,7 @@ class task_coherence(task_spectral):
 
             return(Gxy)
 
-        self.futures_list = [dask_client.submit(coherence, fft_future, ch_it) for ch_it in self.get_dispatch_sequence(192)]
+        self.futures_list = [dask_client.submit(coherence, fft_future, ch_it) for ch_it in self.get_dispatch_sequence()]
         return None  
 
 #    def store(self, mongo_client):
@@ -280,7 +295,6 @@ class task_xspec(task_spectral):
 
             return 0.0
 
-        #self.futures_list = [dask_client.submit(coherence, fft_future, ch_r.idx(), ch_x.idx()) for ch_r in self.ref_channels for ch_x in self.x_channels]
         raise NotImplementedError
 
 
@@ -331,7 +345,7 @@ class task_cross_correlation(task_spectral):
         #for ch_r, ch_x in self.get_dispatch_sequence():
         #    print(ch_r, ch_x)
 
-        self.futures_list = [dask_client.submit(cross_corr, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence(192)]
+        self.futures_list = [dask_client.submit(cross_corr, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
         return None 
 
 
