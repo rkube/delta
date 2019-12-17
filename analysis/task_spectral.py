@@ -1,7 +1,7 @@
 # coding: UTF-8 -*-
 
+import numpy as np
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
-import itertools
 import more_itertools
 
 
@@ -52,13 +52,14 @@ class task_spectral():
         channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.x_channels]
         # Make a list, so that we don't exhause the iterator after the first call.
         self.unique_channels = list(more_itertools.distinct_combinations(channel_pairs, 1))
+        self.channel_chunk_size = task_config["channel_chunk_size"]
 
 
     def calculate(self, *args):
         raise NotImplementedError
 
 
-    def get_dispatch_sequence(self, niter=4):
+    def get_dispatch_sequence(self, niter=None):
         """Returns an a list of iterables that together span all unique
         combinations of ref_ch x cmp_ch.
 
@@ -67,8 +68,40 @@ class task_spectral():
         niter, int: Length of the sub-lists we split the list of channel pairs into.
         """
 
+        if niter is None:
+            niter = self.channel_chunk_size
+
         all_chunks = more_itertools.chunked(self.unique_channels, niter)
         return(all_chunks)
+
+
+    def store_data(self, backend, *args):
+        """Store results of computation in the backend"""
+
+        # Gather the results
+        print("*** Storing data. len(futures_list) = {0:d}".format(len(self.futures_list)))
+        res = []
+        for f in self.futures_list:
+            #print(f)
+            res.append(f.result())
+        res = np.array(res)
+
+        #print("*** Done. futures_list = ", self.futures_list)
+        print("*** res.shape = ", res.shape)
+        backend.store(self.description, res)
+        
+        
+    def store_config(self, backend, *args):
+        """Store meta-data that only depends on task configuration"""
+
+        # Get the channel list
+        all_chunks = get_dispatch_sequence()
+
+        ll = list(all_chunks)
+        flat_ll = [item for sublist in ll for item in sublist]
+        flat_ll = [l[0] for l in flat_ll]
+
+        
 
 
 class task_cross_phase(task_spectral):
@@ -129,9 +162,7 @@ class task_cross_phase(task_spectral):
             
             c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
             c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
-            
             Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
-
             return(np.arctan2(Pxy.real, Pxy.imag).real)
 
         self.futures_list = [dask_client.submit(cross_phase, fft_future, ch_it) for ch_it in self.get_dispatch_sequence(192)]
@@ -159,7 +190,6 @@ class task_cross_power(task_spectral):
             ========
             cross_power, float.
             """
-
             import numpy as np
             
             c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
@@ -207,7 +237,7 @@ class task_coherence(task_spectral):
             Pxx = X * X.conj()
             Pyy = Y * Y.conj()
 
-            Gxy = np.mean((X * Y.conj()) / np.sqrt(Pxx * Pyy), axis=1)
+            Gxy = np.mean((X * Y.conj()) / np.sqrt(Pxx * Pyy), axis=2)
             Gxy = np.fabs(Gxy).real
 
             #Gxy = fabs(mean(X * Y.conj() / sqrt(X * X.conj() * Y * Y.conj())).real)
@@ -277,20 +307,21 @@ class task_cross_correlation(task_spectral):
             cross-correlation, float array
             """
 
-            import numpy as np
+            #import numpy as np
+
 
             c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
             c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
 
             # Perform fftshift on the fourier coefficient axis (dim1)
-            X = np.fft.fftshift(fft_data[c1_idx, :, :], axes=0)
-            Y = np.fft.fftshift(fft_data[c2_idx, :, :], axes=0)
+            X = np.fft.fftshift(fft_data[c1_idx, :, :], axes=1)
+            Y = np.fft.fftshift(fft_data[c2_idx, :, :], axes=1)
 
-            _tmp = np.fft.ifftshift(X * Y.conj(), axes=0) / fft_params['win_factor']
-            _tmp = np.fft.ifft(_tmp, n=fft_params['nfft'], axis=0) * fft_params['nfft']
-            _tmp = np.fft.fftshift(_tmp, axes=0)
+            _tmp = np.fft.ifftshift(X * Y.conj(), axes=1) / fft_params['win_factor']
+            _tmp = np.fft.ifft(_tmp, n=fft_params['nfft'], axis=1) * fft_params['nfft']
+            _tmp = np.fft.fftshift(_tmp, axes=1)
 
-            res = _tmp.mean(axis=1).real
+            res = _tmp.mean(axis=2).real
 
             return(res)
 
@@ -415,16 +446,16 @@ class task_skw(task_spectral):
             res_list = []
             for ch in ch_it:
                 ch1_idx, ch2_idx = ch[0].ch1.idx(), ch[0].ch2.idx()
-                print("Calculating skw for channels {0:s}x{1:s}".format(ch[0].ch1, ch[0].ch2)
+                print("Calculating skw for channels {0:s}x{1:s}".format(ch[0].ch1, ch[0].ch2))
 
-                XX = np.fft.fftshift(fft_data[ch1.idx(), :, :], axes=0).T
-                YY = np.fft.fftshift(fft_data[ch2.idx(), :, :], axes=0).T
+                XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
+                YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
 
                 bins, _ = XX.shape
                 win_factor = fft_params["win_factor"]
 
-                cpos_ref = channel_position(ch1.idx(), ecei_config)
-                cpos_cmp = channel_position(ch2.idx(), ecei_config)
+                cpos_ref = channel_position(ch1_idx, ecei_config)
+                cpos_cmp = channel_position(ch2_idx, ecei_config)
 
                 # Calculate distance between channels
                 dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
@@ -435,7 +466,7 @@ class task_skw(task_spectral):
                 nkax = kax.size
                 nfft = fft_params["nfft"]
 
-                if(ch0 == ch1):
+                if(ch1_idx == ch2_idx):
                     # We can't calculate the cross-conditional spectrum for ch0==ch1
                     # since dmin=0
                     return(np.zeros(nkax, nfft))

@@ -8,9 +8,10 @@
               "LoFreq": 81,
               "LensFocus": 80,
               "LensZoom": 340},
- "fft_params" : {"nfft": 2048, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
- "task_list": [{"description" : "ralphs_task", 
+ "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
+ "task_list": [{"description" : "cross_correlation", 
                 "analysis": "cross_correlation",
-                "kwargs" : {"ref_channels" : ["L0701-0708"],
-                            "x_channels" : ["L1601-1608"]}}]
+                "channel_chunk_size": 192, 
+                "kwargs" : {"ref_channels" : ["L0101-2408"],
+                            "x_channels" : ["L0101-2408"]}}]
 }

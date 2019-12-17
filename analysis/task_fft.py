@@ -121,6 +121,8 @@ class task_fft_kstar():
         # Calculate the frequencies
         self.fft_freqs = create_fft_freq(self.fs, self.nfft, self.full)
 
+        self.fft_window = fft_window(self.ndata, self.nfft, self.window, self.overlap)
+
     def do_fft(self, cs_data):
         """Perform the FFT. This former fftbins routine
         Inputs:
@@ -128,8 +130,8 @@ class task_fft_kstar():
         """
 
         for fbin in range(self.fft_bins):
-            idx1 = int(fbin * floor(nfft * (1. - overlap)))
-            idx2 = idx1 + nfft
+            idx1 = int(fbin * floor(self.nfft * (1. - self.overlap)))
+            idx2 = idx1 + self.nfft
 
             sx = cs_data[:, idx1:idx2]
 
@@ -137,18 +139,18 @@ class task_fft_kstar():
                 sx = detrend(sx, type='linear', axis=1)
             sx = detrend(sx, type='constant', axis=1)  # subtract mean
 
-            sx = sx * win  # apply window function
+            sx = sx * self.fft_window  # apply window function
 
             # get fft
-            SX = np.fft.fft(sx, n=nfft)/nfft  # divide by the length
-            if np.mod(nfft, 2) == 0:  # even nfft
-                SX = np.hstack([SX[0:int(nfft/2)], np.conj(SX[int(nfft/2)]), SX[int(nfft/2):nfft]])
+            SX = np.fft.fft(sx, n=self.nfft)/self.nfft  # divide by the length
+            if np.mod(self.nfft, 2) == 0:  # even nfft
+                SX = np.hstack([SX[0:self.nfft // 2], np.conj(SX[self.nfft //2 ]), SX[self.nfft // 2:self.nfft]])
             if full == 1: # shift to -fN ~ 0 ~ fN
                 SX = np.fft.fftshift(SX)
             else: # half 0 ~ fN
-                SX = SX[0:int(nfft/2+1)]
+                SX = SX[0:self.nfft//2 + 1]
 
-            fftdata[b,:] = SX
+            fftdata[fbin,:] = SX
 
         return ax, fftdata, win_factor
 
@@ -283,6 +285,15 @@ class task_fft_scipy():
         futures = [dask_client.submit(stft_scipy, stream_data_future, idx) for idx in range(192)]
 
         return(futures)
+
+    def do_fft_local(self, stream_data):
+        """Performs STFT locally"""
+
+        res = stft(stream_data, axis=1, fs=self.fs, nperseg=self.nfft, window=self.window,
+                   detrend=self.detrend, noverlap=self.noverlap, padded=False,
+                   return_onesided=False, boundary=None)
+
+        return res[2]
 
 
 # End of file task_fft.py

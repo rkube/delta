@@ -35,12 +35,12 @@ import json
 import argparse
 from distributed import Client, progress
 
-from backends.mongodb import mongodb_backend
+#from backends.mongodb import mongodb_backend
+from backends.backend_numpy import backend_numpy
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 
 from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_xspec, task_cross_correlation, task_skw
-
 
 import timeit
 
@@ -57,17 +57,20 @@ task_object_dict = {"cross_phase": task_cross_phase,
 
 
 # This object manages storage to a backend.
-mongo_client = mongodb_backend()
+#mongo_client = mongodb_backend()
 # Interface to worker nodes
 dask_client = Client(scheduler_file="/global/cscratch1/sd/rkube/scheduler.json")
 
 
+# TODO: Add this to a pre-loeading
 # Add the source path to all workers so that the imports are working :)
-#def add_path():
-#    import sys
-#    sys.path.append("/global/homes/r/rkube/repos/delta")
+def add_path():
+    import sys
+    import numpy as np
+    sys.path.append("/global/homes/r/rkube/repos/delta")
 #dask_client.run(add_path)
 
+store_backend = backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
 
 # Parse command line arguments and read configuration file
 parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
@@ -97,6 +100,8 @@ for task_config in cfg["task_list"]:
 reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
 reader.Open(cfg["datapath"])
 
+
+do_local_fft = True
 print("Starting main loop")
 s = 0
 
@@ -115,19 +120,24 @@ while(True):
         # Get the raw data from the stream
         stream_data = reader.Get()
         tb = reader.gen_timebase()
-        stream_data_future = dask_client.scatter(stream_data, broadcast=True)
-
-        tic_fft = timeit.default_timer()
-        # Perform a FFT on the raw data
-        fft_future = my_fft.do_fft(dask_client, stream_data_future)
-        # gather pulls the result of the operation: 
-        # https://docs.dask.org/en/latest/futures.html#distributed.Client.gather
-        results = dask_client.gather(fft_future)
-        toc_fft = timeit.default_timer()
+        
+        if do_local_fft:
+            tic_fft = timeit.default_timer()
+            fft_data = my_fft.do_fft_local(stream_data)
+            toc_fft = timeit.default_timer()
+        else:
+            # Perform a FFT on the raw data
+            tic_fft = timeit.default_timer()
+            stream_data_future = dask_client.scatter(stream_data, broadcast=True)
+            fft_future = my_fft.do_fft(dask_client, stream_data_future)
+            # gather pulls the result of the operation: 
+            # https://docs.dask.org/en/latest/futures.html#distributed.Client.gather
+            results = dask_client.gather(fft_future)
+            toc_fft = timeit.default_timer()
+            fft_data = np.array(results)
+    
         print("*** main_loop: FFT took {0:f}s".format(toc_fft - tic_fft))
-
-        # concatenate the results into a numpy array
-        fft_data = np.array(results)
+        
         np.savez("test_data/fft_data_s{0:04d}.npz".format(s), fft_data=fft_data)
 
         # Broadcast the fourier-transformed data to all workers
@@ -151,15 +161,22 @@ while(True):
 
     reader.EndStep()
 
-    # Store result in npz file for quick comparison
+    # Store result in npz file for quick access
+    store_backend.ctr = s
     for task in task_list:
-        res = []
-        for f in task.futures_list:
-            res.append(f.result()[1])
-        res = np.array(res)
-        fname = "test_data/{0:s}_{1:03d}.npz".format(task.description, s)
-        print("...saving to {0:s}".format(fname))
-        np.savez(fname, res=res)
+        task.store(store_backend)
+        #res = []
+        #for f in task.futures_list:
+        #    res.append(f.result()[1])
+        #res = np.array(res)
+        #fname = "test_data/{0:s}_{1:03d}.npz".format(task.description, s)
+        #print("...saving to {0:s}".format(fname))
+        #np.savez(fname, res=res)
+
+    
+
+
+
 
 
     #tic_mongo = timeit.default_timer()

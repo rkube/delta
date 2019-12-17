@@ -10,7 +10,7 @@
               "LensZoom": 340},
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "ralphs_task", 
-                "analysis": "cross_power",
+                "analysis": "cross_phase",
                 "kwargs" : {"ref_channels" : ["L0701-0708"],
                             "x_channels" : ["L1601-1608"]}}]
 }
