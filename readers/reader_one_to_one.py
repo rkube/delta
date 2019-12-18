@@ -80,7 +80,7 @@ class reader_base():
 
 
     
-    def Get(self, channels=None):
+    def Get(self, channels=None, save=False):
         """Get data from varname at current step.
 
         The ECEI data is usually normalized to a fixed offset, calculated using data 
@@ -100,6 +100,7 @@ class reader_base():
         =======
         channels: Either None, a string or a list of channels. Attempt to read all ECEI channels
                   if channels is None
+        save: If true, save debugging data as numpy files
         
         Returns:
         ========
@@ -147,15 +148,17 @@ class reader_base():
                 self.offset_lvl = np.median(io_array[:, tnorm_idx], axis=1, keepdims=True)
                 self.offset_std = io_array[:, tnorm_idx].std(axis=1)
                 self.is_data_normalized = True
-
-                np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
+                if save:
+                    np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
 
         if self.is_data_normalized:
-            print("*** Reader:Get: io_array.shape = ", io_array.shape)
-            np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            #print("*** Reader:Get: io_array.shape = ", io_array.shape)
+            if save:
+                np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
             io_array = io_array - self.offset_lvl
             io_array = io_array / io_array.mean(axis=1, keepdims=True) - 1.0
-            np.savez("test_data/io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            if save:
+                np.savez("test_data/io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
 
 
         return io_array

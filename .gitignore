@@ -5,3 +5,4 @@ worker-*
 *lock
 *npz
 tests_div/.ipynb_checkpoints/
+tests_analysis/.ipynb_checkpoints/
