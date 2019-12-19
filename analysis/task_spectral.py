@@ -1,5 +1,7 @@
 # coding: UTF-8 -*-
 
+
+import logging
 import numpy as np
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 import more_itertools
@@ -83,14 +85,13 @@ class task_spectral():
         """
 
         # Gather the results
-        print("*** Storing data. len(futures_list) = {0:d}".format(len(self.futures_list)))
+        logging.debug("*** Storing data. len(futures_list) = {0:d}".format(len(self.futures_list)))
         res = []
         for f in self.futures_list:
             res.append(f.result())
         res = np.concatenate(res, axis=0)
 
-        #print("*** Done. futures_list = ", self.futures_list)
-        print("*** res.shape = ", res.shape)
+        logging.debug("*** res.shape = ", res.shape)
         backend.store(self.description, res, metadata)
         
         
@@ -342,11 +343,6 @@ class task_cross_correlation(task_spectral):
             return(res)
 
 
-        #print("task_cross_corr: fft_config = ", self.fft_config)
-        #print("Dispatch sequence")
-        #for ch_r, ch_x in self.get_dispatch_sequence():
-        #    print(ch_r, ch_x)
-
         self.futures_list = [dask_client.submit(cross_corr, fft_future, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
         return None 
 
@@ -462,7 +458,6 @@ class task_skw(task_spectral):
             res_list = []
             for ch in ch_it:
                 ch1_idx, ch2_idx = ch[0].ch1.idx(), ch[0].ch2.idx()
-                print("Calculating skw for channels {0:s}x{1:s}".format(ch[0].ch1, ch[0].ch2))
 
                 XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
                 YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
@@ -498,7 +493,6 @@ class task_skw(task_spectral):
                 sigK = np.zeros(nfft, dtype=np.complex_)
 
 
-                print("nkax = {0:d}, nfft = {1:d}, dmin = {2:f}".format(nkax, nfft, dmin))
 
                 # calculate auto power and cross phase (wavenumber)
                 for b in range(bins):
@@ -529,15 +523,10 @@ class task_skw(task_spectral):
 
                 pdata = np.log10(val + 1e-10)
 
-                print(pdata.shape)
-
                 res_list.append(pdata)
 
             return(res_list)
 
-
-        for c in self.get_dispatch_sequence():
-            print(c.ch1.__str__(), c.ch2.__str__())
 
         self.futures_list = [dask_client.submit(skw, fft_future, ch_it, self.fft_config, self.ecei_config) for ch_it in self.get_dispatch_sequence()]
         return None 

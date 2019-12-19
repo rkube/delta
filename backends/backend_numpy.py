@@ -1,6 +1,7 @@
 # Encoding: UTF-8 -*-
 
 from os.path import join
+import logging
 import numpy as np
 from backends.backend import backend
 
@@ -34,7 +35,7 @@ class backend_numpy(backend):
         """
         fname_fq = join(self.datadir, fname) + "_s{0:05d}".format(self.ctr) + ".npz"
 
-        print("Storing data in " + fname_fq)
+        logging.debug("Storing data in " + fname_fq)
         np.savez(fname_fq, data=data, **metadata)
         self.ctr += 1
 
@@ -50,7 +51,7 @@ class backend_numpy(backend):
 
         fname_fq = join(self.datadir, fname) + "_metadata.npz"
 
-        print("Storing metadata in " + fname_fq)
+        logging.debug("Storing metadata in " + fname_fq)
         np.savez(fname_fq, **metadata)
     
 

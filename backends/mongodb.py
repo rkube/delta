@@ -17,7 +17,7 @@ class mongodb_backend():
 
         self.db = self.client.get_database()
         self.collection = self.db.test_analysis
-        print("***mongodb_backend*** Connected to database {0:s}".format(self.db.name))
+        logging.info("***mongodb_backend*** Connected to database {0:s}".format(self.db.name))
         
 
     def store(self, task, future=None, dummy=True):
@@ -41,7 +41,7 @@ class mongodb_backend():
         for future in task.futures_list:
             result.append(future.result())
         result = np.array(result)
-        print("***Backend.store: result = ", result.shape)
+        logging.debug("***Backend.store: result = ", result.shape)
 
         # Get the 
 
@@ -59,11 +59,11 @@ class mongodb_backend():
 
         if dummy:
             storage_scheme["results"] = result
-            print(storage_scheme)
+            logging.info(storage_scheme)
         else:
             storage_scheme["results"] = Binary(pickle.dumps(result))
             self.collection.insert_one(storage_scheme)
-            print("***mongodb_backend*** Storing...")
+            logging.debug("***mongodb_backend*** Storing...")
 
         return None
 
@@ -77,9 +77,9 @@ class mongodb_backend():
         storage_scheme["results"] = ["{0:8.6f}".format(r) for r in result]
 
         if dummy:
-            print(storage_scheme)
+            logging.info(storage_scheme)
         else:
             self.collection.insert_one(storage_scheme)
-            print("***mongodb_backend*** Storing...")
+            logging.debug("***mongodb_backend*** Storing...")
 
 # End of file mongodb.py

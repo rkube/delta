@@ -6,6 +6,8 @@ This defines a task that performs a FFT of the stremed chunks for the dask appli
 All helper functions are defined locally and adapted from specs.py anf fluctana.py
 """
 
+import logging
+
 import numpy as np
 import dask.array as da
 #from dask.distributed import get_worker
@@ -184,8 +186,6 @@ class task_fft_scipy():
 
         _, win = self.build_fft_window(self.ndata, self.nfft, self.window, self.overlap)
         self.win_factor = np.mean(win**2.0)
-
-        #print("Overlap = {0}, win_factor = {1}".format(self.overlap, self.win_factor))
 
         
     def build_fft_window(self, tnum, nfft, window, overlap):

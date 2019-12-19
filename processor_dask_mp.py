@@ -88,12 +88,17 @@ def consume(Q, dask_client, store_backend, my_fft, task_list, cfg):
         toc_fft = timeit.default_timer()
         logging.info(f"FFT + scatter took {(toc_fft-tic_fft):6.4f}s")
 
-        tic_task = timeit.default_timer()
         for task in task_list:
+            tic_calc = timeit.default_timer()
+
             task.calculate(dask_client, fft_future)
+            toc_calc = timeit.default_timer()
+            logging.info(f"Task calculate tool {(toc_calc - tic_calc):6.4f}s")
+        
+            tic_store = timeit.default_timer()
             task.store_data(store_backend, {"tstep": msg.tstep_idx})
-        toc_task = timeit.default_timer()
-        logging.info(f"Task processing + storage took {(toc_task - tic_task):6.4f}s")
+            toc_store = timeit.default_timer()
+            logging.info(f"Task storage took {(toc_store - tic_store):6.4f}s")
 
         Q.task_done()
 
@@ -124,7 +129,7 @@ def main():
         import sys
         import numpy as np
         sys.path.append("/home/rkube/repos/delta")
-    #dask_client.run(add_path)
+    dask_client.run(add_path)
 
     # Create storage backend
     store_backend = backend_numpy("/home/rkube/repos/delta/test_data")
