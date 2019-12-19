@@ -18,9 +18,12 @@ class reader_base():
         print("reader_base.__init__(): rank = {0:02d}".format(self.rank))
 
 
-    def Open(self):
+    def Open(self, worker_id=None):
         """Opens a new channel"""
-        self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+        if worker_id is None:
+            self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+        else:
+            self.channel_name = "{0:05d}_ch{1:06d}.s{2:02d}.bp".format(self.shotnr, self.id, worker_id)
         print (">>> Opening ... %s"%(self.channel_name))
 
         if self.reader is None:
