@@ -1,5 +1,6 @@
 #-*- Coding: UTF-8 -*-
 
+import logging
 import adios2
 import numpy as np
 from analysis.channels import channel, channel_range
@@ -121,7 +122,7 @@ class reader_base():
 
         elif isinstance(channels, type(None)):
             data_list = []
-            print("Reader::Get*** Default reading channels L0101-L2408. Step no. {0:d}".format(self.CurrentStep()))
+            logging.debug("Reader::Get*** Default reading channels L0101-L2408. Step no. {0:d}".format(self.CurrentStep()))
             clist = channel_range(channel("L", 1, 1), channel("L", 24, 8))
 
             # Inquire the data of each channel from the ADIOS IO
@@ -142,7 +143,7 @@ class reader_base():
             tb = self.gen_timebase()
             # Calculate indices where we calculate the normalization offset from
             tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
-            print("*** Reader: I found {0:d} indices where to normalize".format(tnorm_idx.sum()), ", tnorm = ", self.tnorm)
+            logging.debug("*** Reader: I found {0:d} indices where to normalize".format(tnorm_idx.sum()), ", tnorm = ", self.tnorm)
             # Calculate normalization offset if we have enough indices
             if(tnorm_idx.sum() > 100):
                 self.offset_lvl = np.median(io_array[:, tnorm_idx], axis=1, keepdims=True)
@@ -152,7 +153,6 @@ class reader_base():
                     np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
 
         if self.is_data_normalized:
-            #print("*** Reader:Get: io_array.shape = ", io_array.shape)
             if save:
                 np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
             io_array = io_array - self.offset_lvl

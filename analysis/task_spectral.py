@@ -3,6 +3,7 @@
 import numpy as np
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 import more_itertools
+import numba
 
 
 class task_spectral():
@@ -227,6 +228,7 @@ class task_coherence(task_spectral):
 
     
     def calculate(self, dask_client, fft_future):
+        #@jit
         def coherence(fft_data, ch_it):
             """Kernel that calculates the coherence between two channels.
             Input:

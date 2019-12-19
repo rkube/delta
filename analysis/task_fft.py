@@ -286,6 +286,7 @@ class task_fft_scipy():
 
         return(futures)
 
+
     def do_fft_local(self, stream_data):
         """Performs STFT locally"""
 

@@ -1,9 +1,10 @@
 # -*- coding: UTF-8 -*-
 
 """
-This processor implements the one-to-one model using an async, non-blocking main loop.
+This processor implements the one-to-one model using an multi-processing
 
 main loop is based on this tutorial: https://www.roguelynn.com/words/asyncio-true-concurrency/
+and on Jong's code
 
 
 To run: 
@@ -19,14 +20,17 @@ srun -u -n 10 python -u $(which dask-worker) --scheduler-file $SCRATCH/scheduler
 python -u processor_dask.py
 """
 
+
 import sys
 sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
 
-import asyncio
 import logging
 import random
 import string
-import uuid
+import time
+import queue
+import threading
+import concurrent.futures
 
 import attr
 
@@ -41,6 +45,7 @@ from backends.backend_numpy import backend_numpy
 from readers.reader_one_to_one import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_xspec, task_cross_correlation, task_skw
+
 
 
 # task_object_dict maps the string-value of the analysis field in the json file
@@ -68,92 +73,29 @@ class AdiosMessage:
     data       = attr.ib(repr=False)
 
 
-async def publish(queue, reader):
-    """Simulates an external publisher of messages.
-    Args:
-        queue (asyncio.Queue): Queue to publish messages to.
-        reader: Connection to read bp files
-    """
-
-
+def consume(Q, dask_client, store_backend, my_fft, task_list, cfg):
     while True:
-        stepStatus = reader.BeginStep()
+        msg = Q.get()
+        logging.info(f"Consuming {msg}")
 
-        if stepStatus:
-            print("read: ok")
-
-            # Read data
-            stream_data = reader.Get(save=False)
-            tb = reader.gen_timebase()
-
-            # Generate message id and publish is
-            msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
-
-            asyncio.create_task(queue.put(msg))
-            logging.info(f"Published message {msg}")
-            # TODO: We need to add a small sleep here so that the consumer catches up
-            await asyncio.sleep(0.0)
-
-            if reader.CurrentStep() > 5:
-                break
-
-        else:
-            print("StepStatus: ", stepStatus)
+        if msg.tstep_idx == -1:
+            Q.task_done()
             break
 
+        tic_fft = timeit.default_timer()
+        fft_data = my_fft.do_fft_local(msg.data)
+        fft_future = dask_client.scatter(fft_data, broadcast=True)
+        toc_fft = timeit.default_timer()
+        logging.info(f"FFT + scatter took {(toc_fft-tic_fft):6.4f}s")
 
+        tic_task = timeit.default_timer()
+        for task in task_list:
+            task.calculate(dask_client, fft_future)
+            task.store_data(store_backend, {"tstep": msg.tstep_idx})
+        toc_task = timeit.default_timer()
+        logging.info(f"Task processing + storage took {(toc_task - tic_task):6.4f}s")
 
-async def handle_message(msg, dask_client, store_backend, my_fft, task_list, cfg):
-    """Performs all work on a data chunk
-    -> FFT
-    -> Dispatch analysis to dask cluster
-    -> Store
-
-    Input:
-    ======
-    msg
-    dask_client
-    my_fft
-    task_list
-    cfg
-
-    Returns:
-    ========
-    None
-    """
-
-    logging.info(f"Handling {msg}")
-
-    tic_fft = timeit.default_timer()
-    fft_data = my_fft.do_fft_local(msg.data)
-    fft_future = dask_client.scatter(fft_data, broadcast=True)
-    toc_fft = timeit.default_timer()
-    logging.info(f"FFT + scatter took {(toc_fft-tic_fft):6.4f}s")
-
-    tic_task = timeit.default_timer()
-    for task in task_list:
-        task.calculate(dask_client, fft_future)
-        task.store_data(store_backend, {"tstep": msg.tstep_idx})
-    toc_task = timeit.default_timer()
-    logging.info(f"Task processing + storage took {(toc_task - tic_task):6.4f}s")
-
-
-
-async def consume(queue, dask_client, store_backend, my_fft, task_list, cfg):
-    while True:
-        # wait for an item from the publisher
-        msg = await queue.get()
-
-        # the publisher emits None to indicate that it is done
-        if msg is None:
-            break
-
-        # Process the message
-        asyncio.create_task(handle_message(msg, dask_client, store_backend, my_fft, task_list, cfg))
-        logging.info(f"Consumed {msg}")
-        # simulate i/o operation using sleep
-        await asyncio.sleep(0.1)
-
+        Q.task_done()
 
 
 def main():
@@ -182,7 +124,7 @@ def main():
         import sys
         import numpy as np
         sys.path.append("/home/rkube/repos/delta")
-    dask_client.run(add_path)
+    #dask_client.run(add_path)
 
     # Create storage backend
     store_backend = backend_numpy("/home/rkube/repos/delta/test_data")
@@ -193,27 +135,62 @@ def main():
         task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
         task_list[-1].store_metadata(store_backend)
 
-    # Create the queue
-    queue = asyncio.Queue()
-    loop = asyncio.get_event_loop()
+
+    dq = queue.Queue()
+    msg = None
+
+    worker = threading.Thread(target=consume, args=(dq, dask_client, store_backend, my_fft, task_list, cfg))
+    worker.start()
+
+    logging.info(f"Starting main loop")
+    while True:
+        stepStatus = reader.BeginStep()
+
+        if stepStatus:
+            logging.debug("read: ok")
+
+            # Read data
+            stream_data = reader.Get(save=False)
+            tb = reader.gen_timebase()
+
+            # Generate message id and publish is
+            msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
+            dq.put(msg)
+
+            #asyncio.create_task(queue.put(msg))
+            logging.info(f"Published message {msg}")
+
+        if reader.CurrentStep() > 5:
+            logging.info(f"Exiting: StepStatus={stepStatus}")
+            msg_break = AdiosMessage(tstep_idx=-1, data=None)
+            dq.put(msg_break)
+            break
+
+    worker.join()
+    dq.join()
+
+    # # Create the queue
+    # queue = queue.Queue()
+    # loop = asyncio.get_event_loop()
 
 
-    print("Starting main loop")
-    try:
-        loop.create_task(publish(queue, reader))
-        #loop.create_task(publish_2(queue))
-        loop.create_task(consume(queue, dask_client, store_backend, my_fft, task_list, cfg))
-        loop.run_forever()
+    # print("Starting main loop")
+    # try:
+    #     loop.create_task(publish(queue, reader))
+    #     #loop.create_task(publish_2(queue))
+    #     loop.create_task(consume(queue, dask_client, store_backend, my_fft, task_list, cfg))
+    #     loop.run_forever()
 
-    except KeyboardInterrupt:
-        logging.info("Process interrupted")
+    # except KeyboardInterrupt:
+    #     logging.info("Process interrupted")
 
-    finally:
-        loop.close()
-        logging.info("Successfully shutdown the delta service.")
+    # finally:
+    #     loop.close()
+    #     logging.info("Successfully shutdown the delta service.")
 
 
 if __name__ == "__main__":
     main()
 
-# End of file processor_dask_async.py
+
+# End of file processor_dask_mp.yp

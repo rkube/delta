@@ -36,6 +36,7 @@ class backend_numpy(backend):
 
         print("Storing data in " + fname_fq)
         np.savez(fname_fq, data=data, **metadata)
+        self.ctr += 1
 
 
     def store_config(self, fname, metadata):
