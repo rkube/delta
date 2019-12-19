@@ -33,10 +33,10 @@ assert(len(cfg["analysis"]) == size)
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
-# my_analysis = cfg["analysis"][rank]
-# my_channel_list = cfg["channel_range"][rank]
-# gen_id = 100000 * rank + my_channel_list[0]
-# num_channels = len(my_channel_list)
+my_analysis = cfg["analysis"][rank]
+my_channel_list = cfg["channel_range"][rank]
+gen_id = 100000 * rank + my_channel_list[0]
+num_channels = len(my_channel_list)
     
 ## jyc:
 ## We create N queues and N analysis workers. Each worker will be assigned to one queue.
@@ -96,13 +96,13 @@ while(True):
         reader.EndStep()
         #print("rank {0:d}: Step".format(rank), reader.CurrentStep(), ", io_array = ", io_array)
     else:
-        print("receiver {0:d}: End of stream".format(rank))
+        print(">>> receiver {0:d}: End of stream".format(rank))
         break
 
     # Recover channel data 
     channel_data = channel_data.reshape((num_channels, channel_data.size // num_channels))
 
-    print ("Step begins ... %d"%step)
+    print (">>> Step begins ... %d"%step)
     ## jyc: this is just for testing. This is a place to run analysis if we want.
     ##executor.submit(perform_analysis, channel_data, step)
 
@@ -119,6 +119,6 @@ for n in range(num_analysis):
     dq.put((None, step))
     worker.join()
 
-print (">>> processing ... done.")
+print (">>> receiver ... done.")
 
 # End of file processor_adios2.

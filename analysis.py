@@ -53,13 +53,13 @@ num_channels = len(my_channel_list)
 ## Processs pool would be good to utilize multiple cores.
 
 #executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-executor = concurrent.futures.ProcessPoolExecutor(max_workers=8)
+executor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
 
 def perform_analysis(channel_data, step):
     """ 
     Perform analysis
     """ 
-    print (">>> rank %d: analysis ... %d"%(rank, step))
+    print (">>> analysis rank %d: analysis ... %d"%(rank, step))
     t0 = time.time()
     if(my_analysis["name"] == "power_spectrum"):
         analysis_result = power_spectrum(channel_data, **my_analysis["config"])
@@ -68,15 +68,15 @@ def perform_analysis(channel_data, step):
     # Store result in database
     ##backend.store(my_analysis, analysis_result)
     #time.sleep(5)
-    print (">>> rank %d: analysis ... %d: done (%f secs)"%(rank, step, t1-t0))
+    print (">>> analysis rank %d: analysis ... %d: done (%f secs)"%(rank, step, t1-t0))
 
 ## Warming up for loading modules
-print (">>> rank %d: Warming up ... "%rank)
+print (">>> analysis rank %d: Warming up ... "%rank)
 for i in range(8):
     channel_data = np.zeros((num_channels, 100), dtype=np.float64)
     executor.submit(perform_analysis, channel_data, -1)
 time.sleep(10)
-print (">>> rank %d: Warming up ... done"%rank)
+print (">>> analysis rank %d: Warming up ... done"%rank)
     
 #reader = reader_dataman(shotnr, gen_id)
 ## general reader. engine type and params can be changed with the config file
@@ -101,13 +101,13 @@ while(True):
         #currentStep = reader.CurrentStep()
         reader.EndStep()
     else:
-        print(">>> rank %d: End of stream"%(rank))
+        print(">>> analysis rank %d: End of stream"%(rank))
         break
 
     # Recover channel data 
     channel_data = channel_data.reshape((num_channels, channel_data.size // num_channels))
 
-    print (">>> rank %d: Step begins ... %d"%(rank, step))
+    print (">>> analysis rank %d: Step begins ... %d"%(rank, step))
     ## jyc: this is just for testing. This is a place to run analysis if we want.
     executor.submit(perform_analysis, channel_data, step)
 
@@ -117,6 +117,6 @@ while(True):
 ## jyc: this is just for testing. We need to close thread/process pool
 executor.shutdown(wait=True)
 
-print (">>> rank %d: processing ... done."%rank)
+print (">>> analysis rank %d: processing ... done."%rank)
 
 # End of file processor_adios2.
