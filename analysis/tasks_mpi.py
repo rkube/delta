@@ -2,9 +2,11 @@
 
 import numpy as np
 import logging
-from analysis.channels import channel, channel_range, channel_pair, unique_everseen
+
+from numba import jit
 import more_itertools
 
+from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 
 def cross_phase(fft_data, ch_it):
     """Kernel that calculates the cross-phase between two channels.
@@ -79,6 +81,7 @@ def coherence(fft_data, ch_it):
     return(Gxy)
 
 
+@jit(nopython=True)
 def cross_corr(fft_data, ch_it, fft_params):
     """Defines a kernel that calculates the cross-correlation between two channels.
 

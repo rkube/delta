@@ -37,20 +37,19 @@ import adios2
 from backends.backend_numpy import backend_numpy
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
-from analysis.tasks_mpi import task_cross_correlation
-
+from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec
 
 
 # task_object_dict maps the string-value of the analysis field in the json file
 # to an object that defines an appropriate analysis function.
-task_object_dict = {"cross_correlation": task_cross_correlation}
-                    # "cross_phase": task_cross_phase,
-                    # "cross_power": task_cross_power,
-                    # "coherence": task_coherence,
-                    # "bicoherence": task_bicoherence,
-                    # "xspec": task_xspec,
-                    # "cross_correlation": task_cross_correlation,
-                    # "skw": task_skw}
+task_object_dict = {"cross_correlation": task_cross_correlation,
+                    "cross_phase": task_cross_phase,
+                    "cross_power": task_cross_power,
+                    "coherence": task_coherence,
+                    "bicoherence": task_bicoherence,
+                    "xspec": task_xspec,
+                    "cross_correlation": task_cross_correlation,
+                    "skw": task_skw}
 
 
 logging.basicConfig(
@@ -62,26 +61,32 @@ logging.basicConfig(
 
 @attr.s 
 class AdiosMessage:
-    """ Defines data chunks as read from adios."""
+    """Storage class used to transfer data from Kstar(Dataman) to
+    local PoolExecutor"""
     tstep_idx = attr.ib(repr=True)
     data       = attr.ib(repr=False)
 
 
 def consume(Q, store_backend, my_fft, task_list, cfg):
+    """Executed by a local thread. Used to dispatch work items from the
+    DataMAN Queue to the PoolExecutor"""
     while True:
         msg = Q.get()
         logging.info(f"Consuming {msg}")
 
+        # If we get our special break message, we exit
         if msg.tstep_idx == -1:
             Q.task_done()
             break
 
+        # Step 1) Perform STFT. TODO: We may distribute this among the tasks
         tic_fft = timeit.default_timer()
         fft_data = my_fft.do_fft_local(msg.data)
         toc_fft = timeit.default_timer()
         logging.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
 
-        with MPIPoolExecutor(max_workers=4) as executor:
+        # Step 2) Distribute work among MPI workers
+        with MPIPoolExecutor(max_workers=256) as executor:
             tic_tasks = timeit.default_timer()
             for task in task_list:
                 logging.info("Executing task")
@@ -90,28 +95,10 @@ def consume(Q, store_backend, my_fft, task_list, cfg):
 
             toc_tasks = timeit.default_timer()
             logging.info(f"Performing analysis and storing took {(toc_tasks - tic_tasks):6.4f}s")
-
-            #for res in [executor.submit(calc_dummy, i, msg.data) for i in range(5)]:
-                #logging.info(f"i = {msg.tstep_idx}, res = {res.result()}")
-
-
-        # for task in task_list:
-        #     tic_calc = timeit.default_timer()
-
-        #     task.calculate(dask_client, fft_future)
-        #     toc_calc = timeit.default_timer()
-        #     logging.info(f"Task calculate took {(toc_calc - tic_calc):6.4f}s")
-        
-        #     tic_store = timeit.default_timer()
-        #     task.store_data(store_backend, {"tstep": msg.tstep_idx})
-        #     toc_store = timeit.default_timer()
-        #     logging.info(f"Task storage took {(toc_store - tic_store):6.4f}s")
-
         Q.task_done()
 
 
 def main():
-
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one_fluctana.json')
