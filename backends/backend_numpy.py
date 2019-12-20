@@ -2,6 +2,8 @@
 
 from os.path import join
 import numpy as np
+import logging
+import string
 from backends.backend import backend
 
 
@@ -12,9 +14,9 @@ class backend_numpy(backend):
         ======
         datadir, str: Base directory where data is stored
         """
-
         super().__init__()
 
+        # Directory where numpy files are stored
         self.datadir = datadir
         # Counter for input files
         self.ctr = 0
@@ -32,9 +34,9 @@ class backend_numpy(backend):
         ========
         None
         """
-        fname_fq = join(self.datadir, fname) + "_s{0:05d}".format(self.ctr) + ".npz"
+        fname_fq = join(self.datadir, fname) + f"_s{self.ctr:05d}.npz"
 
-        print("Storing data in " + fname_fq)
+        logging.debug(f"Storing data in {fname_fq:s}")
         np.savez(fname_fq, data=data, **metadata)
 
 
@@ -46,15 +48,10 @@ class backend_numpy(backend):
         fname, string: Filename
         metadata, dict: metadata that is stored im file
         """
-
         fname_fq = join(self.datadir, fname) + "_metadata.npz"
 
-        print("Storing metadata in " + fname_fq)
+        logging.debug(f"Storing metadata in {fname_fq:s}")
         np.savez(fname_fq, **metadata)
     
-
-
-
-
 
 # End of file backend_numpy.py

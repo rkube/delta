@@ -4,6 +4,7 @@
 from mpi4py import MPI
 import adios2
 import logging
+import string
 
 import numpy as np
 from analysis.channels import channel, channel_range
@@ -33,7 +34,7 @@ class reader_base():
         """Opens a new channel"""
         from os.path import join
 
-        self.channel_name = join(datapath, "KSTAR.bp".format(self.shotnr))
+        self.channel_name = join(datapath, f"KSTAR_{self.shotnr:06d}_f32.bp")
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
 
@@ -85,7 +86,7 @@ class reader_base():
 
 
     
-    def Get(self, channels=None):
+    def Get(self, channels=None, save=False):
         """Get data from varname at current step.
 
         The ECEI data is usually normalized to a fixed offset, calculated using data 
@@ -112,8 +113,6 @@ class reader_base():
         """
 
 
-        print("Reader::Get")
-
         if (isinstance(channels, channel_range)):
             data_list = []
             for c in channels:
@@ -128,7 +127,7 @@ class reader_base():
 
         elif isinstance(channels, type(None)):
             data_list = []
-            print("Reader::Get*** Default reading channels L0101-L2408. Step no. {0:d}".format(self.CurrentStep()))
+            logging.debug(f"Reader::Get*** Default reading channels L0101-L2408. Step no. {self.CurrentStep():d}")
             clist = channel_range(channel("L", 1, 1), channel("L", 24, 8))
 
             # Inquire the data of each channel from the ADIOS IO
@@ -149,21 +148,26 @@ class reader_base():
             tb = self.gen_timebase()
             # Calculate indices where we calculate the normalization offset from
             tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
-            print("*** Reader: I found {0:d} indices where to normalize".format(tnorm_idx.sum()), ", tnorm = ", self.tnorm)
+            logging.debug(f"*** Reader: I found {tnorm_idx.sum():d} indices where to normalize, tnorm = {self.tnorm}")
             # Calculate normalization offset if we have enough indices
             if(tnorm_idx.sum() > 100):
                 self.offset_lvl = np.median(io_array[:, tnorm_idx], axis=1, keepdims=True)
                 self.offset_std = io_array[:, tnorm_idx].std(axis=1)
                 self.is_data_normalized = True
 
-                np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
+                if save:
+                    np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
 
         if self.is_data_normalized:
-            print("*** Reader:Get: io_array.shape = ", io_array.shape)
-            np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            logging.debug(f"*** Reader:Get: io_array.shape = {io_array.shape}")
+            if save:
+                np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+
             io_array = io_array - self.offset_lvl
             io_array = io_array / io_array.mean(axis=1, keepdims=True) - 1.0
-            np.savez("test_data/io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+
+            if save:
+                np.savez(f"test_data/io_array_tr_s{self.CurrentStep():04d}.npz", io_array=io_array)
 
 
         return io_array
