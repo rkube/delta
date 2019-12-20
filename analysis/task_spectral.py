@@ -326,7 +326,6 @@ class task_cross_correlation(task_spectral):
 
             #import numpy as np
 
-
             c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
             c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
 
@@ -522,7 +521,6 @@ class task_skw(task_spectral):
                 sigK = np.mean(sigK, axis=0)
 
                 pdata = np.log10(val + 1e-10)
-
                 res_list.append(pdata)
 
             return(res_list)

@@ -11,6 +11,7 @@
  "fft_params" : {"nfft": 2048, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "skw_task", 
                 "analysis": "skw",
+                "channel_chunk_size": 192, 
                 "ref_channels" : "L1203-1503",
                 "cmp_channels" : "L1204-1504",
                 "kwargs": {'kstep': 0.01}}]

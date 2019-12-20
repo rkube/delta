@@ -7,6 +7,8 @@ main loop is based on this tutorial: https://www.roguelynn.com/words/asyncio-tru
 and on Jong's code
 
 
+Data in the main loop is distributed to worker tasks via adios-sst reader/writer
+
 To run: 
 
 On an interactice node:
@@ -25,15 +27,12 @@ import sys
 sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
 
 import logging
-import random
+#import random
 import string
-import time
+#import time
 import queue
 import threading
 import concurrent.futures
-
-
-import numpy as np
 
 import attr
 
@@ -44,11 +43,14 @@ import argparse
 
 import adios2
 from distributed import Client, progress
+
+import numpy as np
+
 from backends.backend_numpy import backend_numpy
 from readers.reader_one_to_one import reader_bpfile
+from readers.writer_sst import writer_sst
 from analysis.task_fft import task_fft_scipy
 from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_xspec, task_cross_correlation, task_skw
-
 
 
 # task_object_dict maps the string-value of the analysis field in the json file
@@ -77,6 +79,13 @@ class AdiosMessage:
 
 
 def consume(Q, dask_client, store_backend, my_fft, task_list, cfg):
+    """This is the consumer task that handles messages coming in from the 
+    loop where data is read from the dataman connection.
+    """
+
+    # Create writer_sst to distribute data to worker tasks
+    my_writer_sst = writer_sst(ch_name="comm-sst", varname="fft_data", varshape=(192, 512, 38), dtype=np.complex128, a2=None)
+
     while True:
         msg = Q.get()
         logging.info(f"Consuming {msg}")
@@ -85,28 +94,32 @@ def consume(Q, dask_client, store_backend, my_fft, task_list, cfg):
             Q.task_done()
             break
 
-#        tic_fft = timeit.default_timer()
-#        fft_data = my_fft.do_fft_local(msg.data)
-#        toc_fft = timeit.default_timer()
-#        logging.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
+        tic_fft = timeit.default_timer()
+        fft_data = my_fft.do_fft_local(msg.data)
+        toc_fft = timeit.default_timer()
+        logging.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
+
+        print(fft_data.shape)
+        my_writer_sst.BeginStep()
+        my_writer_sst.Put(fft_data)
+        my_writer_sst.EndStep()
 
         tic_sc = timeit.default_timer()
-        #fft_future = dask_client.scatter(fft_data, broadcast=True, direct=True)
-        fft_future = dask_client.scatter(np.random.uniform(0.0, 1.0, [192, 512, 38]), broadcast=True, direct=True)
+        fft_future = dask_client.scatter(fft_data, broadcast=True, direct=True)
         toc_sc = timeit.default_timer()
         logging.info(f"Scatter took {(toc_sc - tic_sc):6.4f}s")
 
-        # for task in task_list:
-        #     tic_calc = timeit.default_timer()
+        for task in task_list:
+            tic_calc = timeit.default_timer()
 
-        #     task.calculate(dask_client, fft_future)
-        #     toc_calc = timeit.default_timer()
-        #     logging.info(f"Task calculate took {(toc_calc - tic_calc):6.4f}s")
+            task.calculate(dask_client, fft_future)
+            toc_calc = timeit.default_timer()
+            logging.info(f"Task calculate took {(toc_calc - tic_calc):6.4f}s")
         
-        #     tic_store = timeit.default_timer()
-        #     task.store_data(store_backend, {"tstep": msg.tstep_idx})
-        #     toc_store = timeit.default_timer()
-        #     logging.info(f"Task storage took {(toc_store - tic_store):6.4f}s")
+            tic_store = timeit.default_timer()
+            task.store_data(store_backend, {"tstep": msg.tstep_idx})
+            toc_store = timeit.default_timer()
+            logging.info(f"Task storage took {(toc_store - tic_store):6.4f}s")
 
         Q.task_done()
 
@@ -137,7 +150,7 @@ def main():
         import sys
         import numpy as np
         sys.path.append("/home/rkube/repos/delta")
-    dask_client.run(add_path)
+    #dask_client.run(add_path)
 
     # Create storage backend
     store_backend = backend_numpy("/home/rkube/repos/delta/test_data")
@@ -150,7 +163,6 @@ def main():
 
     dq = queue.Queue()
     msg = None
-
 
     worker = threading.Thread(target=consume, args=(dq, dask_client, store_backend, my_fft, task_list, cfg))
     worker.start()
@@ -173,7 +185,7 @@ def main():
             #asyncio.create_task(queue.put(msg))
             logging.info(f"Published message {msg}")
 
-        if reader.CurrentStep() > 5:
+        if reader.CurrentStep() > 1:
             logging.info(f"Exiting: StepStatus={stepStatus}")
             msg_break = AdiosMessage(tstep_idx=-1, data=None)
             dq.put(msg_break)

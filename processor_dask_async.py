@@ -182,7 +182,7 @@ def main():
         import sys
         import numpy as np
         sys.path.append("/home/rkube/repos/delta")
-    dask_client.run(add_path)
+    #dask_client.run(add_path)
 
     # Create storage backend
     store_backend = backend_numpy("/home/rkube/repos/delta/test_data")
