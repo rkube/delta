@@ -1,12 +1,10 @@
 #-*- coding: UTF-8 -*-
 
-from mpi4py import MPI
 import numpy as np 
 import adios2
 import json
 import argparse
 
-from processors.readers import reader_dataman, reader_bpfile, reader_sst, reader_gen
 from analysis.spectral import power_spectrum
 
 ## jyc: temporarily disabled. Will use later
@@ -18,13 +16,22 @@ import os
 import queue
 import threading
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-
 parser = argparse.ArgumentParser(description="Perform analysis")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
+parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 args = parser.parse_args()
+
+if not args.nompi:
+    from processors.readers import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+else:
+    from processors.readers_nompi import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    comm = None
+    rank = 0
+    size = 1
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
