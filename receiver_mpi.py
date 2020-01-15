@@ -62,7 +62,6 @@ def perform_analysis(channel_data, step):
 
     # Store result in database
     # backend.store(my_analysis, analysis_result)
-    time.sleep(10)
     print(">>>         ({0:d}) Worker: done with analysis step={1:d} ({2:f} secs)".format(rank, step, t1-t0))
 
 # Function for a helper thead (dispatcher).
@@ -116,12 +115,11 @@ if __name__ == "__main__":
 
                 # Recover channel data 
                 channel_data = channel_data.reshape((num_channels, channel_data.size // num_channels))
-                print(">>> ({0:d}) Receiver: received data step={1:d}".format(rank, currentStep))
+                print(">>> ({0:d}) Receiver: received data step={1:d}".format(rank, currentStep), channel_data.shape)
 
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
                 dq.put((channel_data, currentStep))
-                time.sleep(1)
 
             ## Clean up
             dq.join()
