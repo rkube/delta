@@ -23,9 +23,14 @@ srun -n 2 -c 2 --mem=1G --gres=craynetwork:0 python processor_adios2.py
 For example within an interactive session, using a split terminal (see the screen utility)
 
 # Workflow Scenario #1 (2-node scenario)
-...
+```
+  generator.py         =====>    receiver_mpi.py
+(running on KSTAR DTN)   |     (running on NERSC DTN)
+                         v                      
+     stream name: shotnum-channelid.bp          
+```
 
-# Workflow Scenario #2 (3-node scenario)
+# (obsolete) Workflow Scenario #2 (3-node scenario)
 It consists of three components:
 ```
   generator.py         =====>    receiver.py         =====>  analysis.py
