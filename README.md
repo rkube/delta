@@ -29,7 +29,7 @@ For example within an interactive session, using a split terminal (see the scree
                          v                      
      stream name: shotnum-channelid.bp          
 ```
-xyz=[mpi, xxx, yyy, ...]
+xyz=[mpi, mpi_brute, dask, ...]
 
 # (obsolete) Workflow Scenario #2 (3-node scenario)
 It consists of three components:
