@@ -1,0 +1,5 @@
+{"datapath": "/scratch/gpfs/rmc2/kstar_ecei/",
+ "shot": 18431,
+ "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
+ "analysis": [{"name" : "all"}]
+}
