@@ -1,19 +1,19 @@
 #-*- coding: UTF-8 -*-
 
-from mpi4py import MPI 
+#from mpi4py import MPI 
 import adios2
 import numpy as np 
 
 
 class reader_base():
     def __init__(self, shotnr, id):
-        comm = MPI.COMM_WORLD
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
+        #comm = MPI.COMM_WORLD
+        self.rank = 0
+        self.size = 1
 
         self.shotnr = shotnr
         self.id = id
-        self.adios = adios2.ADIOS(MPI.COMM_SELF)
+        self.adios = adios2.ADIOS()
         self.IO = self.adios.DeclareIO("stream_{0:03d}".format(self.rank))
         print("reader_base.__init__(): rank = {0:02d}".format(self.rank))
 

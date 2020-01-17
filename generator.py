@@ -51,13 +51,16 @@ num_batches = data_pts // data_per_batch
 # Get a data_loader
 dl = data_loader(path.join(datapath, "ECEI.018431.LFS.h5"),
                  channel_range=my_channel_range,
-                 batch_size=1000)
+                 batch_size=cfg["batch_size"])
 
-# data_arr is a list
-_data_arr = dl.get()
-data_arr = np.array(_data_arr)
-data_arr = data_arr.astype(np.float64)
-_data_arr = 0.0
+# Trying to load all h5 data into memory
+print("Loading h5 data into memory")
+data_all = list()
+for i in range(nstep):
+    # dl.get return a list of an array of uint16 data
+    # We convert as double
+    data_arr = np.array(dl.get()).astype(np.float64)
+    data_all.append(data_arr)
 
 #writer = writer_dataman(shotnr, gen_id)
 writer = writer_gen(shotnr, gen_id, cfg["engine"], cfg["params"])
@@ -65,12 +68,23 @@ writer = writer_gen(shotnr, gen_id, cfg["engine"], cfg["params"])
 writer.DefineVariable(data_arr)
 writer.Open()
 
+print("Start sending:")
+t0 = time.time()
 for i in range(nstep):
     if(rank == 0):
         print("Sending: {0:d} / {1:d}".format(i, nstep))
-    writer.put_data(data_arr)
-    dl.get()
-    time.sleep(0.1)
+    writer.put_data(data_all[i])
+t1 = time.time()
 
-#print("Finished")
+chunk_size = np.prod(data_arr.shape)*data_arr.itemsize/1024/1024
+print("")
+print("Summary:")
+print("    chunk shape:", data_arr.shape)
+print("    chunk size (MB): {0:.03f}".format(chunk_size))
+print("    total nstep:", nstep)
+print("    total data (MB): {0:.03f}".format(chunk_size*nstep))
+print("    time (sec): {0:.03f}".format(t1-t0))
+print("    throughput (MB/sec): {0:.03f}".format((chunk_size*nstep)/(t1-t0)))
+
+print("Finished")
 

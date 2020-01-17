@@ -19,7 +19,7 @@ class data_loader(object):
         
         self.channel_range = channel_range
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
-        self.channel_range_hdf5 = ["/ECEI/ECEI_L{0:4d}/Voltage".format(c) for c in self.channel_range]
+        self.channel_range_hdf5 = ["/ECEI/ECEI_L{0:04d}/Voltage".format(c) for c in self.channel_range]
         self.filename = filename
         self.batch_size = batch_size
         # The current batch. Increases by 1  for each call of get.
