@@ -14,8 +14,8 @@ srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_cross
 
 """
 
-from mpi4py import MPI 
-from mpi4py.futures import MPIPoolExecutor
+#from mpi4py import MPI 
+#from mpi4py.futures import MPIPoolExecutor
 import sys
 sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
 
@@ -24,6 +24,7 @@ import logging
 import random
 import string
 import queue
+import concurrent.futures
 import threading
 
 import numpy as np
@@ -59,7 +60,7 @@ logging.basicConfig(
 )
 
 
-@attr.s 
+@attr.s ``
 class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to
     local PoolExecutor"""
@@ -67,15 +68,17 @@ class AdiosMessage:
     data       = attr.ib(repr=False)
 
 
-def consume(Q, store_backend, my_fft, task_list, cfg):
-    """Executed by a local thread. Used to dispatch work items from the
-    DataMAN Queue to the PoolExecutor"""
+#def consume(Q, store_backend, my_fft, task_list, cfg):
+def consume(Q, executor, my_fft, task_list, futures_list):
+    """Executed by a local thread. Dispatch work items from the
+    Queue to the PoolExecutor"""
+
     while True:
         msg = Q.get()
         logging.info(f"Consuming {msg}")
 
         # If we get our special break message, we exit
-        if msg.tstep_idx == -1:
+        if msg.tstep_idx == None:
             Q.task_done()
             break
 
@@ -85,16 +88,21 @@ def consume(Q, store_backend, my_fft, task_list, cfg):
         toc_fft = timeit.default_timer()
         logging.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
 
-        # Step 2) Distribute work among MPI workers
-        with MPIPoolExecutor(max_workers=256) as executor:
-            tic_tasks = timeit.default_timer()
-            for task in task_list:
-                logging.info("Executing task")
-                task.calculate(executor, fft_data)
-                task.store_data(store_backend, {"tstep": msg.tstep_idx})
 
-            toc_tasks = timeit.default_timer()
-            logging.info(f"Performing analysis and storing took {(toc_tasks - tic_tasks):6.4f}s")
+        # Step 2) Distribute the work via PoolExecutor 
+        for task in task_list:
+            task.calculate(executor, fft_data)
+
+
+        #with MPIPoolExecutor(max_workers=256) as executor:
+        #    tic_tasks = timeit.default_timer()
+        #    for task in task_list:
+        #        logging.info("Executing task")
+        #        task.calculate(executor, fft_data)
+        #        task.store_data(store_backend, {"tstep": msg.tstep_idx})
+        #
+        #    toc_tasks = timeit.default_timer()
+        #    logging.info(f"Performing analysis and storing took {(toc_tasks - tic_tasks):6.4f}s")
         Q.task_done()
 
 
@@ -119,7 +127,11 @@ def main():
     # Create storage backend
     store_backend = backend_numpy("/home/rkube/repos/delta/test_data")
 
-    # # Create the task list
+    # Create a global executor
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=30)
+
+
+    # Create the task list
     task_list = []
     for task_config in cfg["task_list"]:
         task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
@@ -128,8 +140,7 @@ def main():
     dq = queue.Queue()
     msg = None
 
-
-    worker = threading.Thread(target=consume, args=(dq, store_backend, my_fft, task_list, cfg))
+    worker = threading.Thread(target=consume, args=(dq, executor, my_fft, task_list))
     worker.start()
 
     logging.info(f"Starting main loop")
@@ -138,7 +149,7 @@ def main():
 
         if stepStatus:
             # Read data
-            stream_data = reader.Get(save=True)
+            stream_data = reader.Get(save=False)
             tb = reader.gen_timebase()
 
             # Generate message id and publish is
@@ -148,12 +159,12 @@ def main():
 
         if reader.CurrentStep() > 5:
             logging.info(f"Exiting: StepStatus={stepStatus}")
-            dq.put(AdiosMessage(tstep_idx=-1, data=None))
+            dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
 
     worker.join()
     dq.join()
-
+    executor.shutdown()
 
 if __name__ == "__main__":
     main()
