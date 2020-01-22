@@ -26,6 +26,9 @@ from analysis.spectral import power_spectrum
 from backends.mongodb import mongo_backend
 
 
+print("******* THIS IS AN OUTDATED VERSION. Run processor_mpi.py **********")
+
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()

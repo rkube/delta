@@ -1,6 +1,7 @@
 #-*- coding: UTF-8 -*-
 
 """
+Author: Ralph Kube
 This processor implements the one-to-one model.
 
 The processor runs as a single-task program and receives data from a single
@@ -36,7 +37,7 @@ from backends.mongodb import mongodb_backend
 from readers.reader_one_to_one import reader_bpfile
 from analysis.tasks import analysis_task
 
-print("******* THIS IS AN OUTDATED VERSION. Run processor_dask_one_to_one_fluctana.py **********")
+print("******* THIS IS AN OUTDATED VERSION. Run processor_mpi.py **********")
 
 
 mongo_client = mongodb_backend()

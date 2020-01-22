@@ -9,6 +9,11 @@ from bson.binary import Binary
 
 
 class mongodb_backend():
+    """
+    Author: Ralph Kube
+
+    This defines an access to the mongodb storage backend.
+    """
     def __init__(self, rank=0, channel_range=[]):
         # Connect to mongodb
         self.client = MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 

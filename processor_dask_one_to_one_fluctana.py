@@ -47,6 +47,8 @@ from analysis.task_spectral import task_spectral, task_cross_phase, task_cross_p
 
 import timeit
 
+print("******* THIS IS AN OUTDATED VERSION. Run processor_mpi.py **********")
+
 
 # task_object_dict maps the string-value of the analysis field in the json file
 # to an object that defines an appropriate analysis function.
