@@ -1,6 +1,8 @@
 #-*- coding: UTF-8 -*-
 
 """
+Author: Ralph Kube
+
 This data processor implements the many-to-many model.
 It runs as an MPI application and assumes that the sender sends data on a number of 
 channels equal to the number of MPI ranks.

@@ -1,6 +1,9 @@
 #-*- coding: UTF-8 -*-
 
 """
+Author: Ralph Kube
+
+
 This processor implements the one-to-one model. Code is adapted from processor_dask_one_to_one.py
 to use the kstar fluctana object class.
 

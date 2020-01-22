@@ -1,3 +1,11 @@
+# Encoding: UTF-8 -*-
+
+
+"""
+Author: Ralph Kube
+Tests connection to mongodb
+"""
+
 from pymongo import MongoClient
 from urllib.parse import quote_plus
 

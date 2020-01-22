@@ -2,6 +2,13 @@ import adios2
 import numpy as np
 import h5py
 
+"""
+Author: Ralph Kube
+
+Compares the output of the data file written by create_ecei_bpfile.py to
+the original data in the HDF5 file
+
+"""
 varname = "L0101"
 
 

@@ -2,6 +2,16 @@
 
 import itertools
 
+"""
+Author: Ralph Kube
+
+Defines abstraction for handling ECEI channels.
+
+The ECEI diagnostics provides 192 independent channels that are arranged
+into a 8 radial by 24 vertical view.
+
+"""
+
 def ch_num_to_hv(ch_num):
     """Returns a tuple (ch_h, ch_v) for a channel number"""
     assert((ch_num > 0) & (ch_num < 193))
@@ -81,8 +91,24 @@ class channel_pair:
 
 
 class channel_range:
+    """Defines iteration over classes. The iteration can be either linear or rectangular:
+
+    For linear iteration, we map ch_h and ch_v to a linear index:
+    index = (8 * (ch_v - 1)) + ch_h - 1, see ch_hv_to_num. 
+    The iteration proceeds linear from the index of a start_channel to the index of an end_channel:
+    >>> ch_start = channel('L', 1, 7)
+    >>> ch_end = channel('L', 2,)
+
+
+
+    The iteration is from 
+    index_start = ch_hv_to_num(ch_start)
+    to 
+    index_end = ch_hv_to_num(ch_end)
+
+
     def __init__(self, ch_start, ch_end, mode="rectangle"):
-        """Generates an iterator over channels.
+        """Defines iteration over channels.
         Input:
         ======
         ch_start: channel, Start channel
@@ -210,7 +236,8 @@ class channel():
         Input:
         ======
         dev: string, must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
-        ch_num: int, channel number
+        ch_h: int, Horizontal channel number, between 1 and 24
+        ch_v: int, Vertical channel number, between 1 and 8
         """
 
         assert(dev in ['L', 'H', 'G', 'HT', 'GR', 'HR'])
@@ -227,14 +254,24 @@ class channel():
 
     @classmethod
     def from_str(cls, ch_str):
-        """Generates a channel object from a string, such as L2204 or GT1606."""
+        """Generates a channel object from a string, such as L2204 or GT1606.
+        Input:
+        ======
+        cls: The class object (this is never passed to the method, but akin to self)
+        ch_str: A channel string, such as L2205 of GT0808
+        """
+
         import re
+        # Define a regular expression that matches a sequence of 1 to 2 characters in [A-Z]
+        # This will be our dev.
         m = re.search('[A-Z]{1,2}', ch_str)
         try:
             dev = m.group(0)
         except:
             raise AttributeError("Could not parse channel string {0:s}".format(ch_str))
 
+        # Define a regular expression that matches 4 consecutive digits
+        # These will be used to calculate ch_h and ch_v
         m = re.search('[0-9]{4}', ch_str)
         ch_num = int(m.group(0))
         
@@ -246,7 +283,8 @@ class channel():
         return(channel1)
 
     def __str__(self):
-        """Returns a standardized string"""
+        """Prints the channel as a standardized string DDHHVV, where D is dev, H is ch_h and V is ch_v.
+        DD can be 1 or 2 characters, H and V are zero-padded"""
         ch_str = "{0:s}{1:02d}{2:02d}".format(self.dev, self.ch_h, self.ch_v)
 
         return(ch_str)

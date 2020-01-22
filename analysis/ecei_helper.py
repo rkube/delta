@@ -1,8 +1,11 @@
 #Encoding: UTF-8 -*-
 
 """
-Contains helper function for working with the ECEI diagnostic
-"""
+Author: Ralph Kube
+
+Contains helper function for working with the ECEI diagnostic.
+These are just the member functions from kstarecei.py, copied here
+so that we don't need to instantiate an kstarecei object."""
 
 import numpy as np
 

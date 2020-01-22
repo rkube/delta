@@ -4,10 +4,14 @@ from os.path import join
 import numpy as np
 import logging
 import string
-from backends.backend import backend
+#from backends.backend import backend
 
 
 class backend_numpy(backend):
+    """
+    Author: Ralph Kube
+    
+    Defines a method to store results from a task in numpy arrays."""
     def __init__(self, datadir):
         """
         Inputs

@@ -4,6 +4,25 @@ import numpy as np
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 import more_itertools
 
+"""
+Author: Ralph Kube
+This file contains the task_spectral class and its derived classes. Each one implements
+an analysis routine from the fluctana package.
+
+The parent class, task_spectral, and implements common methods to all tasks:
+* It handles the range of channels for which any analysis will be performed
+* It defines how this channel range is divided into sub-ranges
+* It defines a storage scheme for results of an analysis
+* It defines a storage scheme for the meta data
+
+Each child class defines a unique analysis routine in the calculate method
+that is applied to a data chunk. For this it uses a poolexecuter model.
+The executor client is called with the tasks analysis method, the data chunk
+and a channel range. The results of this calculation are accessible through its
+future_list.
+"""
+
+
 
 class task_spectral():
     """Serves as the super-class for analysis methods. Do not instantiate directly"""

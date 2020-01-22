@@ -2,8 +2,11 @@
 
 
 """
+Author: Ralph Kube
 This defines a task that performs a FFT of the stremed chunks for the dask application.
 All helper functions are defined locally and adapted from specs.py anf fluctana.py
+
+This class is not used for the mpi implementation and can be deleted.
 """
 
 import numpy as np

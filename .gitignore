@@ -4,4 +4,4 @@ __pycache__
 worker-*
 *lock
 *npz
-tests_div/.ipynb_checkpoints/
+**/.ipynb_checkpoints/

@@ -9,6 +9,11 @@ import string
 import numpy as np
 from analysis.channels import channel, channel_range
 
+"""
+Author: Ralph Kube
+"""
+
+
 
 class reader_base():
     def __init__(self, shotnr, ecei_cfg):

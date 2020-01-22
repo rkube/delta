@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+# -* Encoding: UTF-8 -*-
 
 """
-Loads the ECEI data from the HDF5 file and converts it into a bp file.
+Author: Ralph Kube
 
-
+Load the ECEI data from the HDF5 file and converts it into a bp file.
 """
 
 import numpy as np

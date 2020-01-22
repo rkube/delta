@@ -1,6 +1,16 @@
+# -*- Encoding: UTF-8 -*-
+
+
 from pymongo import MongoClient
 from urllib.parse import quote_plus
 import datetime
+
+"""
+Author: Ralph Kube
+
+Tests simple inserts in mongodb
+"""
+
 
 client = MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 
                      username="delta-fusion_admin",
@@ -24,3 +34,6 @@ if (res.acknowledged):
 print("Items in test_analyis")
 for item in collection.find():
     print(item)
+
+
+# End of file mongo_write.py
