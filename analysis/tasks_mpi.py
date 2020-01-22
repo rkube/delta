@@ -330,13 +330,14 @@ class task_spectral():
         # These channels serve as the cross-data for the spectral diagnostics
         self.cmp_channels = channel_range.from_str(task_config["cmp_channels"])
 
-
         self.task_config = task_config
         self.fft_config = fft_config
         self.ecei_config = ecei_config
 
         self.storage_scheme =  {"ref_channels": self.ref_channels.to_str(),
                                 "cmp_channels": self.cmp_channels.to_str()}
+
+        self.futures_list = []
 
         # Construct a list of unique channels
         # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
@@ -448,7 +449,8 @@ class task_cross_phase(task_spectral):
         self.storage_scheme["analysis_name"] = "cross_phase"
 
     def calculate(self, executor, fft_data):
-        self.futures_list = [executor.submit(cross_phase, fft_data, ch_it) for ch_it in self.get_dispatch_sequence()]
+        # Append the new futures
+        self.futures_list += [executor.submit(cross_phase, fft_data, ch_it) for ch_it in self.get_dispatch_sequence()]
         return None
 
 
@@ -459,6 +461,7 @@ class task_cross_power(task_spectral):
         self.storage_scheme["analysis_name"] = "cross_power"
 
     def calculate(self, executor, fft_data):
+        # Append the new futures
         self.futures_list = [executor.submit(cross_power, fft_data, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
         return None        
 
@@ -470,6 +473,7 @@ class task_coherence(task_spectral):
         self.storage_scheme["analysis_name"] = "coherence"
 
     def calculate(self, executor, fft_data):
+        # Append the new futures
         self.futures_list = [executor.submit(coherence, fft_data, ch_it) for ch_it in self.get_dispatch_sequence()]
         return None  
 
