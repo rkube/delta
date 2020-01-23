@@ -69,7 +69,6 @@ class AdiosMessage:
     data       = attr.ib(repr=False)
 
 
-#def consume(Q, store_backend, my_fft, task_list, cfg):
 def consume(Q, executor, my_fft, task_list):
     """Executed by a local thread. Dispatch work items from the
     Queue to the PoolExecutor"""
@@ -94,15 +93,6 @@ def consume(Q, executor, my_fft, task_list):
         for task in task_list:
             task.calculate(executor, fft_data, msg.tstep_idx)
 
-        #with MPIPoolExecutor(max_workers=256) as executor:
-        #    tic_tasks = timeit.default_timer()
-        #    for task in task_list:
-        #        logging.info("Executing task")
-        #        task.calculate(executor, fft_data)
-        #        task.store_data(store_backend, {"tstep": msg.tstep_idx})
-        #
-        #    toc_tasks = timeit.default_timer()
-        #    logging.info(f"Performing analysis and storing took {(toc_tasks - tic_tasks):6.4f}s")
         Q.task_done()
 
 
@@ -111,12 +101,11 @@ def storage(task, cfg):
     logging.info(f"====== Starting storage task. Length of future list: {len(task.futures_list)}")
 
     store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
-
-    store_backend.store_metadata(cfg, task, "test_store.npz")
+    store_backend.store_metadata(cfg, task)
 
     for future in concurrent.futures.as_completed(task.futures_list):
-        future_data, future_info = future.result()
-        logging.info(f"=== Future complete: shape = {future_data.shape}, info = {future_info}")
+        future_res, future_info = future.result()
+        logging.info(f"=== Future complete: res.shape = {future_res.shape}, info = {future_info}")
 
 
     logging.info(f"===== Ending storage task.")
@@ -140,12 +129,9 @@ def main():
     reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
     reader.Open(cfg["datapath"])
 
-    # Create storage backend
-    store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
-
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=6)
-    executor = MPIPoolExecutor(max_workers=64)
+    executor = MPIPoolExecutor(max_workers=60)
 
     # Create the task list
     task_list = []
@@ -173,11 +159,10 @@ def main():
             dq.put(msg)
             logging.info(f"Published message {msg}")
 
-        if reader.CurrentStep() > 1:
+        if reader.CurrentStep() > 0:
             logging.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
-
 
     logging.info(f"Exiting main loop")
     worker.join()

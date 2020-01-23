@@ -1,6 +1,7 @@
 # Coding: UTF-8 -*-
 
 import itertools
+import json
 
 """
 Author: Ralph Kube
@@ -116,8 +117,9 @@ class channel():
         ch_v = int(ch_num // 100)
 
         channel1 = cls(dev, ch_v, ch_h)
-
         return(channel1)
+
+
 
     def __str__(self):
         """Prints the channel as a standardized string DDHHVV, where D is dev, H is ch_h and V is ch_v.
@@ -132,9 +134,24 @@ class channel():
         return (self.dev, self.ch_v, self.ch_h) == (other.dev, other.ch_v, other.ch_h)
 
     def idx(self):
-        """Returns the linear index corresponding to ch_h and ch_v"""
-        return ch_vh_to_num(self.ch_v, self.ch_h)
+        """Returns the linear, ZERO-BASED, index corresponding to ch_h and ch_v"""
+        return ch_vh_to_num(self.ch_v, self.ch_h) - 1
 
+    def to_json(self):
+        """Returns the class in JSON notation. 
+           This method avoids serialization error when using non-standard int types,
+           such as np.int64 etc..."""
+        d = {"ch_v": int(self.ch_v), "ch_h": int(self.ch_h), "dev": self.dev, "ch_num": int(self.ch_num)}
+        return json.dumps(d, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+
+    @classmethod
+    def from_json(cls, str):
+        """Returns a channel instance from a json string"""
+
+        j = json.loads(str)
+
+        channel1 = cls(j["dev"], int(j["ch_v"]), int(j["ch_h"]))
+        return(channel1)
 
 
 
@@ -166,7 +183,7 @@ class channel_pair:
     def __str__(self):
         """Returns a standardized string"""
 
-        ch_str = "({0:s}, {1:s})".format(self.ch1.__str__(), self.ch2.__str__())
+        ch_str = f"{self.__class__.__name__}: (ch1={self.ch1}, ch2={self.ch2})"
         return(ch_str)
 
 
@@ -179,6 +196,18 @@ class channel_pair:
         #    hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx()))))) 
         
         return hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx())))
+
+    def to_json(self):
+        return('{"ch1": ' + self.ch1.to_json() + ', "ch2": ' + self.ch2.to_json() + '}')
+
+    
+    @classmethod
+    def from_json(cls, str):
+        j = json.loads(str)
+        ch1 = channel.from_json(json.dumps(j["ch1"]))
+        ch2 = channel.from_json(json.dumps(j["ch2"]))
+        cpair = cls(ch1, ch2)
+        return cpair
 
 
 class channel_range:
@@ -210,6 +239,10 @@ class channel_range:
         """
 
         assert(ch_start.dev == ch_end.dev)
+
+        self.ch_start = ch_start
+        self.ch_end = ch_end
+
         self.dev = ch_start.dev
         self.ch_vi, self.ch_hi = ch_start.ch_v, ch_start.ch_h
         self.ch_vf, self.ch_hf = ch_end.ch_v, ch_end.ch_h
@@ -301,6 +334,13 @@ class channel_range:
 
         return(chnum_f - chnum_i + 1)
 
+
+    def __str__(self):
+        """Returns a standardized string"""
+
+        ch_str = f"{self.__class__.__name__}: start: {self.ch_start}, end: {self.ch_end}, mode: {self.mode}"
+        return(ch_str)
+
     
     def to_str(self):
         """Formats the channel list as f.ex. GT1207-2201"""
@@ -309,6 +349,8 @@ class channel_range:
         ch_str = f"{self.dev:s}{self.ch_vi:02d}{self.ch_hi:02d}-{self.ch_vf:02d}{self.ch_hf:02d}"
         return(ch_str)
 
+    def to_json(self):
+        return('{"ch_start": ' + ch_start.to_json() + ', "ch_end": ' + ch_end.to_json() + '}')
 
 
 

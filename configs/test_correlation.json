@@ -1,4 +1,5 @@
 {"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
+ "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/",
  "shotnr": 18431,
  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
               "t_norm": [-0.119, -0.109],

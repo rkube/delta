@@ -40,8 +40,8 @@ def cross_phase(fft_data, ch_it):
     ========
     Axy: float, the cross phase
     """    
-    c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
-    c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
     Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
     return(np.arctan2(Pxy.real, Pxy.imag).real)
 
@@ -60,8 +60,8 @@ def cross_power(fft_data, ch_it, fft_config):
     ========
     cross_power, float.
     """
-    c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
-    c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
     res = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2) / fft_config["win_factor"]
 
@@ -84,8 +84,8 @@ def coherence(fft_data, ch_it):
 
     import numpy as np
 
-    c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
-    c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
     X = fft_data[c1_idx, :, :]
     Y = fft_data[c2_idx, :, :]
@@ -119,8 +119,8 @@ def cross_corr(fft_data, ch_it, fft_params, info_dict):
     cross-correlation, float array
     """
 
-    c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
-    c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
+    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
     # Perform fftshift on the fourier coefficient axis (dim1)
     X = np.fft.fftshift(fft_data[c1_idx, :, :], axes=1)
@@ -131,6 +131,8 @@ def cross_corr(fft_data, ch_it, fft_params, info_dict):
     _tmp = np.fft.fftshift(_tmp, axes=1)
 
     res = _tmp.mean(axis=2).real
+
+    #print("Ending cross_corr, res = ", res)
 
     return(res, info_dict)
 
@@ -151,8 +153,8 @@ def bicoherence(fft_data, ch_it):
 
     res_list = []
 
-    for ch in ch_it:
-        ch1_idx, ch2_idx = ch[0].ch1.idx(), ch[0].ch2.idx()
+    for ch_pair in ch_it:
+        ch1_idx, ch2_idx = ch_pair.ch1.idx(), ch_pair.ch2.idx()
 
         # Transpose to make array layout compatible with code from specs.py
         XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
@@ -227,9 +229,9 @@ def skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
     from analysis.ecei_helper import channel_position
 
     res_list = []
-    for ch in ch_it:
-        ch1_idx, ch2_idx = ch[0].ch1.idx(), ch[0].ch2.idx()
-        logging.debug("Calculating skw for channels {0:s}x{1:s}".format(ch[0].ch1, ch[0].ch2))
+    for ch_pair in ch_it:
+        ch1_idx, ch2_idx = ch_pair.ch1.idx(), ch_pair.ch2.idx()
+        logging.debug("Calculating skw for channels {0:s}x{1:s}".format(ch.ch1, ch.ch2))
 
     XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
     YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
@@ -340,12 +342,12 @@ class task_spectral():
         # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
         # The unique list of channels is then
         # (1,1) x (1,1), (1,1) x (1,2)
-        # (1,2) x (1,2) !!! Omit (1,2) x (1,1)
+        # (1,2) x (1,2) !!! Omits (1,2) x (1,1)
         # (1,3) x (1,1)
         # (1,3) x (1,2)
         channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.cmp_channels]
         # Make a list, so that we don't exhaust the iterator after the first call.
-        self.unique_channels = list(more_itertools.distinct_combinations(channel_pairs, 1))
+        self.unique_channels = [i[0] for i in more_itertools.distinct_combinations(channel_pairs, 1)]
         # Number of channel pairs per future
         self.channel_chunk_size = task_config["channel_chunk_size"]
         # Total number of chunks, i.e. the number of futures appended to the list per call to calculate

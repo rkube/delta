@@ -5,3 +5,5 @@ worker-*
 *lock
 *npz
 **/.ipynb_checkpoints/
+core
+test_data/

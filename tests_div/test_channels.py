@@ -33,6 +33,16 @@ def test_answer():
 
         assert(channels.channel.from_str(ch_str) == channels.channel(dd, vv, hh))
 
+    print("Testing serialization")
+    for _ in range(50):
+        dd_list = ['L', 'H', 'G', 'HT', 'GR', 'HR']
+        dd = dd_list[np.random.randint(0, len(dd_list))]
+        vv = np.random.randint(1, 25)
+        hh = np.random.randint(1, 9)
+
+        ch = channels.channel(dd, vv, hh)
+        assert(ch == channels.channel.from_json(ch.to_json()))
+
 
     print("Testing equality functions of channel_pair")
     ch1 = channels.channel("G", 2, 3)
@@ -40,6 +50,23 @@ def test_answer():
 
     assert(channels.channel_pair(ch1, ch2) == channels.channel_pair(ch2, ch1))
     assert(hash(channels.channel_pair(ch1, ch2)) == hash(channels.channel_pair(ch2, ch1)))
+
+    print("Testing channel pair serialization")
+
+    for _ in range(50):
+        dd_list = ['L', 'H', 'G', 'HT', 'GR', 'HR']
+        dd = dd_list[np.random.randint(0, len(dd_list))]
+
+        vv = np.random.randint(1, 25)
+        hh = np.random.randint(1, 9)
+        ch1 = channels.channel(dd, vv, hh)
+
+        vv = np.random.randint(1, 25)
+        hh = np.random.randint(1, 9)
+        ch2 = channels.channel(dd, vv, hh)
+
+        pair = channels.channel_pair(ch1, ch2)
+        assert(channels.channel_pair.from_json(pair.to_json()) == pair)
 
 
     print("Testing channel_range")
