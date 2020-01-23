@@ -107,18 +107,17 @@ def consume(Q, executor, my_fft, task_list):
 
 
 # Procedure that is called to store the data from analysis
-def storage(task):
+def storage(task, cfg):
     logging.info(f"====== Starting storage task. Length of future list: {len(task.futures_list)}")
 
     store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
 
-    #store_backend.store_metadata(task, "test_store.npz")
+    store_backend.store_metadata(cfg, task, "test_store.npz")
 
     for future in concurrent.futures.as_completed(task.futures_list):
         future_data, future_info = future.result()
         logging.info(f"=== Future complete: shape = {future_data.shape}, info = {future_info}")
-    #for future in task.futures_list:
-    #    print(type(future), future.running())
+
 
     logging.info(f"===== Ending storage task.")
 
@@ -147,7 +146,6 @@ def main():
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=6)
     executor = MPIPoolExecutor(max_workers=64)
-
 
     # Create the task list
     task_list = []
@@ -195,7 +193,7 @@ def main():
     # https://timber.io/blog/multiprocessing-vs-multithreading-in-python-what-you-need-to-know/
     storage_threads = []
     for task in task_list:
-        t = threading.Thread(target=storage, args=(task, ))
+        t = threading.Thread(target=storage, args=(task, cfg))
         t.start()
         storage_threads.append(t)
 
