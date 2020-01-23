@@ -98,13 +98,10 @@ class channel_range:
     The iteration proceeds linear from the index of a start_channel to the index of an end_channel:
     >>> ch_start = channel('L', 1, 7)
     >>> ch_end = channel('L', 2,)
+    ... to be continued
 
 
-
-    The iteration is from 
-    index_start = ch_hv_to_num(ch_start)
-    to 
-    index_end = ch_hv_to_num(ch_end)
+    """
 
 
     def __init__(self, ch_start, ch_end, mode="rectangle"):

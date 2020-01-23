@@ -6,6 +6,8 @@ import logging
 import string
 #from backends.backend import backend
 
+from .backend import backend
+
 
 class backend_numpy(backend):
     """
@@ -24,6 +26,7 @@ class backend_numpy(backend):
         self.datadir = datadir
         # Counter for input files
         self.ctr = 0
+
 
     def store(self, fname, data, metadata):
         """Stores data and args in numpy file
@@ -44,15 +47,15 @@ class backend_numpy(backend):
         np.savez(fname_fq, data=data, **metadata)
 
 
-    def store_config(self, fname, metadata):
+    def store_metadata(self, task, fname):
         """Stores metadta in an numpy file
 
         Input:
         ======
+        task, a task_spectral object
         fname, string: Filename
-        metadata, dict: metadata that is stored im file
         """
-        fname_fq = join(self.datadir, fname) + "_metadata.npz"
+        fname_fq = join(self.datadir, fname) + f"_{task.analysis}_metadata.npz"
 
         logging.debug(f"Storing metadata in {fname_fq:s}")
         np.savez(fname_fq, **metadata)

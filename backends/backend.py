@@ -10,7 +10,12 @@ class backend():
     def __init__(self):
         pass
 
-    def store():
+
+    def store_metadata(self, task):
+
+        pass
+
+    def store(self):
         pass
 
 

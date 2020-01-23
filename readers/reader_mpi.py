@@ -45,7 +45,7 @@ class reader_base():
 
     def BeginStep(self):
         """Wrapper for reader.BeginStep()"""
-        logging.info("Reader::BeginStep")
+        logging.debug("Reader::BeginStep")
         res = self.reader.BeginStep()
         if res == adios2.StepStatus.OK:
             return(True)

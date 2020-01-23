@@ -1,4 +1,4 @@
-{"datapath": "/projects/XGC/KSTAR/",
+{"datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
  "shotnr": 18431,
  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
               "t_norm": [-0.119, -0.109],
@@ -11,6 +11,7 @@
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "ralphs_task", 
                 "analysis": "cross_phase",
+                "channel_chunk_size": 768, 
                 "ref_channels": "L0701-0708",
                 "cmp_channels" : "L1601-1608"}]
 }

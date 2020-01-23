@@ -3,7 +3,7 @@
 import numpy as np
 import logging
 
-from numba import jit
+#from numba import jit
 import more_itertools
 
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
@@ -101,25 +101,23 @@ def coherence(fft_data, ch_it):
     return(Gxy)
 
 
-@jit(nopython=True)
-def cross_corr(fft_data, ch_it, fft_params):
+#@jit(nopython=True)
+def cross_corr(fft_data, ch_it, fft_params, info_dict):
     """Defines a kernel that calculates the cross-correlation between two channels.
 
     Input:
     ======
     fft_data: ndarray, float: Contains the fourier-transformed data. 
                 dim0: channel. dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-    ch0: int, index of first channel
-    ch1: int, index of second channel
+    ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
     fft_params: dict, parameters of the fourier-transformed data
+    info_dict: dict, parameters that allow to associate the result of this computation with the data stream
+    
 
     Returns:
     ========
     cross-correlation, float array
     """
-
-    #import numpy as np
-
 
     c1_idx = np.array([cc[0].ch1.idx() for cc in ch_it])
     c2_idx = np.array([cc[0].ch2.idx() for cc in ch_it])
@@ -134,7 +132,7 @@ def cross_corr(fft_data, ch_it, fft_params):
 
     res = _tmp.mean(axis=2).real
 
-    return(res)
+    return(res, info_dict)
 
 
 def bicoherence(fft_data, ch_it): 
@@ -302,8 +300,6 @@ def skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
     return(res_list)
 
 
-
-
 class task_spectral():
     """Serves as the super-class for analysis methods. Do not instantiate directly"""
 
@@ -338,6 +334,7 @@ class task_spectral():
                                 "cmp_channels": self.cmp_channels.to_str()}
 
         self.futures_list = []
+        self.futures_metadata = []
 
         # Construct a list of unique channels
         # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
@@ -347,13 +344,12 @@ class task_spectral():
         # (1,3) x (1,1)
         # (1,3) x (1,2)
         channel_pairs = [channel_pair(cr, cx) for cr in self.ref_channels for cx in self.cmp_channels]
-        # Make a list, so that we don't exhause the iterator after the first call.
+        # Make a list, so that we don't exhaust the iterator after the first call.
         self.unique_channels = list(more_itertools.distinct_combinations(channel_pairs, 1))
+        # Number of channel pairs per future
         self.channel_chunk_size = task_config["channel_chunk_size"]
-
-
-    def calculate(self, *args):
-        raise NotImplementedError
+        # Total number of chunks, i.e. the number of futures appended to the list per call to calculate
+        self.num_chunks = (len(self.unique_channels) + self.channel_chunk_size - 1) // self.channel_chunk_size
 
 
     def get_dispatch_sequence(self, niter=None):
@@ -417,7 +413,7 @@ class task_spectral():
         backend.store_config(self.description, metadata)
 
 
-    def calculate(self, executor, fft_data):
+    def calculate(self, executor, fft_data, tidx):
         """Calculates spectral analysis for signal data.
         The data is assumed to be distributed to the clients.
         Before calling this method the following steps needs to be done:
@@ -448,9 +444,12 @@ class task_cross_phase(task_spectral):
         # Append the analysis name to the storage scheme
         self.storage_scheme["analysis_name"] = "cross_phase"
 
-    def calculate(self, executor, fft_data):
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "cross_correlation",
+                    "tidx": tidx,
+                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
         # Append the new futures
-        self.futures_list += [executor.submit(cross_phase, fft_data, ch_it) for ch_it in self.get_dispatch_sequence()]
+        self.futures_list += [executor.submit(cross_phase, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None
 
 
@@ -460,9 +459,13 @@ class task_cross_power(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "cross_power"
 
-    def calculate(self, executor, fft_data):
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "cross_correlation",
+                    "tidx": tidx,
+                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+
         # Append the new futures
-        self.futures_list = [executor.submit(cross_power, fft_data, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
+        self.futures_list += [executor.submit(cross_power, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None        
 
 
@@ -472,9 +475,13 @@ class task_coherence(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "coherence"
 
-    def calculate(self, executor, fft_data):
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "cross_correlation",
+                    "tidx": tidx,
+                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+
         # Append the new futures
-        self.futures_list = [executor.submit(coherence, fft_data, ch_it) for ch_it in self.get_dispatch_sequence()]
+        self.futures_list += [executor.submit(coherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None  
 
 
@@ -484,7 +491,7 @@ class task_xspec(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "xspec"
     
-    def calculate(self, executor, fft_data):
+    def calculate(self, executor, fft_data, tidx):
         raise NotImplementedError
 
 
@@ -494,8 +501,14 @@ class task_cross_correlation(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
         self.storage_scheme["analysis_name"] = "cross_correlation"
 
-    def calculate(self, executor, fft_data):
-        self.futures_list = [executor.submit(cross_corr, fft_data, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "cross_correlation",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+
+        self.futures_list += [executor.submit(cross_corr, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        #self.futures_list += [executor.submit(cross_corr, fft_data, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
+
         return None 
 
 
@@ -503,29 +516,34 @@ class task_bicoherence(task_spectral):
     """This class calculates the bicoherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "xspec"
+        self.storage_scheme["analysis_name"] = "bicoherence"
     
-    def calculate(self, executor, fft_data):
-        self.futures_list = [executor.submit(bicoherence, fft_data, ch_it) for ch_it in self.get_dispatch_sequence()]
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "cross_correlation",
+                    "tidx": tidx,
+                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+
+        self.futures_list += [executor.submit(bicoherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
 class task_skw(task_spectral):
     """This class calculates the bicoherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "xspec"
+        self.storage_scheme["analysis_name"] = "skw"
     
-    def calculate(self, executor, fft_data):
-        self.futures_list = [executor.submit(skw, fft_data, ch_it, self.fft_config, self.ecei_config) for ch_it in self.get_dispatch_sequence()]
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "cross_correlation",
+                    "tidx": tidx,
+                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+
+        self.futures_list += [executor.submit(skw, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
 
     #    # 1)
     #     if self.analysis == "cwt":
     #         raise NotImplementedError
-    #     # 3)
-    #     elif self.analysis == "coherence":
-    #         raise NotImplementedError        
 
 
     #     # 6)

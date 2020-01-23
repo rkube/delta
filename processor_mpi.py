@@ -3,10 +3,10 @@
 """
 This processor implements the one-to-one model using mpi
 
-main loop is based on this tutorial:
-https://www.roguelynn.com/words/asyncio-true-concurrency/
-Jong's threaded queue code
-Dask codes
+main loop is based on:
+* https://www.roguelynn.com/words/asyncio-true-concurrency/
+* Jong's threaded queue code
+* Dask codes
 
 
 To run on an interactive node
@@ -14,10 +14,10 @@ srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_cross
 
 """
 
-#from mpi4py import MPI 
-#from mpi4py.futures import MPIPoolExecutor
+from mpi4py import MPI 
+from mpi4py.futures import MPIPoolExecutor
 import sys
-sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
+#sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
 
 
 import logging
@@ -35,7 +35,8 @@ import json
 import argparse
 import adios2
 
-from backends.backend_numpy import backend_numpy
+import backends
+
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec
@@ -60,7 +61,7 @@ logging.basicConfig(
 )
 
 
-@attr.s ``
+@attr.s 
 class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to
     local PoolExecutor"""
@@ -69,7 +70,7 @@ class AdiosMessage:
 
 
 #def consume(Q, store_backend, my_fft, task_list, cfg):
-def consume(Q, executor, my_fft, task_list, futures_list):
+def consume(Q, executor, my_fft, task_list):
     """Executed by a local thread. Dispatch work items from the
     Queue to the PoolExecutor"""
 
@@ -86,13 +87,12 @@ def consume(Q, executor, my_fft, task_list, futures_list):
         tic_fft = timeit.default_timer()
         fft_data = my_fft.do_fft_local(msg.data)
         toc_fft = timeit.default_timer()
-        logging.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
+        logging.info(f"     tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
 
         # Step 2) Distribute the work via PoolExecutor 
         for task in task_list:
-            task.calculate(executor, fft_data)
-
+            task.calculate(executor, fft_data, msg.tstep_idx)
 
         #with MPIPoolExecutor(max_workers=256) as executor:
         #    tic_tasks = timeit.default_timer()
@@ -104,6 +104,23 @@ def consume(Q, executor, my_fft, task_list, futures_list):
         #    toc_tasks = timeit.default_timer()
         #    logging.info(f"Performing analysis and storing took {(toc_tasks - tic_tasks):6.4f}s")
         Q.task_done()
+
+
+# Procedure that is called to store the data from analysis
+def storage(task):
+    logging.info(f"====== Starting storage task. Length of future list: {len(task.futures_list)}")
+
+    store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
+
+    #store_backend.store_metadata(task, "test_store.npz")
+
+    for future in concurrent.futures.as_completed(task.futures_list):
+        future_data, future_info = future.result()
+        logging.info(f"=== Future complete: shape = {future_data.shape}, info = {future_info}")
+    #for future in task.futures_list:
+    #    print(type(future), future.running())
+
+    logging.info(f"===== Ending storage task.")
 
 
 def main():
@@ -125,17 +142,18 @@ def main():
     reader.Open(cfg["datapath"])
 
     # Create storage backend
-    store_backend = backend_numpy("/home/rkube/repos/delta/test_data")
+    store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
 
     # Create a global executor
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=30)
+    #executor = concurrent.futures.ThreadPoolExecutor(max_workers=6)
+    executor = MPIPoolExecutor(max_workers=64)
 
 
     # Create the task list
     task_list = []
     for task_config in cfg["task_list"]:
         task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
-        task_list[-1].store_metadata(store_backend)
+        #task_list[-1].store_metadata(store_backend)
 
     dq = queue.Queue()
     msg = None
@@ -157,13 +175,37 @@ def main():
             dq.put(msg)
             logging.info(f"Published message {msg}")
 
-        if reader.CurrentStep() > 5:
+        if reader.CurrentStep() > 1:
             logging.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
 
+
+    logging.info(f"Exiting main loop")
     worker.join()
+    logging.info(f"Workers have joined")
     dq.join()
+    logging.info(f"Queue joined")
+
+    # At this point, all work items have been dispatched. Continue by storing 
+    # results of the analysis
+
+    # Spawn len(task_list) workers to store the results of the analysis
+    # Use threads since storing is most likely I/O bound:
+    # https://timber.io/blog/multiprocessing-vs-multithreading-in-python-what-you-need-to-know/
+    storage_threads = []
+    for task in task_list:
+        t = threading.Thread(target=storage, args=(task, ))
+        t.start()
+        storage_threads.append(t)
+
+    logging.info("Joining storage tasks")
+    # Wait for the storage threads to finish
+    for t in storage_threads:
+        t.join()
+    logging.info("Finished joining storage tasks")
+
+    # Shotdown the executioner
     executor.shutdown()
 
 if __name__ == "__main__":

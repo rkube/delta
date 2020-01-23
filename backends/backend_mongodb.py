@@ -7,8 +7,10 @@ import pickle
 from pymongo import MongoClient
 from bson.binary import Binary
 
+from .backend import backend
 
-class mongodb_backend():
+
+class backend_mongodb(backend):
     """
     Author: Ralph Kube
 
