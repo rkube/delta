@@ -119,7 +119,7 @@ def storage(task, cfg, store_backend):
 
 def main():
 
-    with open("tests_performance/run1/run.log", "w") as df_run:
+    with open("tests_performance/run2/run.log", "w") as df_run:
         df_run.write("Starting run at " + datetime.datetime.now().strftime("%Y-%m-%d %X UTC"))
         df_run.write(" ")
 
@@ -171,7 +171,7 @@ def main():
             dq.put(msg)
             logging.info(f"Published message {msg}")
 
-        if reader.CurrentStep() > 500:
+        if reader.CurrentStep() > 0:
             logging.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
@@ -211,7 +211,7 @@ def main():
     # Shotdown the executioner
     executor.shutdown()
 
-    with open("tests_performance/run1/run.log", "w") as df_run:
+    with open("tests_performance/run2/run.log", "a") as df_run:
         df_run.write("Ending run at " + datetime.datetime.now().strftime("%Y-%m-%d %X UTC"))
         df_run.write(" ")
 

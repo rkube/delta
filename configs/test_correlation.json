@@ -1,6 +1,7 @@
 {"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
- "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/",
  "shotnr": 18431,
+ "storage": {"backend": "numpy", "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/"},
+ "storage_no": {"backend": "mongo", "username": "delta-fusion_admin", "password": "eeww33ekekww212aa"},
  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
               "t_norm": [-0.119, -0.109],
               "SampleRate": 500,
@@ -12,7 +13,7 @@
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{"description" : "cross_correlation", 
                 "analysis": "cross_correlation",
-                "channel_chunk_size": 768, 
+                "channel_chunk_size": 1024, 
                 "ref_channels" : "L0101-2408",
                 "cmp_channels" : "L0101-2408"}]
 }

@@ -28,7 +28,7 @@ future_list.
 """
 
 
-def cross_phase(fft_data, ch_it):
+def cross_phase(fft_data, ch_it, fft_config, info_dict):
     """Kernel that calculates the cross-phase between two channels.
     Input:
     ======
@@ -43,11 +43,11 @@ def cross_phase(fft_data, ch_it):
     c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
     c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
     Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
-    return(np.arctan2(Pxy.real, Pxy.imag).real)
+    return(np.arctan2(Pxy.real, Pxy.imag).real, info_dict)
 
 
 
-def cross_power(fft_data, ch_it, fft_config):
+def cross_power(fft_data, ch_it, fft_config, info_dict):
     """Kernel that calculates the cross-power between two channels.
     Input:
     ======    
@@ -64,11 +64,10 @@ def cross_power(fft_data, ch_it, fft_config):
     c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
     res = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2) / fft_config["win_factor"]
+    return(res, info_dict)
 
-    return(res)
 
-
-def coherence(fft_data, ch_it):
+def coherence(fft_data, ch_it, fft_config, info_dict):
     """Kernel that calculates the coherence between two channels.
     Input:
     ======    
@@ -82,8 +81,6 @@ def coherence(fft_data, ch_it):
     coherence, float.
     """
 
-    import numpy as np
-
     c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
     c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
@@ -94,14 +91,11 @@ def coherence(fft_data, ch_it):
     Pyy = Y * Y.conj()
 
     Gxy = np.mean((X * Y.conj()) / np.sqrt(Pxx * Pyy), axis=2)
-    Gxy = np.fabs(Gxy).real
+    Gxy = np.fabs(Gxy.real)
 
-    #Gxy = fabs(mean(X * Y.conj() / sqrt(X * X.conj() * Y * Y.conj())).real)
-
-    return(Gxy)
+    return(Gxy, info_dict)
 
 
-#@jit(nopython=True)
 def cross_corr(fft_data, ch_it, fft_params, info_dict):
     """Defines a kernel that calculates the cross-correlation between two channels.
 
@@ -137,7 +131,7 @@ def cross_corr(fft_data, ch_it, fft_params, info_dict):
     return(res, info_dict)
 
 
-def bicoherence(fft_data, ch_it): 
+def bicoherence(fft_data, ch_it, fft_params, info_dict): 
     """Kernel that calculates the bi-coherence between two channels.
     Input:
     ======    
@@ -149,7 +143,6 @@ def bicoherence(fft_data, ch_it):
     ========
     bicoherence, float.
     """
-    import numpy as np
 
     res_list = []
 
@@ -158,7 +151,7 @@ def bicoherence(fft_data, ch_it):
 
         # Transpose to make array layout compatible with code from specs.py
         XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
-        YY = np.fft.fftshift(fft_data[ch2_idx :, :], axes=0).T
+        YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
 
         bins, full = XX.shape
         half = full // 2 + 1
@@ -203,12 +196,12 @@ def bicoherence(fft_data, ch_it):
         N = np.array([i+1 for i in range(half)] + [half for i in range(full-half)])
         sum_val = sum_val / N # element wise division
 
-        res_list.append(val, sum_val)
+        res_list.append((val, sum_val))
 
-    return (res_list)
+    return (res_list, info_dict)
 
 
-def skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01): 
+def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01): 
     """
     Calculates the conditional spectrum S(k,w).
 
@@ -230,76 +223,78 @@ def skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
 
     res_list = []
     for ch_pair in ch_it:
-        ch1_idx, ch2_idx = ch_pair.ch1.idx(), ch_pair.ch2.idx()
-        logging.debug("Calculating skw for channels {0:s}x{1:s}".format(ch.ch1, ch.ch2))
+        ch1 = ch_pair.ch1
+        ch2 = ch_pair.ch2
+        ch1_idx, ch2_idx = ch1.idx(), ch2.idx()
+        logging.debug("Calculating skw for channels {0:s}x{1:s}".format(ch1, ch2))
 
-    XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
-    YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
+        XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
+        YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
 
-    bins, _ = XX.shape
-    win_factor = fft_params["win_factor"]
+        bins, _ = XX.shape
+        win_factor = fft_params["win_factor"]
 
-    cpos_ref = channel_position(ch1_idx, ecei_config)
-    cpos_cmp = channel_position(ch2_idx, ecei_config)
+        cpos_ref = channel_position(ch1_idx, ecei_config)
+        cpos_cmp = channel_position(ch2_idx, ecei_config)
 
-    # Calculate distance between channels
-    dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
-    dmin = dist * 1e2
+        # Calculate distance between channels
+        dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
+        dmin = dist * 1e2
 
-    kax = np.arange(-np.pi / dmin, np.pi / dmin, kstep)
+        kax = np.arange(-np.pi / dmin, np.pi / dmin, kstep)
 
-    nkax = kax.size
-    nfft = fft_params["nfft"]
+        nkax = kax.size
+        nfft = fft_params["nfft"]
 
-    if(ch1_idx == ch2_idx):
-        # We can't calculate the cross-conditional spectrum for ch0==ch1
-        # since dmin=0
-        return(np.zeros(nkax, nfft))
+        if(ch1_idx == ch2_idx):
+            # We can't calculate the cross-conditional spectrum for ch0==ch1
+            # since dmin=0
+            return(np.zeros(nkax, nfft))
 
-    # value dimension
-    Pxx = np.zeros((bins, nfft), dtype=np.complex_)
-    Pyy = np.zeros((bins, nfft), dtype=np.complex_)
-    Kxy = np.zeros((bins, nfft), dtype=np.complex_)
-    val = np.zeros((nkax, nfft), dtype=np.complex_)
+        # value dimension
+        Pxx = np.zeros((bins, nfft), dtype=np.complex_)
+        Pyy = np.zeros((bins, nfft), dtype=np.complex_)
+        Kxy = np.zeros((bins, nfft), dtype=np.complex_)
+        val = np.zeros((nkax, nfft), dtype=np.complex_)
 
-    sklw = np.zeros((nkax, nfft), dtype=np.complex_)
-    K = np.zeros(nfft, dtype=np.complex_)
-    sigK = np.zeros(nfft, dtype=np.complex_)
+        sklw = np.zeros((nkax, nfft), dtype=np.complex_)
+        K = np.zeros(nfft, dtype=np.complex_)
+        sigK = np.zeros(nfft, dtype=np.complex_)
 
 
-    logging.debug(f"nkax = {nkax:d}, nfft = {nfft:d}, dmin = {dmin:f}")
+        logging.debug(f"nkax = {nkax:d}, nfft = {nfft:d}, dmin = {dmin:f}")
 
-    # calculate auto power and cross phase (wavenumber)
-    for b in range(bins):
-        #X = self.Dlist[done].spdata[done_subset[c],b,:]
-        #Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
-        X = XX[b, :]
-        Y = YY[b, :]
+        # calculate auto power and cross phase (wavenumber)
+        for b in range(bins):
+            #X = self.Dlist[done].spdata[done_subset[c],b,:]
+            #Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
+            X = XX[b, :]
+            Y = YY[b, :]
 
-        Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
-        Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
-        Pxy = X*np.matrix.conjugate(Y)
-        Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (dist * 100) # [cm^-1]
-                                                        
-        # calculate SKw
+            Pxx[b,:] = X*np.matrix.conjugate(X) / win_factor
+            Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
+            Pxy = X*np.matrix.conjugate(Y)
+            Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (dist * 100) # [cm^-1]
+                                                            
+            # calculate SKw
+            for w in range(nfft):
+                idx = (Kxy[b,w] - kstep * 0.5 < kax) * (kax < Kxy[b,w] + kstep * 0.5)
+                val[:,w] = val[:,w] + (1.0 / bins * (Pxx[b,w] + Pyy[b,w]) * 0.5) * idx
+
+        # calculate moments
+        sklw = val / np.tile(val.sum(axis=0), (nkax, 1))
+        K[:] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, axis=0)
         for w in range(nfft):
-            idx = (Kxy[b,w] - kstep * 0.5 < kax) * (kax < Kxy[b,w] + kstep * 0.5)
-            val[:,w] = val[:,w] + (1.0 / bins * (Pxx[b,w] + Pyy[b,w]) * 0.5) * idx
+            sigK[w] = np.sqrt(np.sum( (kax - K[w])**2 * sklw[:,w] ))
 
-    # calculate moments
-    sklw = val / np.tile(val.sum(axis=0), (nkax, 1))
-    K[:] = np.sum(np.transpose(np.tile(kax, (nfft, 1))) * sklw, axis=0)
-    for w in range(nfft):
-        sigK[w] = np.sqrt(np.sum( (kax - K[w])**2 * sklw[:,w] ))
+        val = val.mean(axis=0).real
+        K = np.mean(K, axis=0)
+        sigK = np.mean(sigK, axis=0)
+        pdata = np.log10(val + 1e-10)
 
-    val = val.mean(axis=0).real
-    K = np.mean(K, axis=0)
-    sigK = np.mean(sigK, axis=0)
-    pdata = np.log10(val + 1e-10)
+        res_list.append(pdata)
 
-    res_list.append(pdata)
-
-    return(res_list)
+    return(res_list, info_dict)
 
 
 class task_spectral():
@@ -311,10 +306,9 @@ class task_spectral():
 
         Inputs:
         =======
-        channel_range: list of strings, defines the name of the channels. This should probably match the
-                      name of the channels in the BP file.
         task_config: dict, defines parameters of the analysis to be performed
-        fft_config dict, gives parameters of the fourier-transformed data
+        fft_config: dict, gives parameters of the fourier-transformed data
+        ecei_config: dict, information on ecei diagnostic
         """
 
 
@@ -396,9 +390,9 @@ class task_cross_phase(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
 
     def calculate(self, executor, fft_data, tidx):
-        info_dict_list = [{"analysis_name": "cross_correlation",
-                    "tidx": tidx,
-                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        info_dict_list = [{"analysis_name": "cross_phase",
+                           "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
         # Append the new futures
         self.futures_list += [executor.submit(cross_phase, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None
@@ -410,9 +404,9 @@ class task_cross_power(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
 
     def calculate(self, executor, fft_data, tidx):
-        info_dict_list = [{"analysis_name": "cross_correlation",
-                    "tidx": tidx,
-                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        info_dict_list = [{"analysis_name": "cross_power",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
         # Append the new futures
         self.futures_list += [executor.submit(cross_power, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
@@ -425,9 +419,9 @@ class task_coherence(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
 
     def calculate(self, executor, fft_data, tidx):
-        info_dict_list = [{"analysis_name": "cross_correlation",
-                    "tidx": tidx,
-                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        info_dict_list = [{"analysis_name": "coherence",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
         # Append the new futures
         self.futures_list += [executor.submit(coherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
@@ -454,8 +448,6 @@ class task_cross_correlation(task_spectral):
                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
         self.futures_list += [executor.submit(cross_corr, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
-        #self.futures_list += [executor.submit(cross_corr, fft_data, ch_it, self.fft_config) for ch_it in self.get_dispatch_sequence()]
-
         return None 
 
 
@@ -465,9 +457,9 @@ class task_bicoherence(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
     
     def calculate(self, executor, fft_data, tidx):
-        info_dict_list = [{"analysis_name": "cross_correlation",
-                    "tidx": tidx,
-                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        info_dict_list = [{"analysis_name": "bicoherence",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
         self.futures_list += [executor.submit(bicoherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
@@ -478,11 +470,11 @@ class task_skw(task_spectral):
         super().__init__(task_config, fft_config, ecei_config)
     
     def calculate(self, executor, fft_data, tidx):
-        info_dict_list = [{"analysis_name": "cross_correlation",
-                    "tidx": tidx,
-                    "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        info_dict_list = [{"analysis_name": "skw",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
-        self.futures_list += [executor.submit(skw, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        self.futures_list += [executor.submit(skw, fft_data, ch_it, self.fft_config, self.ecei_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
 
