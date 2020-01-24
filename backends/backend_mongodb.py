@@ -16,11 +16,13 @@ class backend_mongodb(backend):
 
     This defines an access to the mongodb storage backend.
     """
-    def __init__(self, rank=0, channel_range=[]):
+    def __init__(self, cfg_mongo):
         # Connect to mongodb
         self.client = MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 
-                                  username="delta-fusion_admin",
-                                  password="eeww33ekekww212aa")
+                                  username = cfg_mongo["username"],
+                                  password = cfg_mongo["password"])
+                                  #username="delta-fusion_admin",
+                                  #password="eeww33ekekww212aa")
 
         self.db = self.client.get_database()
         self.collection = self.db.test_analysis

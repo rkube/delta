@@ -42,7 +42,7 @@ class backend_numpy(backend):
         ========
         None
         """
-        fname_fq = join(self.datadir, fname) + f"_s{self.ctr:05d}.npz"
+        fname_fq = join(cfg['basedir'], fname) + f"_s{self.ctr:05d}.npz"
 
         logging.debug(f"Storing data in {fname_fq:s}")
         np.savez(fname_fq, data=data, **metadata)

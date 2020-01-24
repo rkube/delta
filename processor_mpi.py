@@ -101,20 +101,14 @@ def storage(task, cfg):
     logging.info(f"====== Starting storage task. Length of future list: {len(task.futures_list)}")
 
     store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
-<<<<<<< HEAD
     store_backend.store_metadata(cfg, task)
 
     for future in concurrent.futures.as_completed(task.futures_list):
         future_res, future_info = future.result()
         logging.info(f"=== Future complete: res.shape = {future_res.shape}, info = {future_info}")
-=======
 
-    store_backend.store_metadata(cfg, task, "test_store.npz")
 
-    for future in concurrent.futures.as_completed(task.futures_list):
-        future_data, future_info = future.result()
-        logging.info(f"=== Future complete: shape = {future_data.shape}, info = {future_info}")
->>>>>>> 031d2ef29b049d6232ff1c08bee3e91a280fb7e9
+        store_backend.store(cfg, future_res, future_info)
 
 
     logging.info(f"===== Ending storage task.")
@@ -140,11 +134,7 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=6)
-<<<<<<< HEAD
     executor = MPIPoolExecutor(max_workers=60)
-=======
-    executor = MPIPoolExecutor(max_workers=64)
->>>>>>> 031d2ef29b049d6232ff1c08bee3e91a280fb7e9
 
     # Create the task list
     task_list = []
