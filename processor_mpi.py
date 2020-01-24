@@ -14,7 +14,7 @@ srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_cross
 
 """
 
-from mpi4py import MPI 
+from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor
 import sys
 #sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
@@ -30,12 +30,17 @@ import threading
 import numpy as np
 import attr
 import timeit
+import datetime
 
 import json
 import argparse
 import adios2
 
 import backends
+
+from pymongo import MongoClient
+
+
 
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
@@ -97,24 +102,28 @@ def consume(Q, executor, my_fft, task_list):
 
 
 # Procedure that is called to store the data from analysis
-def storage(task, cfg):
+def storage(task, cfg, store_backend):
     logging.info(f"====== Starting storage task. Length of future list: {len(task.futures_list)}")
 
-    store_backend = backends.backend_numpy("/global/homes/r/rkube/repos/delta/test_data")
-    store_backend.store_metadata(cfg, task)
+    #store_backend.store_metadata(cfg, task)
 
     for future in concurrent.futures.as_completed(task.futures_list):
         future_res, future_info = future.result()
         logging.info(f"=== Future complete: res.shape = {future_res.shape}, info = {future_info}")
 
-
-        store_backend.store(cfg, future_res, future_info)
+        #store_backend.store(future_res, future_info)
 
 
     logging.info(f"===== Ending storage task.")
 
 
 def main():
+
+    with open("tests_performance/run1/run.log", "w") as df_run:
+        df_run.write("Starting run at " + datetime.datetime.now().strftime("%Y-%m-%d %X UTC"))
+        df_run.write(" ")
+
+
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one_fluctana.json')
@@ -133,8 +142,8 @@ def main():
     reader.Open(cfg["datapath"])
 
     # Create a global executor
-    #executor = concurrent.futures.ThreadPoolExecutor(max_workers=6)
-    executor = MPIPoolExecutor(max_workers=60)
+    #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
+    executor = MPIPoolExecutor(max_workers=64)
 
     # Create the task list
     task_list = []
@@ -162,7 +171,7 @@ def main():
             dq.put(msg)
             logging.info(f"Published message {msg}")
 
-        if reader.CurrentStep() > 0:
+        if reader.CurrentStep() > 500:
             logging.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
@@ -180,8 +189,16 @@ def main():
     # Use threads since storing is most likely I/O bound:
     # https://timber.io/blog/multiprocessing-vs-multithreading-in-python-what-you-need-to-know/
     storage_threads = []
+
+
+    if cfg['storage']['backend'] == "numpy":
+        store_backend = backends.backend_numpy(cfg['storage'])
+    elif cfg['storage']['backend'] == "mongo":
+        store_backend = backends.backend_mongodb(cfg['storage'])
+    
+
     for task in task_list:
-        t = threading.Thread(target=storage, args=(task, cfg))
+        t = threading.Thread(target=storage, args=(task, cfg, store_backend))
         t.start()
         storage_threads.append(t)
 
@@ -193,6 +210,10 @@ def main():
 
     # Shotdown the executioner
     executor.shutdown()
+
+    with open("tests_performance/run1/run.log", "w") as df_run:
+        df_run.write("Ending run at " + datetime.datetime.now().strftime("%Y-%m-%d %X UTC"))
+        df_run.write(" ")
 
 if __name__ == "__main__":
     main()

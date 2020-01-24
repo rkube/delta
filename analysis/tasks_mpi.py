@@ -332,11 +332,7 @@ class task_spectral():
         self.fft_config = fft_config
         self.ecei_config = ecei_config
 
-        self.storage_scheme =  {"ref_channels": self.ref_channels.to_str(),
-                                "cmp_channels": self.cmp_channels.to_str()}
-
         self.futures_list = []
-        self.futures_metadata = []
 
         # Construct a list of unique channels
         # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
@@ -370,51 +366,6 @@ class task_spectral():
         return(all_chunks)
 
 
-    def store_data(self, backend, metadata):
-        """Store results of computation in the backend.
-
-        Input:
-        ======
-        backend: Backend to use
-        metadata, dict: Dictionary that is passed into the backend call
-        """
-
-        # Gather the results
-        logging.debug(f"*** Storing data. len(futures_list) = {len(self.futures_list):d}")
-        res = []
-        for f in self.futures_list:
-            res.append(f.result())
-        res = np.concatenate(res, axis=0)
-
-        logging.debug(f"*** res.shape = {res.shape}")
-        backend.store(self.description, res, metadata)
-        backend.ctr += 1
-        
-        
-    def store_metadata(self, backend):
-        """Store meta-data that only depends on task configuration.
-        
-        Input:
-        ======
-        backend, Backend type to use
-        """
-
-        # Get the channel list
-        all_chunks = self.get_dispatch_sequence()
-
-        ll = list(all_chunks)
-        flat_ll = [item for sublist in ll for item in sublist]
-        flat_ll = [l[0] for l in flat_ll]
-
-
-        metadata = {"task_config": self.task_config, 
-                    "fft_config": self.fft_config,
-                    "ecei_config": self.ecei_config,
-                    "channel_list": flat_ll}
-
-        backend.store_config(self.description, metadata)
-
-
     def calculate(self, executor, fft_data, tidx):
         """Calculates spectral analysis for signal data.
         The data is assumed to be distributed to the clients.
@@ -443,8 +394,6 @@ class task_cross_phase(task_spectral):
     """This class calculates the cross-phase via the calculate method."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        # Append the analysis name to the storage scheme
-        self.storage_scheme["analysis_name"] = "cross_phase"
 
     def calculate(self, executor, fft_data, tidx):
         info_dict_list = [{"analysis_name": "cross_correlation",
@@ -459,7 +408,6 @@ class task_cross_power(task_spectral):
     """This class calculates the cross-power between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "cross_power"
 
     def calculate(self, executor, fft_data, tidx):
         info_dict_list = [{"analysis_name": "cross_correlation",
@@ -475,7 +423,6 @@ class task_coherence(task_spectral):
     """This class calculates the coherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "coherence"
 
     def calculate(self, executor, fft_data, tidx):
         info_dict_list = [{"analysis_name": "cross_correlation",
@@ -491,7 +438,6 @@ class task_xspec(task_spectral):
     """This class calculates the coherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "xspec"
     
     def calculate(self, executor, fft_data, tidx):
         raise NotImplementedError
@@ -501,7 +447,6 @@ class task_cross_correlation(task_spectral):
     """This class calculates the cross-correlation between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "cross_correlation"
 
     def calculate(self, executor, fft_data, tidx):
         info_dict_list = [{"analysis_name": "cross_correlation",
@@ -518,7 +463,6 @@ class task_bicoherence(task_spectral):
     """This class calculates the bicoherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "bicoherence"
     
     def calculate(self, executor, fft_data, tidx):
         info_dict_list = [{"analysis_name": "cross_correlation",
@@ -532,7 +476,6 @@ class task_skw(task_spectral):
     """This class calculates the bicoherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.storage_scheme["analysis_name"] = "skw"
     
     def calculate(self, executor, fft_data, tidx):
         info_dict_list = [{"analysis_name": "cross_correlation",
