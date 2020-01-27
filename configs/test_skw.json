@@ -1,7 +1,6 @@
-{
-    "datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
+{"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
     "shotnr": 18431,
-    "storage": {"backend": "numpy", "basedir": "/global/homes/r/rkube/repos/delta/test_data/run2/"},
+    "storage": {"backend": "numpy", "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/"},
     "storage_no": {"backend": "mongo", "username": "delta-fusion_admin", "password": "eeww33ekekww212aa"},
     "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
                  "t_norm": [-0.119, -0.109],
@@ -12,9 +11,9 @@
                  "LensFocus": 80,
                  "LensZoom": 340},
     "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
-    "task_list": [{"description" : "ralphs_skw", 
+    "task_list": [{"description" : "skw", 
                    "analysis": "skw",
-                   "channel_chunk_size": 1024,
-                   "ref_channels": "L0702-0702",
-                   "cmp_channels": "L1601-1601"}]
-}
+                   "channel_chunk_size": 1024, 
+                   "ref_channels" : "L0101-2408",
+                   "cmp_channels" : "L0101-2408"}]
+   }

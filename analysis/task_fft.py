@@ -10,7 +10,7 @@ This class is not used for the mpi implementation and can be deleted.
 """
 
 import numpy as np
-import dask.array as da
+#import dask.array as da
 #from dask.distributed import get_worker
 from scipy.signal import detrend, spectrogram, stft
 from math import floor
@@ -240,7 +240,7 @@ class task_fft_scipy():
 
 
 
-    def do_fft(self, dask_client, stream_data_future):
+    def do_fft(self, client, stream_data):
         """Dispatch a STFT to the workers.
         For details on how the STFT relates to other spectrograms, see
         tests_div/scipy_compare_spectrograms.ipynb
@@ -285,7 +285,7 @@ class task_fft_scipy():
             return res[2]
 
         # Distribute the stft function to the workers
-        futures = [dask_client.submit(stft_scipy, stream_data_future, idx) for idx in range(192)]
+        futures = [client.submit(stft_scipy, stream_data, idx) for idx in range(192)]
 
         return(futures)
 

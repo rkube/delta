@@ -28,6 +28,11 @@ future_list.
 """
 
 
+def null(fft_data, ch_it, fft_config, info_dict):
+    """Does nothing. Used in performance testing to evaluate framework communication overhead"""
+    return((None, info_dict))
+
+
 def cross_phase(fft_data, ch_it, fft_config, info_dict):
     """Kernel that calculates the cross-phase between two channels.
     Input:
@@ -44,7 +49,6 @@ def cross_phase(fft_data, ch_it, fft_config, info_dict):
     c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
     Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
     return(np.arctan2(Pxy.real, Pxy.imag).real, info_dict)
-
 
 
 def cross_power(fft_data, ch_it, fft_config, info_dict):
@@ -223,19 +227,27 @@ def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01):
 
     res_list = []
     for ch_pair in ch_it:
+
         ch1 = ch_pair.ch1
         ch2 = ch_pair.ch2
         ch1_idx, ch2_idx = ch1.idx(), ch2.idx()
-        logging.debug("Calculating skw for channels {0:s}x{1:s}".format(ch1, ch2))
 
+
+        nfft = int(fft_params["nfft"])
+
+        if(ch1_idx == ch2_idx):
+            # We can't calculate the cross-conditional spectrum for ch0==ch1
+            res_list.append(None)
+            continue
+        print("Calculating skw for channels {0}x{1}".format(ch1, ch2))
         XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
         YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
 
         bins, _ = XX.shape
         win_factor = fft_params["win_factor"]
 
-        cpos_ref = channel_position(ch1_idx, ecei_config)
-        cpos_cmp = channel_position(ch2_idx, ecei_config)
+        cpos_ref = channel_position(ch1, ecei_config)
+        cpos_cmp = channel_position(ch2, ecei_config)
 
         # Calculate distance between channels
         dist = np.sqrt( (cpos_ref[0] - cpos_cmp[0])**2.0 + (cpos_ref[1] - cpos_cmp[1])**2.0)
@@ -244,12 +256,7 @@ def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01):
         kax = np.arange(-np.pi / dmin, np.pi / dmin, kstep)
 
         nkax = kax.size
-        nfft = fft_params["nfft"]
 
-        if(ch1_idx == ch2_idx):
-            # We can't calculate the cross-conditional spectrum for ch0==ch1
-            # since dmin=0
-            return(np.zeros(nkax, nfft))
 
         # value dimension
         Pxx = np.zeros((bins, nfft), dtype=np.complex_)
@@ -261,13 +268,10 @@ def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01):
         K = np.zeros(nfft, dtype=np.complex_)
         sigK = np.zeros(nfft, dtype=np.complex_)
 
-
-        logging.debug(f"nkax = {nkax:d}, nfft = {nfft:d}, dmin = {dmin:f}")
+        #logging.info(f"nkax = {nkax:d}, nfft = {nfft:d}, dmin = {dmin:f}")
 
         # calculate auto power and cross phase (wavenumber)
         for b in range(bins):
-            #X = self.Dlist[done].spdata[done_subset[c],b,:]
-            #Y = self.Dlist[dtwo].spdata[dtwo_subset[c],b,:]
             X = XX[b, :]
             Y = YY[b, :]
 
@@ -293,6 +297,8 @@ def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01):
         pdata = np.log10(val + 1e-10)
 
         res_list.append(pdata)
+
+    #print("Finished skw analysis. len(res_list) = ", len(res_list))
 
     return(res_list, info_dict)
 
@@ -477,6 +483,21 @@ class task_skw(task_spectral):
         self.futures_list += [executor.submit(skw, fft_data, ch_it, self.fft_config, self.ecei_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
+
+class task_null(task_spectral):
+    """Null task to evaluate framework overhead."""
+    def __init__(self, task_config, fft_config, ecei_config):
+        super().__init__(task_config, fft_config, ecei_config)
+    
+    def calculate(self, executor, fft_data, tidx):
+        info_dict_list = [{"analysis_name": "null",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+
+        self.futures_list += [executor.submit(null, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        return None 
+
+   
 
     #    # 1)
     #     if self.analysis == "cwt":

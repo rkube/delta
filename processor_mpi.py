@@ -17,7 +17,7 @@ srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_cross
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor
 import sys
-#sys.path.append("/home/rkube/software/adios2-release_25/lib64/python3.7/site-packages")
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
 
 
 import logging
@@ -44,12 +44,13 @@ from pymongo import MongoClient
 
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
-from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec
+from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec, task_null
 
 
 # task_object_dict maps the string-value of the analysis field in the json file
 # to an object that defines an appropriate analysis function.
-task_object_dict = {"cross_correlation": task_cross_correlation,
+task_object_dict = {"null": task_null,
+                    "cross_correlation": task_cross_correlation,
                     "cross_phase": task_cross_phase,
                     "cross_power": task_cross_power,
                     "coherence": task_coherence,
@@ -109,8 +110,9 @@ def storage(task, cfg, store_backend):
 
     for future in concurrent.futures.as_completed(task.futures_list):
         future_res, future_info = future.result()
-        logging.info(f"=== Future complete: res.shape = {future_res.shape}, info = {future_info}")
-
+        #print("future_res=",future_res)
+        #print("future returned: ", result)
+        logging.info(f"=== Future complete: {future_info}")
         #store_backend.store(future_res, future_info)
 
 
@@ -143,7 +145,7 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor = MPIPoolExecutor(max_workers=64)
+    executor = MPIPoolExecutor(max_workers=120)
 
     # Create the task list
     task_list = []
@@ -171,7 +173,7 @@ def main():
             dq.put(msg)
             logging.info(f"Published message {msg}")
 
-        if reader.CurrentStep() > 0:
+        if reader.CurrentStep() >= 1:
             logging.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break

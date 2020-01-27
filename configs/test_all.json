@@ -14,42 +14,42 @@
  "task_list": [{
                  "description" : "cross_phase", 
                  "analysis": "cross_phase",
-                 "channel_chunk_size": 1024, 
+                 "channel_chunk_size": 32768, 
                  "ref_channels" : "L0101-2408",
                  "cmp_channels" : "L0101-2408"
                },
                {
                   "description" : "cross_power",
                   "analysis": "cross_power",
-                  "channel_chunk_size": 1024,
+                  "channel_chunk_size": 32768,
                   "ref_channels" : "L0101-2408",
                   "cmp_channels" : "L0101-2408"
                 },
                 {
                   "description" : "coherence",
                   "analysis": "coherence",
-                  "channel_chunk_size": 1024,
+                  "channel_chunk_size": 32768,
                   "ref_channels" : "L0101-2408",
                   "cmp_channels" : "L0101-2408"
                 },
                 {
                   "description" : "cross_correlation",
                   "analysis": "cross_correlation",
-                  "channel_chunk_size": 1024,
+                  "channel_chunk_size": 32768,
                   "ref_channels" : "L0101-2408",
                   "cmp_channels" : "L0101-2408"
                 },
                 {
                   "description" : "bicoherence",
                   "analysis": "bicoherence",
-                  "channel_chunk_size": 1024,
+                  "channel_chunk_size": 32768,
                   "ref_channels" : "L0101-2408",
                   "cmp_channels" : "L0101-2408"
                 },   
                 {
                    "description" : "skw",
                    "analysis": "skw",
-                   "channel_chunk_size": 1024,
+                   "channel_chunk_size": 4096,
                    "ref_channels" : "L0101-2408",
                    "cmp_channels" : "L0101-2408"
                 }]   

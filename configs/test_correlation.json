@@ -14,6 +14,6 @@
  "task_list": [{"description" : "cross_correlation", 
                 "analysis": "cross_correlation",
                 "channel_chunk_size": 1024, 
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"}]
+                "ref_channels" : "L0101-0208",
+                "cmp_channels" : "L0101-0208"}]
 }

@@ -11,9 +11,9 @@
                  "LensFocus": 80,
                  "LensZoom": 340},
     "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
-    "task_list": [{"description" : "cross_phase", 
-                   "analysis": "cross_phase",
-                   "channel_chunk_size": 1024, 
-                   "ref_channels" : "L0101-0208",
-                   "cmp_channels" : "L0101-0208"}]
+    "task_list": [{"description" : "null", 
+                   "analysis": "null",
+                   "channel_chunk_size": 32768, 
+                   "ref_channels" : "L0101-2408",
+                   "cmp_channels" : "L0101-2408"}]
    }
