@@ -240,7 +240,6 @@ def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01):
             # We can't calculate the cross-conditional spectrum for ch0==ch1
             res_list.append(None)
             continue
-        print("Calculating skw for channels {0}x{1}".format(ch1, ch2))
         XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
         YY = np.fft.fftshift(fft_data[ch2_idx, :, :], axes=0).T
 
@@ -298,8 +297,6 @@ def skw(fft_data, ch_it, fft_params, ecei_config, info_dict, kstep=0.01):
         pdata = np.log10(val + 1e-10)
 
         res_list.append(pdata)
-
-    #print("Finished skw analysis. len(res_list) = ", len(res_list))
 
     return(res_list, info_dict)
 

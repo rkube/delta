@@ -160,7 +160,7 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor = MPIPoolExecutor(max_workers=270)
+    executor = MPIPoolExecutor(max_workers=24)
 
     # Create the task list
     task_list = []

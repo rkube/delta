@@ -1,8 +1,27 @@
 {"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
  "shotnr": 18431,
- "storage_no": {"backend": "numpy", "basedir": "/global/homes/r/rkube/repos/delta/test_data/run2/"},
- "storage_no2": {"backend": "mongo", "username": "delta-fusion_admin", "password": "eeww33ekekww212aa"},
- "storage": {"backend": "null"},
+ "storage_no": 
+ {
+   "backend": "numpy", 
+   "basedir": "/global/homes/r/rkube/repos/delta/test_data/run2/"
+  },
+ "storage_no2": 
+ {
+   "backend": "mongo",
+   "username": "delta-fusion_admin",
+   "password": "eeww33ekekww212aa"
+ },
+ "storage": 
+ {
+   "backend": "null"
+  },
+ "storage_no3": 
+ {
+   "backend": "postgre", 
+   "hostname": "nerscdb03.nersc.gov",
+   "username": "delta_admin",
+   "password": "dsjwj242sss"
+  },
  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
               "t_norm": [-0.119, -0.109],
               "SampleRate": 500,
@@ -39,19 +58,5 @@
                   "channel_chunk_size": 32768,
                   "ref_channels" : "L0101-2408",
                   "cmp_channels" : "L0101-2408"
-                },
-                {
-                  "description" : "bicoherence",
-                  "analysis": "bicoherence",
-                  "channel_chunk_size": 4096,
-                  "ref_channels" : "L0101-2408",
-                  "cmp_channels" : "L0101-2408"
-                },   
-                {
-                   "description" : "skw",
-                   "analysis": "skw",
-                   "channel_chunk_size": 4096,
-                   "ref_channels" : "L0101-2408",
-                   "cmp_channels" : "L0101-2408"
                 }]   
 }
