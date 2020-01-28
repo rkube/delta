@@ -88,7 +88,12 @@ class channel():
         self.ch_v = ch_v
         self.ch_h = ch_h
         self.dev = dev
-        self.ch_num = ch_vh_to_num(self.ch_v, self.ch_h)
+       
+    
+    @property
+    def ch_num(self):
+        return ch_vh_to_num(self.ch_v, self.ch_h)
+
 
     @classmethod
     def from_str(cls, ch_str):
