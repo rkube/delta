@@ -58,7 +58,6 @@ task_object_dict = {"null": task_null,
                     "coherence": task_coherence,
                     "bicoherence": task_bicoherence,
                     "xspec": task_xspec,
-                    "cross_correlation": task_cross_correlation,
                     "skw": task_skw}
 
 
@@ -161,7 +160,7 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor = MPIPoolExecutor(max_workers=120)
+    executor = MPIPoolExecutor(max_workers=270)
 
     # Create the task list
     task_list = []
@@ -184,14 +183,14 @@ def main():
         if stepStatus:
             # Read data
             stream_data = reader.Get(save=False)
-            tb = reader.gen_timebase()
+            #tb = reader.gen_timebase()
 
             # Generate message id and publish is
             msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
             dq.put(msg)
             logger.info(f"Published message {msg}")
 
-        if reader.CurrentStep() >= 0:
+        if reader.CurrentStep() >= 498:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
