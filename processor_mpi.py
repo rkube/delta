@@ -14,6 +14,7 @@ srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_cross
 
 """
 
+import os
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor
 import sys
@@ -21,6 +22,7 @@ sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/s
 
 
 import logging
+import logging.config
 import random
 import string
 import queue
@@ -33,13 +35,13 @@ import timeit
 import datetime
 
 import json
+import yaml
 import argparse
 import adios2
 
 import backends
 
-from pymongo import MongoClient
-
+#from pymongo import MongoClient
 
 
 from readers.reader_mpi import reader_bpfile
@@ -60,13 +62,6 @@ task_object_dict = {"null": task_null,
                     "skw": task_skw}
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s,%(msecs)d %(levelname)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
-
-
 @attr.s 
 class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to
@@ -79,9 +74,11 @@ def consume(Q, executor, my_fft, task_list):
     """Executed by a local thread. Dispatch work items from the
     Queue to the PoolExecutor"""
 
+    logger = logging.getLogger('benchmark')
+
     while True:
         msg = Q.get()
-        logging.info(f"Consuming {msg}")
+        logger.info(f"Consuming {msg}")
 
         # If we get our special break message, we exit
         if msg.tstep_idx == None:
@@ -92,7 +89,7 @@ def consume(Q, executor, my_fft, task_list):
         tic_fft = timeit.default_timer()
         fft_data = my_fft.do_fft_local(msg.data)
         toc_fft = timeit.default_timer()
-        logging.info(f"     tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
+        logger.info(f"tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
 
         # Step 2) Distribute the work via PoolExecutor 
@@ -104,35 +101,54 @@ def consume(Q, executor, my_fft, task_list):
 
 # Procedure that is called to store the data from analysis
 def storage(task, cfg, store_backend):
-    logging.info(f"====== Starting storage task. Length of future list: {len(task.futures_list)}")
-
-    #store_backend.store_metadata(cfg, task)
+    logger = logging.getLogger('benchmark')
+    logger.info(f"Starting storage task. Length of future list: {len(task.futures_list)}")
 
     for future in concurrent.futures.as_completed(task.futures_list):
         future_res, future_info = future.result()
-        #print("future_res=",future_res)
-        #print("future returned: ", result)
-        logging.info(f"=== Future complete: {future_info}")
-        #store_backend.store(future_res, future_info)
+        logger.info(f"Future complete: {future_info}")
+        store_backend.store(future_res, future_info)
 
 
-    logging.info(f"===== Ending storage task.")
+    logger.info(f"Ending storage task.")
 
 
 def main():
-
-    with open("tests_performance/run2/run.log", "w") as df_run:
-        df_run.write("Starting run at " + datetime.datetime.now().strftime("%Y-%m-%d %X UTC"))
-        df_run.write(" ")
-
-
     # Parse command line arguments and read configuration file
-    parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a dask queue")
-    parser.add_argument('--config', type=str, help='Lists the configuration file', default='config_one_to_one_fluctana.json')
+    parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a mpi queue")
+    parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/config_null.json')
+    parser.add_argument('--benchmark', action="store_true")
     args = parser.parse_args()
     with open(args.config, "r") as df:
         cfg = json.load(df)
         df.close()
+
+    
+    # Load logger configuration from file: 
+    # http://zetcode.com/python/logging/
+    with open('configs/logger.yaml', 'r') as f:
+        log_cfg = yaml.safe_load(f.read())
+    logging.config.dictConfig(log_cfg)
+
+
+    # Create a sub-directory in tests_performance if we run in benchmark mode
+    if args.benchmark:
+        logger = logging.getLogger('benchmark')
+        logger.info("Running in benchmark mode")
+        run_id = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        tmpdir_name = os.path.join("tests_performance", run_id)
+        logger.info(f"Runing in benchmark mode. Logging in {tmpdir_name}/performance.log")
+        os.mkdir(tmpdir_name)
+        
+        # Create the file handler
+        benchmark_fh = logging.FileHandler(os.path.join(tmpdir_name, 'performance.log'))
+        benchmark_formatter = logging.Formatter("%(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s ")
+        benchmark_fh.setFormatter(benchmark_formatter)
+
+        logger.addHandler(benchmark_fh)
+
+    else:
+        logger = logging.getLogger('simple')
 
     # Create the FFT task
     cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
@@ -156,10 +172,12 @@ def main():
     dq = queue.Queue()
     msg = None
 
+    tic_main = timeit.default_timer()
+
     worker = threading.Thread(target=consume, args=(dq, executor, my_fft, task_list))
     worker.start()
 
-    logging.info(f"Starting main loop")
+    logger.info(f"Starting main loop")
     while True:
         stepStatus = reader.BeginStep()
 
@@ -171,18 +189,18 @@ def main():
             # Generate message id and publish is
             msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
             dq.put(msg)
-            logging.info(f"Published message {msg}")
+            logger.info(f"Published message {msg}")
 
-        if reader.CurrentStep() >= 1:
-            logging.info(f"Exiting: StepStatus={stepStatus}")
+        if reader.CurrentStep() >= 0:
+            logger.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
 
-    logging.info(f"Exiting main loop")
+    logger.info("Exiting main loop")
     worker.join()
-    logging.info(f"Workers have joined")
+    logger.info("Workers have joined")
     dq.join()
-    logging.info(f"Queue joined")
+    logger.info("Queue joined")
 
     # At this point, all work items have been dispatched. Continue by storing 
     # results of the analysis
@@ -192,11 +210,12 @@ def main():
     # https://timber.io/blog/multiprocessing-vs-multithreading-in-python-what-you-need-to-know/
     storage_threads = []
 
-
     if cfg['storage']['backend'] == "numpy":
         store_backend = backends.backend_numpy(cfg['storage'])
     elif cfg['storage']['backend'] == "mongo":
         store_backend = backends.backend_mongodb(cfg['storage'])
+    elif cfg['storage']['backend'] == "null":
+        store_backend = backends.backend_null(cfg['storage'])
     
 
     for task in task_list:
@@ -204,18 +223,20 @@ def main():
         t.start()
         storage_threads.append(t)
 
-    logging.info("Joining storage tasks")
+    logger.info("Joining storage tasks")
     # Wait for the storage threads to finish
     for t in storage_threads:
         t.join()
-    logging.info("Finished joining storage tasks")
+    logger.info("Finished joining storage tasks")
 
     # Shotdown the executioner
     executor.shutdown()
 
-    with open("tests_performance/run2/run.log", "a") as df_run:
-        df_run.write("Ending run at " + datetime.datetime.now().strftime("%Y-%m-%d %X UTC"))
-        df_run.write(" ")
+    toc_main = timeit.default_timer()
+
+    if args.benchmark:
+        logger.info(f"Run finished in {(toc_main - tic_main):6.4f}s")
+
 
 if __name__ == "__main__":
     main()

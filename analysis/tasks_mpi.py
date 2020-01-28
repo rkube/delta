@@ -30,6 +30,7 @@ future_list.
 
 def null(fft_data, ch_it, fft_config, info_dict):
     """Does nothing. Used in performance testing to evaluate framework communication overhead"""
+    logging.info("Finished analysis")
     return((None, info_dict))
 
 

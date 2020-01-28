@@ -23,7 +23,6 @@ class backend_numpy(backend):
         super().__init__()
 
         # Directory where numpy files are stored
-        print(cfg)
         self.basedir = cfg['basedir']
 
 
