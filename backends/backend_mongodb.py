@@ -6,9 +6,10 @@ import pickle
 import string
 import random
 import logging
-
+import json
 
 import pymongo 
+import gridfs
 from bson.binary import Binary
 
 from .backend import backend, serialize_dispatch_seq
@@ -23,19 +24,22 @@ class backend_mongodb(backend):
     def __init__(self, cfg_mongo):
         # Connect to mongodb
 
-        logger = logging.getLogger("DB")
-        logger.debug("mongodb_backend: Initializing mongodb backend")
+        #logger = logging.getLogger("DB")
+        #print("mongodb_backend: Initializing mongodb backend")
         self.client = pymongo.MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 
-                                          username = cfg_mongo["username"],
-                                          password = cfg_mongo["password"])
-        #                           #username="delta-fusion_admin",
-        #                           #password="eeww33ekekww212aa")
-        logger.debug("mongodb_backend: Connection established")
-        id_length = 6
-        # Generate a unique identifier for this test_run
-        self.session_id = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(id_length))
-        logger.debug("Session_id: ", self.session_id)
+                                          username = cfg_mongo["storage"]["username"],
+                                          password = cfg_mongo["storage"]["password"])
+        #print("mongodb_backend: Connection established")
+        db = self.client.get_database()
+        #print("mongodb_backend: db = ", db)
+        try:
+            self.collection = db.get_collection("test_analysis_" + cfg_mongo['run_id'])
 
+            # Initialize gridfs
+            self.fs = gridfs.GridFS(db)
+            #print("mongodb_backend: collection: ", self.collection)
+        except:
+            print("Could not get a collection")
 
     def store_metadata(self, cfg, dispatch_seq):
         """Stores the metadata to the database
@@ -49,42 +53,40 @@ class backend_mongodb(backend):
         logger = logging.getLogger("DB")
         logger.debug("backend_mongodb: entering store_metadata")
 
-        db = self.client.get_database()
-        collection = db.get_collection("test_analysis_" + self.session_id)
-        logger.info(f"backend_mongodb Connected to database {db.name}")
-        logger.info(f"backend_mongodb Using collectoin {collection.name}")
+        #db = self.client.get_database()
+        #collection = db.get_collection("test_analysis_" + cfg['run_id'])
+        #logger.info(f"backend_mongodb Connected to database {db.name}")
+        #logger.info(f"backend_mongodb Using collection {collection.name}")
 
-
-        j_str = serialize_dispatch_seq()
+        j_str = serialize_dispatch_seq(dispatch_seq)
         # Put the channel serialization in the corresponding key
         j_str = '{"channel_serialization": ' + j_str + '}'
         j = json.loads(j_str)
         # Adds the channel_serialization key to cfg
         cfg.update(j)
         cfg.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %X UTC")})
-       
+    
+
         try:
             result = self.collection.insert_one(cfg)
-            return result.matched_count > 0
         except pymongo.errors.PyMongoError as e:
-            logger.error("An error occured when attempting to write metadata: ", e)
-            return False
-        
+            logger.error("An error has occurred in store_metadata:: ", e)
+
+        return result.inserted_id
 
 
-
-    def store(self, task, future=None, dummy=True):
+    def store_task(self, task, future=None, dummy=True):
         """Stores data from an analysis task in the mongodb backend.
 
         The data anylsis results from analysis_task object are evaluated in this method.
 
-        Input:
-        ======
+        Parameters
+        ----------
         task: analysis_task object. 
         dummy: bool. If true, do not insert the item into the database
         
-        Returns:
-        ========
+        Returns
+        -------
         None
         """
 
@@ -111,6 +113,43 @@ class backend_mongodb(backend):
             print("***mongodb_backend*** Storing...")
 
         return None
+
+
+    def store_data(self, data, info_dict):
+        """Stores data in mongodb
+
+        Parameters
+        ----------
+        data: ndarray, float.
+        info_dict: Dictionary with metadata to store
+        cfg: delta configuration object
+        """
+        import sys
+        #logger = logging.get("DB")
+        #print(f"MongoDB: Storing data")
+
+        #info_dict['result'] = Binary(pickle.dumps(data))
+        # Create a binary object and store it in gridfs
+        fid = self.fs.put(Binary(pickle.dumps(data)))
+
+        info_dict['result_gridfs'] = fid
+        info_dict['timestamp'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        #print("Inserting:")
+        #inserted_id = self.connection.insert_one(info_dict)
+        try:
+            inserted_id = self.collection.insert_one(info_dict)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+        #print(f"Wrote to MongoDB backend; id = {inserted_id}")
+
+
+    def store_one(self, key, value):
+        """Stores a single key-value pair"""
+
+        self.collection.insert_one({key: value})
 
 
 # End of file mongodb.py

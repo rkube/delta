@@ -18,6 +18,11 @@ loggers:
     handlers: [console]
     propagate: no
 
+  DB:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+
 root:
   level: DEBUG
   handlers: [console]

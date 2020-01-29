@@ -22,3 +22,4 @@ INFO 2020-01-28 11:25:20,508,508 [Process 7193 MainProcess Thread-6] [processor_
 INFO 2020-01-28 11:25:20,510,510 [Process 7193 MainProcess Thread-6] [processor_mpi storage]: Ending storage task. 
 INFO 2020-01-28 11:26:37,193,193 [Process 7193 MainProcess Thread-5] [processor_mpi storage]: Future complete: {'analysis_name': 'coherence', 'tidx': 0, 'channel_batch': 0} 
 INFO 2020-01-28 11:26:37,195,195 [Process 7193 MainProcess Thread-5] [processor_mpi storage]: Ending storage task. 
+INFO 2020-01-28 13:46:37,365,365 [Process 7193 MainProcess Thread-8] [processor_mpi storage]: Future complete: {'analysis_name': 'skw', 'tidx': 0, 'channel_batch': 4} 

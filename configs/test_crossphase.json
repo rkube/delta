@@ -1,7 +1,20 @@
-{"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
+{
+    "datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
     "shotnr": 18431,
-    "storage": {"backend": "numpy", "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/"},
-    "storage_no": {"backend": "mongo", "username": "delta-fusion_admin", "password": "eeww33ekekww212aa"},
+    "storage_no2": 
+    {
+        "backend": "numpy", 
+        "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/"
+    },
+    "storage": 
+    {
+        "backend": "mongo", 
+        "username": "delta-fusion_admin", 
+        "password": "eeww33ekekww212aa"},
+    "storage_null": 
+    {
+        "backend": "null"
+    },
     "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
                  "t_norm": [-0.119, -0.109],
                  "SampleRate": 500,
@@ -11,9 +24,13 @@
                  "LensFocus": 80,
                  "LensZoom": 340},
     "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
-    "task_list": [{"description" : "cross_phase", 
-                   "analysis": "cross_phase",
-                   "channel_chunk_size": 1024, 
-                   "ref_channels" : "L0101-0208",
-                   "cmp_channels" : "L0101-0208"}]
+    "task_list": [
+        {
+            "description" : "cross_phase", 
+            "analysis": "cross_phase",
+            "channel_chunk_size": 32768, 
+            "ref_channels" : "L0101-2408",
+            "cmp_channels" : "L0101-2408"
+        }
+    ]
    }

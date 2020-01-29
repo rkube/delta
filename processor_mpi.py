@@ -41,9 +41,6 @@ import adios2
 
 import backends
 
-#from pymongo import MongoClient
-
-
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec, task_null
@@ -69,15 +66,19 @@ class AdiosMessage:
     data       = attr.ib(repr=False)
 
 
+cfg = {}
+
+
 def consume(Q, executor, my_fft, task_list):
     """Executed by a local thread. Dispatch work items from the
     Queue to the PoolExecutor"""
 
     logger = logging.getLogger('benchmark')
+    global cfg
 
     while True:
         msg = Q.get()
-        logger.info(f"Consuming {msg}")
+        logger.info(f"Start consuming {msg}")
 
         # If we get our special break message, we exit
         if msg.tstep_idx == None:
@@ -90,26 +91,26 @@ def consume(Q, executor, my_fft, task_list):
         toc_fft = timeit.default_timer()
         logger.info(f"tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
-
         # Step 2) Distribute the work via PoolExecutor 
         for task in task_list:
-            task.calculate(executor, fft_data, msg.tstep_idx)
+            task.calc_and_store(executor, fft_data, msg.tstep_idx, cfg)
 
         Q.task_done()
+        logger.info(f"Consumed {msg}")
 
 
 # Procedure that is called to store the data from analysis
-def storage(task, cfg, store_backend):
-    logger = logging.getLogger('benchmark')
-    logger.info(f"Starting storage task. Length of future list: {len(task.futures_list)}")
+# def storage(task, cfg, store_backend):
+#     logger = logging.getLogger('benchmark')
+#     logger.info(f"Starting storage task. Length of future list: {len(task.futures_list)}")
 
-    for future in concurrent.futures.as_completed(task.futures_list):
-        future_res, future_info = future.result()
-        logger.info(f"Future complete: {future_info}")
-        store_backend.store(future_res, future_info)
+#     for future in concurrent.futures.as_completed(task.futures_list):
+#         future_res, future_info = future.result()
+#         logger.info(f"Future complete: {future_info}")
+#         store_backend.store(future_res, future_info)
 
 
-    logger.info(f"Ending storage task.")
+#     logger.info(f"Ending storage task.")
 
 
 def main():
@@ -118,9 +119,15 @@ def main():
     parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/config_null.json')
     parser.add_argument('--benchmark', action="store_true")
     args = parser.parse_args()
+
+    global cfg
+
     with open(args.config, "r") as df:
         cfg = json.load(df)
         df.close()
+
+    # create a 6 run id
+    cfg['run_id'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
 
     
     # Load logger configuration from file: 
@@ -134,8 +141,8 @@ def main():
     if args.benchmark:
         logger = logging.getLogger('benchmark')
         logger.info("Running in benchmark mode")
-        run_id = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-        tmpdir_name = os.path.join("tests_performance", run_id)
+
+        tmpdir_name = os.path.join("tests_performance", cfg['run_id'])
         logger.info(f"Runing in benchmark mode. Logging in {tmpdir_name}/performance.log")
         os.mkdir(tmpdir_name)
         
@@ -148,6 +155,21 @@ def main():
 
     else:
         logger = logging.getLogger('simple')
+
+
+    logger.info(f"Starting run {cfg['run_id']}")
+
+    
+    # Instantiate a storage backend and store the run configuration and task configuration
+    if cfg['storage']['backend'] == "numpy":
+        store_backend = backends.backend_numpy(cfg['storage'])
+    elif cfg['storage']['backend'] == "mongo":
+        store_backend = backends.backend_mongodb(cfg)    
+    elif cfg['storage']['backend'] == "null":
+        store_backend = backends.backend_null(cfg['storage'])
+
+    store_backend.store_one(cfg['run_id'], cfg)
+
 
     # Create the FFT task
     cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
@@ -166,8 +188,8 @@ def main():
     task_list = []
     for task_config in cfg["task_list"]:
         task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
-        #task_list[-1].store_metadata(store_backend)
-
+        store_backend.store_metadata(task_config, task_list[-1].get_dispatch_sequence())
+        
     dq = queue.Queue()
     msg = None
 
@@ -207,34 +229,33 @@ def main():
     # Spawn len(task_list) workers to store the results of the analysis
     # Use threads since storing is most likely I/O bound:
     # https://timber.io/blog/multiprocessing-vs-multithreading-in-python-what-you-need-to-know/
-    storage_threads = []
+    # storage_threads = []
 
-    if cfg['storage']['backend'] == "numpy":
-        store_backend = backends.backend_numpy(cfg['storage'])
-    elif cfg['storage']['backend'] == "mongo":
-        store_backend = backends.backend_mongodb(cfg['storage'])
-    elif cfg['storage']['backend'] == "null":
-        store_backend = backends.backend_null(cfg['storage'])
+    # if cfg['storage']['backend'] == "numpy":
+    #     store_backend = backends.backend_numpy(cfg['storage'])
+    # elif cfg['storage']['backend'] == "mongo":
+    #     store_backend = backends.backend_mongodb(cfg['storage'])
+    # elif cfg['storage']['backend'] == "null":
+    #     store_backend = backends.backend_null(cfg['storage'])
     
 
-    for task in task_list:
-        t = threading.Thread(target=storage, args=(task, cfg, store_backend))
-        t.start()
-        storage_threads.append(t)
+    # for task in task_list:
+    #     t = threading.Thread(target=storage, args=(task, cfg, store_backend))
+    #     t.start()
+    #     storage_threads.append(t)
 
-    logger.info("Joining storage tasks")
-    # Wait for the storage threads to finish
-    for t in storage_threads:
-        t.join()
-    logger.info("Finished joining storage tasks")
+    # logger.info("Joining storage tasks")
+    # # Wait for the storage threads to finish
+    # for t in storage_threads:
+    #     t.join()
+    # logger.info("Finished joining storage tasks")
 
     # Shotdown the executioner
     executor.shutdown()
 
     toc_main = timeit.default_timer()
 
-    if args.benchmark:
-        logger.info(f"Run finished in {(toc_main - tic_main):6.4f}s")
+    logger.info(f"Run finished in {(toc_main - tic_main):6.4f}s")
 
 
 if __name__ == "__main__":
