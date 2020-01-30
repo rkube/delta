@@ -11,7 +11,7 @@
               "LensFocus": 80,
               "LensZoom": 340},
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
- "task_list": [{"description" : "cross_correlation", 
+ "task_list": [{"task_description" : "cross_correlation", 
                 "analysis": "cross_correlation",
                 "channel_chunk_size": 1024, 
                 "ref_channels" : "L0101-0208",

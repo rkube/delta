@@ -78,8 +78,6 @@ def consume(Q, executor, my_fft, task_list):
 
     while True:
         msg = Q.get()
-        logger.info(f"Start consuming {msg}")
-
         # If we get our special break message, we exit
         if msg.tstep_idx == None:
             Q.task_done()
@@ -168,7 +166,7 @@ def main():
     elif cfg['storage']['backend'] == "null":
         store_backend = backends.backend_null(cfg['storage'])
 
-    store_backend.store_one(cfg['run_id'], cfg)
+    store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
 
     # Create the FFT task
@@ -212,7 +210,7 @@ def main():
             dq.put(msg)
             logger.info(f"Published message {msg}")
 
-        if reader.CurrentStep() >= 498:
+        if reader.CurrentStep() >= 20:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             dq.put(AdiosMessage(tstep_idx=None, data=None))
             break
@@ -238,8 +236,6 @@ def main():
     # elif cfg['storage']['backend'] == "null":
     #     store_backend = backends.backend_null(cfg['storage'])
     
-
-    # for task in task_list:
     #     t = threading.Thread(target=storage, args=(task, cfg, store_backend))
     #     t.start()
     #     storage_threads.append(t)
@@ -251,11 +247,11 @@ def main():
     # logger.info("Finished joining storage tasks")
 
     # Shotdown the executioner
-    executor.shutdown()
+    executor.shutdown(wait=True)
 
     toc_main = timeit.default_timer()
 
-    logger.info(f"Run finished in {(toc_main - tic_main):6.4f}s")
+    logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@
                  "LensFocus": 80,
                  "LensZoom": 340},
     "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
-    "task_list": [{"description" : "null", 
+    "task_list": [{"task_description" : "null", 
                    "analysis": "null",
                    "channel_chunk_size": 32768, 
                    "ref_channels" : "L0101-2408",

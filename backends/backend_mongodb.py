@@ -67,6 +67,8 @@ class backend_mongodb(backend):
         cfg.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %X UTC")})
     
 
+        cfg.update({"description": "metadata"})
+
         try:
             result = self.collection.insert_one(cfg)
         except pymongo.errors.PyMongoError as e:
@@ -96,12 +98,12 @@ class backend_mongodb(backend):
         for future in task.futures_list:
             result.append(future.result())
         result = np.array(result)
-        print("***Backend.store: result = ", result.shape)
 
         # Write results to the backend
         storage_scheme = task.storage_scheme
         # Add a time stamp to the scheme
         storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 
         if dummy:
@@ -132,8 +134,10 @@ class backend_mongodb(backend):
         # Create a binary object and store it in gridfs
         fid = self.fs.put(Binary(pickle.dumps(data)))
 
-        info_dict['result_gridfs'] = fid
-        info_dict['timestamp'] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        info_dict.update({"result_gridfs": fid})
+        info_dict.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")})
+        info_dict.update({"description": "analysis results"})
+
 
         #print("Inserting:")
         #inserted_id = self.connection.insert_one(info_dict)
@@ -146,10 +150,10 @@ class backend_mongodb(backend):
         #print(f"Wrote to MongoDB backend; id = {inserted_id}")
 
 
-    def store_one(self, key, value):
-        """Stores a single key-value pair"""
+    def store_one(self, item):
+        """Wrapper to store an item"""
 
-        self.collection.insert_one({key: value})
+        self.collection.insert_one(item)
 
 
 # End of file mongodb.py

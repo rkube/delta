@@ -7,7 +7,6 @@ import logging
 import more_itertools
 
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
-#from backends import backend_null, backend_mongodb, backend_numpy
 import backends
 
 """
@@ -66,25 +65,33 @@ def cross_phase_store(fft_data, ch_it, fft_config, cfg, info_dict):
     info_dict  - metadata for the fft_data object
     """
 
-    # Generate backend object
-    if cfg['storage']['backend'] == "numpy":
-        store_backend = backends.backend_numpy(cfg['storage'])
-    elif cfg['storage']['backend'] == "mongo":
-        store_backend = backends.backend_mongodb(cfg)    
-    elif cfg['storage']['backend'] == "null":
-        store_backend = backends.backend_null(cfg['storage'])
+    import sys
 
-    # Calculate the cross phase
-    logging.info(f"cross_phase {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Starting")
-    result = cross_phase(fft_data, ch_it, fft_config, None)[0]
-    logging.info(f"cross_phase {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished calculation")
+    try:
 
-    #Store result in the DB
-    store_backend.store_data(result, info_dict)
-    logging.info(f"cross_phase {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished write")
+        # Generate backend object
+        if cfg['storage']['backend'] == "numpy":
+            store_backend = backends.backend_numpy(cfg['storage'])
+        elif cfg['storage']['backend'] == "mongo":
+            store_backend = backends.backend_mongodb(cfg)    
+        elif cfg['storage']['backend'] == "null":
+            store_backend = backends.backend_null(cfg['storage'])
 
-    # Zero out the result once it has been written
-    result = None
+        # Calculate the cross phase
+        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
+        result = cross_phase(fft_data, ch_it, fft_config, None)[0]
+        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
+
+        #Store result in the DB
+        store_backend.store_data(result, info_dict)
+        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+
+        # Zero out the result once it has been written
+        result = None
+
+    except:
+       logging.info("Unexpected error in cross_phase_store:", sys.exc_info()[0])
+       raise 
 
     return None
 
@@ -123,25 +130,34 @@ def cross_power_store(fft_data, ch_it, fft_config, cfg, info_dict):
     info_dict  - metadata for the fft_data object
     """
 
-    # Generate backend object
-    if cfg['storage']['backend'] == "numpy":
-        store_backend = backends.backend_numpy(cfg['storage'])
-    elif cfg['storage']['backend'] == "mongo":
-        store_backend = backends.backend_mongodb(cfg)    
-    elif cfg['storage']['backend'] == "null":
-        store_backend = backends.backend_null(cfg['storage'])
 
-    # Calculate the cross phase
-    logging.info(f"cross_power {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Starting")
-    result = cross_power(fft_data, ch_it, fft_config, None)[0]
-    logging.info(f"cross_power {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished calculation")
+    import sys
 
-    #Store result in the DB
-    store_backend.store_data(result, info_dict)
-    logging.info(f"cross_power {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished write")
+    try:
 
-    # Zero out the result once it has been written
-    result = None
+        # Generate backend object
+        if cfg['storage']['backend'] == "numpy":
+            store_backend = backends.backend_numpy(cfg['storage'])
+        elif cfg['storage']['backend'] == "mongo":
+            store_backend = backends.backend_mongodb(cfg)    
+        elif cfg['storage']['backend'] == "null":
+            store_backend = backends.backend_null(cfg['storage'])
+
+        # Calculate the cross phase
+        logging.info(f"cross_power tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
+        result = cross_power(fft_data, ch_it, fft_config, None)[0]
+        logging.info(f"cross_power {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
+
+        #Store result in the DB
+        store_backend.store_data(result, info_dict)
+        logging.info(f"cross_power tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+
+        # Zero out the result once it has been written
+        result = None
+
+    except:
+       logging.info("Unexpected error in cross_power_store:", sys.exc_info()[0])
+       raise 
 
     return None
 
@@ -190,25 +206,33 @@ def coherence_store(fft_data, ch_it, fft_config, cfg, info_dict):
     info_dict  - metadata for the fft_data object
     """
 
-    # Generate backend object
-    if cfg['storage']['backend'] == "numpy":
-        store_backend = backends.backend_numpy(cfg['storage'])
-    elif cfg['storage']['backend'] == "mongo":
-        store_backend = backends.backend_mongodb(cfg)    
-    elif cfg['storage']['backend'] == "null":
-        store_backend = backends.backend_null(cfg['storage'])
 
-    # Calculate the cross phase
-    logging.info(f"coherence {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Starting")
-    result = coherence(fft_data, ch_it, fft_config, None)[0]
-    logging.info(f"coherence {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished calculation")
+    import sys
 
-    #Store result in the DB
-    store_backend.store_data(result, info_dict)
-    logging.info(f"coherence {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished write")
+    try:
+        # Generate backend object
+        if cfg['storage']['backend'] == "numpy":
+            store_backend = backends.backend_numpy(cfg['storage'])
+        elif cfg['storage']['backend'] == "mongo":
+            store_backend = backends.backend_mongodb(cfg)    
+        elif cfg['storage']['backend'] == "null":
+            store_backend = backends.backend_null(cfg['storage'])
 
-    # Zero out the result once it has been written
-    result = None
+        # Calculate the cross phase
+        logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
+        result = coherence(fft_data, ch_it, fft_config, None)[0]
+        logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
+
+        #Store result in the DB
+        store_backend.store_data(result, info_dict)
+        logging.info(f"coherence ridx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+
+        # Zero out the result once it has been written
+        result = None
+
+    except:
+       logging.info("Unexpected error in coherence_store:", sys.exc_info()[0])
+       raise 
 
     return None
 
@@ -261,25 +285,32 @@ def cross_corr_store(fft_data, ch_it, fft_config, cfg, info_dict):
     info_dict  - metadata for the fft_data object
     """
 
-    # Generate backend object
-    if cfg['storage']['backend'] == "numpy":
-        store_backend = backends.backend_numpy(cfg['storage'])
-    elif cfg['storage']['backend'] == "mongo":
-        store_backend = backends.backend_mongodb(cfg)    
-    elif cfg['storage']['backend'] == "null":
-        store_backend = backends.backend_null(cfg['storage'])
+    import sys
 
-    # Calculate the cross phase
-    logging.info(f"cross_corr {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Starting")
-    result = cross_corr(fft_data, ch_it, fft_config, None)[0]
-    logging.info(f"cross_corr {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished calculation")
+    try:
+        # Generate backend object
+        if cfg['storage']['backend'] == "numpy":
+            store_backend = backends.backend_numpy(cfg['storage'])
+        elif cfg['storage']['backend'] == "mongo":
+            store_backend = backends.backend_mongodb(cfg)    
+        elif cfg['storage']['backend'] == "null":
+            store_backend = backends.backend_null(cfg['storage'])
 
-    #Store result in the DB
-    store_backend.store_data(result, info_dict)
-    logging.info(f"cross_corr {info_dict['tidx']} chunk{info_dict['chunk_idx']}: Finished write")
+        # Calculate the cross phase
+        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk {info_dict['channel_batch']}: Starting")
+        result = cross_corr(fft_data, ch_it, fft_config, None)[0]
+        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk {info_dict['channel_batch']}: Finished calculation")
 
-    # Zero out the result once it has been written
-    result = None
+        #Store result in the DB
+        store_backend.store_data(result, info_dict)
+        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+
+        # Zero out the result once it has been written
+        result = None
+
+    except:
+       logging.info("Unexpected error in cross_corr_store:", sys.exc_info()[0])
+       raise 
 
     return None
 
@@ -465,7 +496,7 @@ class task_spectral():
 
 
         # Stores the description of the task. This can be arbitrary
-        self.description = task_config["description"]
+        self.description = task_config["task_description"]
         # Stores the name of the analysis we are going to execute
         self.analysis = task_config["analysis"]
         
@@ -559,7 +590,7 @@ class task_cross_phase(task_spectral):
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the cross phase and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]                           
+        [info.update({"tidx": tidx}) for info in self.info_dict_list]
         self.futures_list += [executor.submit(cross_phase_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
 
         return None
