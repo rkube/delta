@@ -20,8 +20,23 @@ refer to one of the three components.
 """
 
 def ch_num_to_vh(ch_num):
-    """Returns a tuple (ch_v, ch_h) for a channel number. Note that these are 1-based
-    numbers."""
+    """Returns a tuple (ch_v, ch_h) for a channel number. 
+    Note that these are 1-based numbers.
+    
+    Parameters
+    ----------
+    ch_num: int, channel nu,ber.
+    
+    Returns:
+    --------
+    (ch_v, ch_h): int, Vertical and horizontal channel numbers.
+    
+    Vertical channel number is between 1 and 24. Horizontal channel number is 
+    between 1 and 8.
+    
+    >>> ch_num_to_vh(17)
+    (3, 1)
+    """
     assert((ch_num >= 1) & (ch_num < 193))
     # Calculate using zero-base
     ch_num -= 1
@@ -31,7 +46,20 @@ def ch_num_to_vh(ch_num):
 
 
 def ch_vh_to_num(ch_v, ch_h, debug=True):
-    """Returns the channel number 1..192 from a channel h and v"""
+    """Returns the linear channel index 1..192 for a ch_v, ch_h.
+    
+    Parameters:
+    -----------
+    ch_v, ch_h: int, vertical and horizontal chanel numbers
+    debug: bool, if True, include assert tests for ch_h and ch_h.
+    
+    Returns:
+    --------
+    ch_num: int, linear channel index
+    
+    >>> ch_vh_to_num(12, 4)
+    100
+    """
 
     # We usually want to check that we are within the bounds.
     # But sometimes it is helpful to avoid this.
@@ -72,8 +100,8 @@ class channel():
 
     def __init__(self, dev, ch_v, ch_h):
         """
-        Input:
-        ======
+        Parameters
+        ----------
         dev: string, must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
         ch_h: int, Horizontal channel number, between 1 and 24
         ch_v: int, Vertical channel number, between 1 and 8
