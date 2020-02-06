@@ -111,13 +111,13 @@ NV = 24
 NR = 8
 A = FluctAna(verbose=False)
 #TODO: Modify so it can take in a cfg set
-dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'],verbose=False)
-A.Dlist.append(dobjAll)  
+#dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'],verbose=False)
+#A.Dlist.append(dobjAll)  
 
 # Function for workers to perform, which is an analysis.
 # Workers (non-master MPI workers) will process each chunk of data.
 # mpi4py will be responsible for data distribution.
-def perform_analysis(channel_data, tstep, trange):
+def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     Perform analysis
     """ 
@@ -125,6 +125,11 @@ def perform_analysis(channel_data, tstep, trange):
     t0 = time.time()
     if(my_analysis["name"] == "all"):
         results = {} 
+        dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'],verbose=False)
+        if len(A.Dlist)==0: 
+            A.Dlist.append(dobjAll)
+        else:
+            A.Dlist[0] = dobjAll
         A.Dlist[0].data = channel_data
         A.Dlist[0].time,_,_,_,_ = A.Dlist[0].time_base(trange)
         #this could be done on rank==0 as Ralph imagined
@@ -180,11 +185,11 @@ def perform_analysis(channel_data, tstep, trange):
 # distribute to other workers (non-master MPI workers) with mpi4py's MPICommExecutor.
 def dispatch():
     while True:
-        channel_data, tstep, trange = dq.get()
+        channel_data, cfg, tstep, trange = dq.get()
         logging.info(f"\tDispatcher: read data: tstep = {tstep}, rank = {rank}")
         if channel_data is None:
             break
-        future = executor.submit(perform_analysis, channel_data, tstep, trange)
+        future = executor.submit(perform_analysis, channel_data, cfg, tstep, trange)
         dq.task_done()
 
 # Main
@@ -232,13 +237,13 @@ if __name__ == "__main__":
 
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
-                dq.put((channel_data, currentStep, trange))
+                dq.put((channel_data, cfg, currentStep, trange))
                 time.sleep(1)
             logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart}")
             
             ## Clean up
             dq.join()
-            dq.put((None, -1, -1))
+            dq.put((None, None, -1, -1))
             dispatcher.join()
     if rank==0: logging.info(f"Receiver: done")
 
