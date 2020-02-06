@@ -1,20 +1,19 @@
 #-*- coding: UTF-8 -*-
-# Example command: mpirun -n 8 python -u -m mpi4py.futures receiver_mpi.py --config config.json
+# Example command: srun -n 8 python -u -m mpi4py.futures receiver_brute_mpi.py --config config.receiver.json
+# this code requires the modified fluctana code, https://github.com/rmchurch/fluctana.git
+
 import numpy as np 
 import adios2
 import json
 import argparse
 
-from analysis.spectral import power_spectrum
-
 import concurrent.futures
 import time
 import os
+import socket
 import queue
 import threading
 
-from mpi4py import MPI
-from mpi4py.futures import MPICommExecutor
 import sys
 from fluctana import *
 
@@ -36,20 +35,24 @@ args = parser.parse_args(sys.argv[idx:])
 if not args.nompi:
     from processors.readers import reader_dataman, reader_bpfile, reader_sst, reader_gen
     from mpi4py import MPI
+    from mpi4py.futures import MPICommExecutor
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 else:
-    from processors.readers_nompi import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    #from processors.readers_nompi import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    from concurrent.futures import ProcessPoolExecutor as MPICommExecutor
     comm = None
     rank = 0
     size = 1
+hostname = socket.gethostname()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
 
 datapath = cfg["datapath"]
+resultspath = cfg["resultspath"]
 shot = cfg["shot"]
 my_analysis = cfg["analysis"][0]
 gen_id = 2203 #TODO: Not clear if this was 
@@ -66,14 +69,20 @@ if args.debug:
             self.timeiter = iter(zip(tstarts,tstops))
             self.current_step = 0
 
+        def get_all_data(self):
+            _,data = self.dobj.get_data(trange=[self.time[0],self.time[-1]],norm=1,verbose=0)
+            n = int(np.ceil(data.shape[-1]/nchunk))
+            self.dataSplit = np.array_split(data,n,axis=-1)
+
         def get_data(self,type_str):
             trange = next(self.timeiter)
-            _,data = self.dobj.get_data(trange=trange,norm=1,verbose=0)
+            #_,data = self.dobj.get_data(trange=trange,norm=1,verbose=0)
+            data = self.dataSplit[self.current_step]
             self.current_step += 1
             return trange,data
 
         def BeginStep(self):
-            return True
+            return (self.current_step<len(self.dataSplit))
 
         def CurrentStep(self):
             return self.current_step
@@ -81,9 +90,12 @@ if args.debug:
         def EndStep(self):
             pass
 
-    #TODO: Placeholder for data saving
-    def save_spec(A):
-        pass
+    def save_spec(results,tstep):
+        #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
+        #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
+        with adios2.open(resultspath+'delta.'+str(tstep).zfill(4)+'.bp','w') as fw:
+            for key in results.keys():
+                fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
 
     shot = 18431; nchunk=10000
     reader = read_stream(shot=shot,nchunk=nchunk,data_path=datapath)
@@ -97,85 +109,87 @@ if args.debug:
 #number of vertical and radial channels
 NV = 24
 NR = 8
-A = FluctAna()
+A = FluctAna(verbose=False)
 #TODO: Modify so it can take in a cfg set
-dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'])
+dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'],verbose=False)
 A.Dlist.append(dobjAll)  
-
-print("Finished setup")
 
 # Function for workers to perform, which is an analysis.
 # Workers (non-master MPI workers) will process each chunk of data.
 # mpi4py will be responsible for data distribution.
-def perform_analysis(channel_data, step, trange, done_subset, dtwo_subset):
+def perform_analysis(channel_data, tstep, trange):
     """ 
     Perform analysis
     """ 
-    logging.info(f"\tWorker: do analysis: tstep = {step}, rank = {rank}")
+    logging.info(f"\tWorker: do analysis: tstep = {tstep}, rank = {rank}")
     t0 = time.time()
-    if(my_analysis["name"] == "power_spectrum"):
-        analysis_result = power_spectrum(channel_data, **my_analysis["config"])
     if(my_analysis["name"] == "all"):
+        results = {} 
         A.Dlist[0].data = channel_data
         A.Dlist[0].time,_,_,_,_ = A.Dlist[0].time_base(trange)
         #this could be done on rank==0 as Ralph imagined
         A.fftbins(nfft=cfg['nfft'],window=cfg['window'],
-              overlap=cfg['overlap'],detrend=cfg['detrend'],full=1)
-                #1 cwt
-        #TODO: Decide on cwt, need to remove autoplot
-        #A.cwt()
-        #save_spec(A)
-        #2 cross_power
-        A.cross_power(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
-        save_spec(A) #TODO: determine how to save in aggregate
-        #3 coherence
-        A.coherence(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
-        save_spec(A)
-        #4 cross-phase
-        A.cross_phase(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
-        save_spec(A)
-        #5 correlation
-        A.correlation(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
-        save_spec(A)
-        #6 corr_coef
-        A.corr_coef(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
-        save_spec(A)
-        #7 xspec
-        #TODO xspec has rnum=cnum, so have to do one at a time, decide best way
-        #A.xspec(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
-        #save_spec(A)
-        #8 skw
-        #TODO: not same ref/cmp channel setup, check
-        #A.skw(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
-        #save_spec(A)
-        #9 bicoherence
-        A.bicoherence(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
-        save_spec(A)
-    t1 = time.time()
+          overlap=cfg['overlap'],detrend=cfg['detrend'],full=1,scipy=True)
+        results['stft'] = A.Dlist[0].spdata
 
-    # Store result in database
-    # backend.store(my_analysis, analysis_result)
-    time.sleep(10)
-    logging.info(f"\tWorker: done with analysis: tstep = {step}, rank = {rank}, time= {t1-t0}")
+        for ic in range(NV*NR):
+            logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
+            chstr = A.Dlist[0].clist[ic]
+            done_subset = [ic]
+            dtwo_subset = range(done_subset[0],NV*NR)
+            #TODO: Decide on cwt, need to remove autoplot
+            #1 cwt
+            #A.cwt()
+            #save_spec(A)
+            #2 cross_power
+            A.cross_power(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
+            results['cross_power/'+chstr] = A.Dlist[0].val
+            #3 coherence
+            A.coherence(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
+            results['coherence/'+chstr] = A.Dlist[0].val
+            #4 cross-phase
+            A.cross_phase(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
+            results['cross_phase/'+chstr] = A.Dlist[0].val
+            #5 correlation
+            A.correlation(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
+            results['correlation/'+chstr] = A.Dlist[0].val
+            #6 corr_coef
+            A.corr_coef(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset)
+            results['corr_coef/'+chstr] = A.Dlist[0].val
+            #7 xspec
+            #TODO xspec has rnum=cnum, so have to do one at a time, decide best way
+            #A.xspec(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
+            #save_spec(A)
+            #8 skw
+            #TODO: not same ref/cmp channel setup, check
+            #A.skw(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
+            #save_spec(A)
+            #9 bicoherence
+            #A.bicoherence(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
+            #results['bicoherence/'+chstr] = A.Dlist[0].val
+            t1 = time.time()
+            # Store result in database
+            # backend.store(my_analysis, analysis_result)
+            logging.info(f"\tWorker: done with analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
+        logging.info(f"Worker: loop done: tstep={tstep}, rank={rank}, hostname={hostname}")
+        save_spec(results,tstep)
+        logging.info(f"perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname}")
 
 # Function for a helper thead (dispatcher).
 # The dispatcher will dispatch data in the queue (dq) and 
 # distribute to other workers (non-master MPI workers) with mpi4py's MPICommExecutor.
 def dispatch():
     while True:
-        channel_data, step, trange = dq.get()
-        logging.info(f"\tDispatcher: read data: tstep = {step}, rank = {rank}")
+        channel_data, tstep, trange = dq.get()
+        logging.info(f"\tDispatcher: read data: tstep = {tstep}, rank = {rank}")
         if channel_data is None:
             break
-        for ic in range(NV*NR):
-            done_subset = [ic]
-            dtwo_subset = range(done_subset[0],NV*NR)
-            future = executor.submit(perform_analysis, channel_data, step, trange, done_subset, dtwo_subset)
+        future = executor.submit(perform_analysis, channel_data, tstep, trange)
         dq.task_done()
 
 # Main
 if __name__ == "__main__":
-    with MPICommExecutor(MPI.COMM_WORLD, root=0) as executor:
+    with MPICommExecutor(comm, root=0) as executor:
         if executor is not None:
             # Only master will execute the following block
             # Use of "__main__" is critical
@@ -197,7 +211,8 @@ if __name__ == "__main__":
             # Main loop is here
             # Reading data (from KSTAR) and save in the queue (dq) as soon as possible.
             # Dispatcher (a helper thread) will asynchronously fetch data in the queue and distribute to other workers.
-            print("Start data reading loop")
+            reader.get_all_data()
+            logging.info(f"Start data reading loop")
             tstart = time.time()
             while(True):
                 stepStatus = reader.BeginStep()
@@ -213,18 +228,18 @@ if __name__ == "__main__":
                 # Recover channel data 
                 #TODO: Does the generator.py have to send data over like this?
                 # channel_data = channel_data.reshape((num_channels, channel_data.size // num_channels))
-                logging.info(f"Receiver: received data step={currentStep}, rank = {rank}")
+                logging.info(f"Receiver: received data tstep={currentStep}, rank = {rank}")
 
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
                 dq.put((channel_data, currentStep, trange))
                 time.sleep(1)
-            print("All data read and dispatched, time elapsed: %f" % (time.time()-tstart))
+            logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart}")
             
             ## Clean up
             dq.join()
-            dq.put((None, -1))
+            dq.put((None, -1, -1))
             dispatcher.join()
-            logging.info(f"Receiver: done")
+    if rank==0: logging.info(f"Receiver: done")
 
 # End of file processor_adios2.
