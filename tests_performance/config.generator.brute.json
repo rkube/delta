@@ -1,0 +1,14 @@
+{
+    "datapath": "/home/choij/kstar_streaming/018431",
+    "shotnr": 18431,
+    "channel_range": ["ECEI_L0101-2408"],
+    "analysis": [{"name" : "all"}],
+    "engine": "DataMan", 
+    "params": { "IPAddress": "203.230.120.125", 
+                "Timeout": "60",
+                "OneToOneMode": "TRUE",
+                "OpenTimeoutSecs": "600"},
+    "nstep": 200,
+    "batch_size": 10000,
+    "analysis_engine": "BP4"
+}
