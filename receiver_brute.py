@@ -13,6 +13,7 @@ import os
 import socket
 import queue
 import threading
+import pickle
 
 import sys
 from fluctana import *
@@ -75,11 +76,13 @@ if args.debug:
             self.dataSplit = np.array_split(data,n,axis=-1)
 
         def get_data(self,type_str):
-            trange = next(self.timeiter)
-            #_,data = self.dobj.get_data(trange=trange,norm=1,verbose=0)
-            data = self.dataSplit[self.current_step]
-            self.current_step += 1
-            return trange,data
+            if 'trange' in type_str:
+                trange = next(self.timeiter)
+            else:
+                #_,data = self.dobj.get_data(trange=trange,norm=1,verbose=0)
+                data = self.dataSplit[self.current_step]
+                self.current_step += 1
+                return data
 
         def BeginStep(self):
             return (self.current_step<len(self.dataSplit))
@@ -90,12 +93,6 @@ if args.debug:
         def EndStep(self):
             pass
 
-    def save_spec(results,tstep):
-        #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
-        #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
-        with adios2.open(resultspath+'delta.'+str(tstep).zfill(4)+'.bp','w') as fw:
-            for key in results.keys():
-                fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
 
     shot = 18431; nchunk=10000
     reader = read_stream(shot=shot,nchunk=nchunk,data_path=datapath)
@@ -104,6 +101,14 @@ if args.debug:
             'TriggerTime':reader.dobj.tt,'SampleRate':[reader.dobj.fs/1e3], 
             'TFcurrent':reader.dobj.itf/1e3,'Mode':reader.dobj.mode, 
             'LoFreq':reader.dobj.lo,'LensFocus':reader.dobj.sf,'LensZoom':reader.dobj.sz})
+
+def save_spec(results,tstep):
+    #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
+    #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
+    with adios2.open(resultspath+'delta.'+str(tstep).zfill(4)+'.bp','w') as fw:
+        for key in results.keys():
+            fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
+
 
 #HARDCODED fluctana, does all channels
 #number of vertical and radial channels
@@ -125,7 +130,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     t0 = time.time()
     if(my_analysis["name"] == "all"):
         results = {} 
-        dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'],verbose=False)
+        dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=cfg["channel_range"],verbose=False)
         if len(A.Dlist)==0: 
             A.Dlist.append(dobjAll)
         else:
@@ -137,11 +142,12 @@ def perform_analysis(channel_data, cfg, tstep, trange):
           overlap=cfg['overlap'],detrend=cfg['detrend'],full=1,scipy=True)
         results['stft'] = A.Dlist[0].spdata
 
-        for ic in range(NV*NR):
+        Nchannels = channel_data.shape[0] 
+        for ic in range(Nchannels):
             logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
             chstr = A.Dlist[0].clist[ic]
             done_subset = [ic]
-            dtwo_subset = range(done_subset[0],NV*NR)
+            dtwo_subset = range(done_subset[0],Nchannels)
             #TODO: Decide on cwt, need to remove autoplot
             #1 cwt
             #A.cwt()
@@ -212,18 +218,25 @@ if __name__ == "__main__":
             if not args.debug:
                 reader = reader_gen(shot, gen_id, cfg["engine"], cfg["params"])
                 reader.Open()
+            else:
+                reader.get_all_data()
 
             # Main loop is here
             # Reading data (from KSTAR) and save in the queue (dq) as soon as possible.
             # Dispatcher (a helper thread) will asynchronously fetch data in the queue and distribute to other workers.
-            reader.get_all_data()
+            cfg_update = False
             logging.info(f"Start data reading loop")
             tstart = time.time()
             while(True):
                 stepStatus = reader.BeginStep()
                 if stepStatus == True:#adios2.StepStatus.OK:
-                    trange,channel_data = reader.get_data("floats")
+                    trange = list(reader.get_data("trange"))
+                    channel_data = reader.get_data("floats")
                     currentStep = reader.CurrentStep()
+                    if not cfg_update:
+                        picklestr = reader.get_attrs("cfg")
+                        cfg.update(pickle.loads(picklestr))
+                        cfg_update = True
                     reader.EndStep()
                     #print("rank {0:d}: Step".format(rank), reader.CurrentStep(), ", io_array = ", io_array)
                 else:

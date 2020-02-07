@@ -3,6 +3,7 @@
 from mpi4py import MPI
 import adios2
 import numpy as np
+import pickle
 
 class writer_base():
     def __init__(self, shotnr, id):
@@ -18,20 +19,33 @@ class writer_base():
         self.writer = None
 
 
-    def DefineVariable(self, data_array):
+    def DefineVariable(self, data_name, data_array):
         """Wrapper around DefineVariable
 
         Input:
         ======
+        data_name, str: Name of data
         data_array, ndarray: numpy array with sme number of elements and data type that will be sent in 
                              all subsequent steps
         """
-        self.io_array = self.IO.DefineVariable("floats", data_array, 
+        return self.IO.DefineVariable(data_name, data_array, 
                                                data_array.shape, 
                                                list(np.zeros_like(data_array.shape, dtype=int)), 
                                                data_array.shape, 
                                                adios2.ConstantDims)
 
+
+    def DefineAttributes(self,attrsname,attrs):
+        """Wrapper around DefineAttribute, takes in dictionary and writes each as an Attribute
+        NOTE: Currently no ADIOS cmd to use dict, pickle to string
+
+        Input:
+        ======
+        atts, dict: Dictionary of key,value pairs to be put into attributes
+
+        """
+        picklestr = pickle.dumps(attrs)
+        self.attrs = self.IO.DefineAttribute(attrsname,picklestr,"floats")
 
     def Open(self):
         """Opens a new channel. 
@@ -43,16 +57,17 @@ class writer_base():
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
 
 
-    def put_data(self, data):
+    def put_data(self, var, data):
         """Opens a new stream and send data through it
         Input:
         ======
-        data: ndarray, float. Data to send)
+        var: adios2 object from DefineVariable
+        data: ndarray. Data to send)
         """
 
         if self.writer is not None:
             self.writer.BeginStep()
-            self.writer.Put(self.io_array, data, adios2.Mode.Sync)
+            self.writer.Put(var, data, adios2.Mode.Sync)
             self.writer.EndStep()
 
 
