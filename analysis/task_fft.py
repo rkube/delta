@@ -282,6 +282,10 @@ class task_fft_scipy():
                        detrend=self.detrend, noverlap=self.noverlap, padded=False,
                        return_onesided=False, boundary=None)
 
+            res = np.fft.fftshift(res, axes=1)
+            print("fft-shifting")
+
+
             return res[2]
 
         # Distribute the stft function to the workers
@@ -296,7 +300,10 @@ class task_fft_scipy():
                    detrend=self.detrend, noverlap=self.noverlap, padded=False,
                    return_onesided=False, boundary=None)
 
-        return res[2]
+        res = np.fft.fftshift(res[2], axes=1)
+
+
+        return res
 
 
 # End of file task_fft.py

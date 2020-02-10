@@ -291,16 +291,18 @@ def cross_corr(fft_data, ch_it, fft_params, info_dict):
 
     
     res = np.zeros([len(ch_it), fft_data.shape[1]])
-    for idx, ch_pair in enumerate(ch_it):
-        X = fft_data[ch_pair.ch1.idx(), :, :]
-        Y = fft_data[ch_pair.ch2.idx(), :, :]
-        
-        _tmp = np.fft.ifft(X * Y.conj(), n=fft_params['nfft'], axis=0) * fft_params['nfft'] / fft_params['win_factor']
-        res[idx, :] = np.fft.fftshift(_tmp, axes=0).mean(axis=1).real
-    #res = res.mean(axis=1).real
-    
-    print("______cross_corr: res.shape = ", res.shape, ", res = ", res[0, :10])
+    fft_shifted = np.fft.fftshift(fft_data, axes=1)
 
+    for idx, ch_pair in enumerate(ch_it):
+        X = fft_shifted[ch_pair.ch1.idx(), :, :]
+        Y = fft_shifted[ch_pair.ch2.idx(), :, :]
+        
+        #_tmp = np.fft.ifft(X * Y.conj(), n=fft_params['nfft'], axis=0) * fft_params['nfft'] / fft_params['win_factor']
+
+
+        _tmp = np.fft.ifft(X * Y.conj(), axis=0).mean(axis=1) / fft_params['win_factor']
+        res[idx, :] = np.fft.fftshift(_tmp.real)
+    
     return(res, info_dict)
 
 
@@ -774,16 +776,6 @@ class task_null(task_spectral):
         self.futures_list += [executor.submit(null, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
-   
-
-    #    # 1)
-    #     if self.analysis == "cwt":
-    #         raise NotImplementedError
-
-
-    #     # 6)
-    #     elif self.analysis == "corr_coeff":
-    #         raise NotImplementedError
 
 
 # End of file analysis_package.py

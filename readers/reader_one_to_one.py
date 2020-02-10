@@ -1,7 +1,7 @@
 #-*- Coding: UTF-8 -*-
 
 
-from mpi4py import MPI
+#from mpi4py import MPI
 import adios2
 import logging
 
@@ -11,7 +11,7 @@ from analysis.channels import channel, channel_range
 
 class reader_base():
     def __init__(self, shotnr, ecei_cfg):
-        self.adios = adios2.ADIOS(MPI.COMM_SELF)
+        self.adios = adios2.ADIOS()
         self.shotnr = shotnr
         self.IO = self.adios.DeclareIO("KSTAR_18431")
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
@@ -85,7 +85,7 @@ class reader_base():
 
 
     
-    def Get(self, channels=None):
+    def Get(self, channels=None, save=False):
         """Get data from varname at current step.
 
         The ECEI data is usually normalized to a fixed offset, calculated using data 
@@ -156,14 +156,17 @@ class reader_base():
                 self.offset_std = io_array[:, tnorm_idx].std(axis=1)
                 self.is_data_normalized = True
 
-                np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
+                if save:
+                    np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
 
         if self.is_data_normalized:
             print("*** Reader:Get: io_array.shape = ", io_array.shape)
-            np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            if save:
+                np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
             io_array = io_array - self.offset_lvl
             io_array = io_array / io_array.mean(axis=1, keepdims=True) - 1.0
-            np.savez("test_data/io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+            if save:
+                np.savez("test_data/io_array_tr_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
 
 
         return io_array

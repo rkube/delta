@@ -89,7 +89,7 @@ def consume(Q, executor, my_fft, task_list):
         toc_fft = timeit.default_timer()
         logger.info(f"tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
-        # Step 2) Distribute the work via PoolExecutor 
+        # Step 2) Distribute the work via the executor 
         for task in task_list:
             task.calc_and_store(executor, fft_data, msg.tstep_idx, cfg)
 
@@ -150,7 +150,6 @@ def main():
             logger = logging.getLogger("simple")
             cfg['run_id'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             logger.info(f"Starting run {cfg['run_id']}")
-
     
             # Instantiate a storage backend and store the run configuration and task configuration
             if cfg['storage']['backend'] == "numpy":
@@ -191,15 +190,14 @@ def main():
 
                 if stepStatus:
                     # Read data
-                    stream_data = reader.Get(save=False)
-                    #tb = reader.gen_timebase()
+                    stream_data = reader.Get(save=True)
 
                     # Generate message id and publish is
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
 
-                if reader.CurrentStep() >= 1:
+                if reader.CurrentStep() >= 3:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break

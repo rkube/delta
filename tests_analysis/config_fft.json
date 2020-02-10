@@ -1,0 +1,10 @@
+{ "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
+"ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
+    "t_norm": [-0.119, -0.109],
+    "SampleRate": 500,
+    "TFcurrent": 23000.0,
+    "Mode": "O",
+    "LoFreq": 81,
+    "LensFocus": 80,
+    "LensZoom": 340}
+}

@@ -1,0 +1,11 @@
+{"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
+ "shotnr": 18431,
+  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
+              "t_norm": [-0.119, -0.109],
+              "SampleRate": 500,
+              "TFcurrent": 23000.0,
+              "Mode": "O",
+              "LoFreq": 81,
+              "LensFocus": 80,
+              "LensZoom": 340}
+  }
