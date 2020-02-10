@@ -3,7 +3,6 @@
 import numpy as np
 import logging
 
-#from numba import jit
 import more_itertools
 
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
@@ -46,9 +45,14 @@ def cross_phase(fft_data, ch_it, fft_config, info_dict):
     ========
     Axy: float, the cross phase
     """    
-    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
-    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
-    Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
+    #c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    #c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
+    #Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
+
+    Pxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+    for idx, ch_pair in enumerate(ch_it):
+        Pxy[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1)
+
     return(np.arctan2(Pxy.real, Pxy.imag).real, info_dict)
 
 
@@ -78,13 +82,13 @@ def cross_phase_store(fft_data, ch_it, fft_config, cfg, info_dict):
             store_backend = backends.backend_null(cfg['storage'])
 
         # Calculate the cross phase
-        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
+        #logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting. fft_data[0] = {fft_data[0,0,0]}")
         result = cross_phase(fft_data, ch_it, fft_config, None)[0]
-        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
+        #logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
 
         #Store result in the DB
         store_backend.store_data(result, info_dict)
-        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+        logging.info(f"cross_phase tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished")
 
         # Zero out the result once it has been written
         result = None
@@ -109,10 +113,14 @@ def cross_power(fft_data, ch_it, fft_config, info_dict):
     ========
     cross_power, float.
     """
-    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
-    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
+    #c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    #c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
+    #res = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2) / fft_config["win_factor"]
 
-    res = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2) / fft_config["win_factor"]
+    res = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+    for idx, ch_pair in enumerate(ch_it):
+        res[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1) / fft_config["win_factor"]
+    
     return(res, info_dict)
 
 
@@ -144,13 +152,13 @@ def cross_power_store(fft_data, ch_it, fft_config, cfg, info_dict):
             store_backend = backends.backend_null(cfg['storage'])
 
         # Calculate the cross phase
-        logging.info(f"cross_power tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
+        #logging.info(f"cross_power tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
         result = cross_power(fft_data, ch_it, fft_config, None)[0]
-        logging.info(f"cross_power {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
+        #logging.info(f"cross_power {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
 
         #Store result in the DB
         store_backend.store_data(result, info_dict)
-        logging.info(f"cross_power tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+        logging.info(f"cross_power tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished")
 
         # Zero out the result once it has been written
         result = None
@@ -177,17 +185,30 @@ def coherence(fft_data, ch_it, fft_config, info_dict):
     coherence, float.
     """
 
-    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
-    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
+    #c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    #c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
-    X = fft_data[c1_idx, :, :]
-    Y = fft_data[c2_idx, :, :]
+    #X = fft_data[c1_idx, :, :]
+    #Y = fft_data[c2_idx, :, :]
 
-    Pxx = X * X.conj()
-    Pyy = Y * Y.conj()
+    #Pxx = X * X.conj()
+    #Pyy = Y * Y.conj()
 
-    Gxy = np.mean((X * Y.conj()) / np.sqrt(Pxx * Pyy), axis=2)
-    Gxy = np.fabs(Gxy.real)
+    #Gxy = np.mean((X * Y.conj()) / np.sqrt(Pxx * Pyy), axis=2)
+    #Gxy = np.fabs(Gxy.real)
+
+    
+    Gxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+
+    for idx, ch_pair in enumerate(ch_it):
+        X = fft_data[ch_pair.ch1.idx(), :, :]
+        Y = fft_data[ch_pair.ch2.idx(), :, :]
+        Pxx = X * X.conj()
+        Pyy = Y * Y.conj()
+        Gxy[idx, :] = ((X * Y.conj()) / np.sqrt(Pxx * Pyy)).mean(axis=1)
+
+    Gxy = np.abs(Gxy)
+    Gxy = Gxy.real
 
     return(Gxy, info_dict)
 
@@ -219,13 +240,13 @@ def coherence_store(fft_data, ch_it, fft_config, cfg, info_dict):
             store_backend = backends.backend_null(cfg['storage'])
 
         # Calculate the cross phase
-        logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
+        #logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
         result = coherence(fft_data, ch_it, fft_config, None)[0]
-        logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
+        #logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
 
         #Store result in the DB
         store_backend.store_data(result, info_dict)
-        logging.info(f"coherence ridx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+        logging.info(f"coherence ridx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished")
 
         # Zero out the result once it has been written
         result = None
@@ -255,18 +276,30 @@ def cross_corr(fft_data, ch_it, fft_params, info_dict):
     cross-correlation, float array
     """
 
-    c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
-    c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
+    # c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
+    # c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
 
-    # Perform fftshift on the fourier coefficient axis (dim1)
-    X = np.fft.fftshift(fft_data[c1_idx, :, :], axes=1)
-    Y = np.fft.fftshift(fft_data[c2_idx, :, :], axes=1)
+    # # Perform fftshift on the fourier coefficient axis (dim1)
+    # X = np.fft.fftshift(fft_data[c1_idx, :, :], axes=1)
+    # Y = np.fft.fftshift(fft_data[c2_idx, :, :], axes=1)
 
-    _tmp = np.fft.ifftshift(X * Y.conj(), axes=1) / fft_params['win_factor']
-    _tmp = np.fft.ifft(_tmp, n=fft_params['nfft'], axis=1) * fft_params['nfft']
-    _tmp = np.fft.fftshift(_tmp, axes=1)
+    # _tmp = np.fft.ifftshift(X * Y.conj(), axes=1) / fft_params['win_factor']
+    # _tmp = np.fft.ifft(_tmp, n=fft_params['nfft'], axis=1) * fft_params['nfft']
+    # _tmp = np.fft.fftshift(_tmp, axes=1)
 
-    res = _tmp.mean(axis=2).real
+    # res = _tmp.mean(axis=2).real
+
+    
+    res = np.zeros([len(ch_it), fft_data.shape[1]])
+    for idx, ch_pair in enumerate(ch_it):
+        X = fft_data[ch_pair.ch1.idx(), :, :]
+        Y = fft_data[ch_pair.ch2.idx(), :, :]
+        
+        _tmp = np.fft.ifft(X * Y.conj(), n=fft_params['nfft'], axis=0) * fft_params['nfft'] / fft_params['win_factor']
+        res[idx, :] = np.fft.fftshift(_tmp, axes=0).mean(axis=1).real
+    #res = res.mean(axis=1).real
+    
+    print("______cross_corr: res.shape = ", res.shape, ", res = ", res[0, :10])
 
     return(res, info_dict)
 
@@ -297,13 +330,13 @@ def cross_corr_store(fft_data, ch_it, fft_config, cfg, info_dict):
             store_backend = backends.backend_null(cfg['storage'])
 
         # Calculate the cross phase
-        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk {info_dict['channel_batch']}: Starting")
+        #logging.info(f"cross_corr tidx {info_dict['tidx']} chunk {info_dict['channel_batch']}: Starting")
         result = cross_corr(fft_data, ch_it, fft_config, None)[0]
-        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk {info_dict['channel_batch']}: Finished calculation")
+        #logging.info(f"cross_corr tidx {info_dict['tidx']} chunk {info_dict['channel_batch']}: Finished calculation")
 
         #Store result in the DB
         store_backend.store_data(result, info_dict)
-        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished write")
+        logging.info(f"cross_corr tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished")
 
         # Zero out the result once it has been written
         result = None
@@ -575,23 +608,21 @@ class task_cross_phase(task_spectral):
     """This class calculates the cross-phase via the calculate method."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "cross_phase",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
     def calculate(self, executor, fft_data, tidx):
-        #info_dict_list = [{"analysis_name": "cross_phase",
-        #                   "tidx": tidx,
-        #                   "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
+        info_dict_list = [{"analysis_name": "cross_phase",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
         # Append the new futures
-        self.futures_list += [executor.submit(cross_phase, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        self.futures_list += [executor.submit(cross_phase, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the cross phase and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
-        self.futures_list += [executor.submit(cross_phase_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list = [{"analysis_name": "cross_phase",
+                           "tidx": tidx,
+                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        self.futures_list += [executor.submit(cross_phase_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
 
         return None
 
@@ -600,22 +631,23 @@ class task_cross_power(task_spectral):
     """This class calculates the cross-power between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "cross_power",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
 
     def calculate(self, executor, fft_data, tidx):
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
+        info_dict_list =  [{"analysis_name": "cross_power",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
         # Append the new futures
-        self.futures_list += [executor.submit(cross_power, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        self.futures_list += [executor.submit(cross_power, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None        
 
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the cross phase and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]                           
-        self.futures_list += [executor.submit(cross_power_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "cross_power",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+        self.futures_list += [executor.submit(cross_power_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
 
         return None
 
@@ -624,21 +656,24 @@ class task_coherence(task_spectral):
     """This class calculates the coherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "coherence",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]        
 
     def calculate(self, executor, fft_data, tidx):
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
+        info_dict_list =  [{"analysis_name": "coherence",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]        
+
         # Append the new futures
-        self.futures_list += [executor.submit(coherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        self.futures_list += [executor.submit(coherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None  
 
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the coherence and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]                           
-        self.futures_list += [executor.submit(coherence_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "coherence",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]        
+
+        self.futures_list += [executor.submit(coherence_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None        
 
 
@@ -646,11 +681,12 @@ class task_xspec(task_spectral):
     """This class calculates the coherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "xspec",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
     
     def calculate(self, executor, fft_data, tidx):
+        info_dict_list =  [{"analysis_name": "xspec",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
         raise NotImplementedError
 
 
@@ -658,20 +694,23 @@ class task_cross_correlation(task_spectral):
     """This class calculates the cross-correlation between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "cross_correlation",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
 
     def calculate(self, executor, fft_data, tidx):
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
-        self.futures_list += [executor.submit(cross_corr, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "cross_correlation",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(cross_corr, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the cross-correlation and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]                           
-        self.futures_list += [executor.submit(cross_corr_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "cross_correlation",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(cross_corr_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None        
 
 
@@ -679,40 +718,46 @@ class task_bicoherence(task_spectral):
     """This class calculates the bicoherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "bicoherence",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
     
     def calculate(self, executor, fft_data, tidx):
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
-        self.futures_list += [executor.submit(bicoherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "bicoherence",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(bicoherence, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the coherence and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]                           
-        self.futures_list += [executor.submit(bicoherence_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "bicoherence",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(bicoherence_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None        
 
 class task_skw(task_spectral):
     """This class calculates the bicoherence between two channels."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "Skw",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
     
     def calculate(self, executor, fft_data, tidx):
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
-        self.futures_list += [executor.submit(skw, fft_data, ch_it, self.fft_config, self.ecei_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "Skw",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(skw, fft_data, ch_it, self.fft_config, self.ecei_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
 
     def calc_and_store(self, executor, fft_data, tidx, cfg):
         """Calculates the coherence and stores result immediately"""
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]                           
-        self.futures_list += [executor.submit(skw_store, fft_data, ch_it, self.fft_config, self.ecei_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "Skw",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(skw_store, fft_data, ch_it, self.fft_config, self.ecei_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None        
 
 
@@ -720,13 +765,13 @@ class task_null(task_spectral):
     """Null task to evaluate framework overhead."""
     def __init__(self, task_config, fft_config, ecei_config):
         super().__init__(task_config, fft_config, ecei_config)
-        self.info_dict_list =  [{"analysis_name": "null",
-                                 "tidx": -1,
-                                 "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
     
     def calculate(self, executor, fft_data, tidx):
-        [info.update({"tidx": tidx}) for info in self.info_dict_list]
-        self.futures_list += [executor.submit(null, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), self.info_dict_list)]
+        info_dict_list =  [{"analysis_name": "null",
+                            "tidx": tidx,
+                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]           
+
+        self.futures_list += [executor.submit(null, fft_data, ch_it, self.fft_config, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         return None 
 
    

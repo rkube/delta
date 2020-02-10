@@ -21,6 +21,12 @@ class backend_null(backend):
 
         return None
 
+    def store_one(self, item):
+        pass
+
+    def store_data(self, data, info_dict):
+        pass
+
     def store_metadata(self, cfg, dispatch_seq):
         """Stores nothing"""
         logger = logging.getLogger()
