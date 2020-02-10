@@ -1,4 +1,5 @@
 #-*- Encoding: UTF-8 -*-
+# python -m unittest tests_analysis/test_analysis_cross_corr.py
 
 """
 Author: R. Kube
@@ -19,6 +20,7 @@ should be visually identical.
 Right now, there is also a factor of 128 floating around.
 """
 
+import unittest
 
 import numpy as np
 #import matplotlib as mpl
@@ -42,90 +44,160 @@ from analysis.channels import channel, channel_pair
 #
 ###############################################################################################
 
-def test_rmc():
-    sys.path.append("/global/homes/r/rkube/repos/fluctana_rmc")
-    from fluctana import FluctAna, KstarEcei
 
-    # HOW TO RUN
-    # ./python3 check_correlation.py 10186 [15.9,16] ECEI_L1303 ECEI_L1403
-    shot = 18431 
-    trange = [-0.1, -0.08]
-    clist = [['ECEI_L1102'], ['ECEI_L0906']]
+class test_cross_corr(unittest.TestCase):
+    def test_results(self):
 
-    # call fluctana
-    A = FluctAna()
+        def fftbins(x, dt, nfft, window, overlap, do_detrend, full):
+            # IN : 1 x tnum data
+            # OUT : bins x faxis fftdata
+            tnum = len(x)
+            
+            bins = int(np.fix((int(tnum/nfft) - overlap)/(1.0 - overlap)))
+            win = np.hanning(nfft)
+            #bins, win = fft_window(tnum, nfft, window, overlap)
+            win_factor = np.mean(win**2)  # window factors
+            print("***fftbins: win_factor = {0:f}".format(win_factor))
 
-    # add data
-    A.add_data(KstarEcei(shot=shot, clist=clist[0], data_path='/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/'), trange=trange, norm=1)
-    A.add_data(KstarEcei(shot=shot, clist=clist[1], data_path='/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/'), trange=trange, norm=1)
+            # make an x-axis #
+            ax = np.fft.fftfreq(nfft, d=dt) # full 0~fN -fN~-f1
+            if np.mod(nfft, 2) == 0:  # even nfft
+                ax = np.hstack([ax[0:int(nfft/2)], -(ax[int(nfft/2)]), ax[int(nfft/2):nfft]])
+            if full == 1: # full shift to -fN ~ 0 ~ fN
+                ax = np.fft.fftshift(ax)
+            else: # half 0~fN
+                ax = ax[0:int(nfft/2+1)]
 
-    # list data
-    A.list_data()
+            # make fftdata
+            if full == 1: # full shift to -fN ~ 0 ~ fN
+                if np.mod(nfft, 2) == 0:  # even nfft
+                    fftdata = np.zeros((bins, nfft+1), dtype=np.complex_)
+                else:  # odd nfft
+                    fftdata = np.zeros((bins, nfft), dtype=np.complex_)
+            else: # half 0 ~ fN
+                fftdata = np.zeros((bins, int(nfft/2+1)), dtype=np.complex_)
 
-    # do fft; full = 1 
-    A.fftbins(nfft=512,window='hann',overlap=0.5,detrend=0,full=1)
+            for b in range(bins):
+                idx1 = int(b*np.fix(nfft*(1 - overlap)))
+                idx2 = idx1 + nfft
+                #print("***bin {0:d}, idx1 = {1:d}, idx2 = {2:d}".format(b, idx1, idx2))
 
-    # calculate correlation using data sets done and dtwo. results are saved in A.Dlist[dtwo].val
-    A.correlation(done=0, dtwo=1)
+                sx = x[idx1:idx2]
 
-    # plot the results; dnum = data set number, cnl = channel number list to plot
-    #A.mplot(dnum=1,cnl=range(len(A.Dlist[1].clist)),type='val')
-    
-    return(A)
+                if do_detrend == 1:
+                    sx = detrend(sx, type='linear')
+                sx = detrend(sx, type='constant')  # subtract mean
+                sx = sx * win  # apply window function
 
+                # get fft
+                SX = np.fft.fft(sx, n=nfft)/nfft  # divide by the length
+                if np.mod(nfft, 2) == 0:  # even nfft
+                    SX = np.hstack([SX[0:int(nfft/2)], np.conj(SX[int(nfft/2)]), SX[int(nfft/2):nfft]])
+                if full == 1: # shift to -fN ~ 0 ~ fN
+                    SX = np.fft.fftshift(SX)
+                else: # half 0 ~ fN
+                    SX = SX[0:int(nfft/2+1)]
 
-tic = timeit.default_timer()
-A = test_rmc()
-toc = timeit.default_timer()
+                fftdata[b,:] = SX
 
-print(f"Fluctana takes {(toc - tic):6.4f}s")
+            return ax, fftdata, win_factor
 
-################################################################################################################
-#
-#    Set up for distributed analysis
-#
-################################################################################################################
-c1 = channel('L', 11, 2)
-c2 = channel('L', 9, 6)
+        def test_rmc():
+            sys.path.append("/global/homes/r/rkube/repos/fluctana_rmc")
+            from fluctana import FluctAna, KstarEcei
 
-print("Channel 1: ", c1, ", idx = ", c1.idx())
-print("Channel 2: ", c2, ", idx = ", c2.idx())
+            # HOW TO RUN
+            # ./python3 check_correlation.py 10186 [15.9,16] ECEI_L1303 ECEI_L1403
+            shot = 18431 
+            trange = [-0.1, -0.08]
+            clist = [['ECEI_L1102'], ['ECEI_L0906']]
 
-with np.load("../test_data/io_array_tr_s0001.npz") as df:
-    # Load transformed data, as generated by datareader
-    io_array_tr = df["io_array"]
-    print("io_array_tr.shape = ", io_array_tr.shape)
+            # call fluctana
+            A = FluctAna()
 
+            # add data
+            A.add_data(KstarEcei(shot=shot, clist=clist[0], data_path='/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/'), trange=trange, norm=1)
+            A.add_data(KstarEcei(shot=shot, clist=clist[1], data_path='/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/'), trange=trange, norm=1)
 
-print("io_array_tr.shape = ", io_array_tr.shape)
-print(f"Channel idx for {c1}: {c1.idx()}, {c2}: {c2.idx()}")
+            # list data
+            A.list_data()
 
+            # do fft; full = 1 
+            A.fftbins(nfft=512,window='hann',overlap=0.5,detrend=0,full=1)
 
-with open("config_fft.json", "r") as df:
-    config_fft = json.load(df)
+            # calculate correlation using data sets done and dtwo. results are saved in A.Dlist[dtwo].val
+            A.correlation(done=0, dtwo=1)
 
-config_fft["fft_params"]["fsample"] = config_fft["ECEI_cfg"]["SampleRate"] * 1e3
-config_fft["fft_params"]["nfft"] = 512
-
-win = get_window(config_fft["fft_params"]["window"], config_fft["fft_params"]["nfft"])
-win_factor = (win**2).mean()
-print(f"win_Factor = {win_factor}")
-
-config_fft["fft_params"]["win_factor"] = win_factor
-
-my_fft = task_fft_scipy(10_000, config_fft["fft_params"], normalize=True, detrend=True)
-fft_data = my_fft.do_fft_local(io_array_tr)
-
-
-assert(np.linalg.norm(io_array_tr[c1.idx(), :] - L1102_fa) / np.linalg.norm(L1102_fa) < 1e-6)
-assert(np.linalg.norm(io_array_tr[c2.idx(), :] - L0906_fa) / np.linalg.norm(L0906_fa) < 1e-6)
+            # plot the results; dnum = data set number, cnl = channel number list to plot
+            #A.mplot(dnum=1,cnl=range(len(A.Dlist[1].clist)),type='val')
+            
+            return(A)
 
 
-# Call the 
-ch_it = [channel_pair(c1, c2)]
-res, _ = cross_corr(fft_data, ch_it, config_fft["fft_params"], None)
-res = np.squeeze(res)
+        tic = timeit.default_timer()
+        A = test_rmc()
+        toc = timeit.default_timer()
 
-assert( np.linalg.norm(A.Dlist[1].val[0][1:] - res * 128) / np.linalg.norm(res) < 1024)
+        print(f"Fluctana takes {(toc - tic):6.4f}s")
+
+        L1102_fa = np.squeeze(A.Dlist[0].data)
+        L1102_ax, L1102_ft, win_factor = fftbins(L1102_fa, dt=2e-6, nfft=512, window="hann", overlap=0.5, do_detrend=1, full=1)
+
+        print(L1102_ft.shape)
+
+        L0906_fa = np.squeeze(A.Dlist[1].data)
+        L0906ax, L0906_ft, win_factor = fftbins(L0906_fa, dt=2e-6, nfft=512, window="hann", overlap=0.5, do_detrend=1, full=1)
+
+        ################################################################################################################
+        #
+        #    Set up for distributed analysis
+        #
+        ################################################################################################################
+        c1 = channel('L', 11, 2)
+        c2 = channel('L', 9, 6)
+
+        print("Channel 1: ", c1, ", idx = ", c1.idx())
+        print("Channel 2: ", c2, ", idx = ", c2.idx())
+
+        with np.load("test_data/io_array_tr_s0001.npz") as df:
+            # Load transformed data, as generated by datareader
+            io_array_tr = df["io_array"]
+            print("io_array_tr.shape = ", io_array_tr.shape)
+
+
+        print("io_array_tr.shape = ", io_array_tr.shape)
+        print(f"Channel idx for {c1}: {c1.idx()}, {c2}: {c2.idx()}")
+
+
+        with open("tests_analysis/config_fft.json", "r") as df:
+            config_fft = json.load(df)
+
+        config_fft["fft_params"]["fsample"] = config_fft["ECEI_cfg"]["SampleRate"] * 1e3
+        config_fft["fft_params"]["nfft"] = 512
+
+        win = get_window(config_fft["fft_params"]["window"], config_fft["fft_params"]["nfft"])
+        win_factor = (win**2).mean()
+        print(f"win_Factor = {win_factor}")
+
+        config_fft["fft_params"]["win_factor"] = win_factor
+
+        my_fft = task_fft_scipy(10_000, config_fft["fft_params"], normalize=True, detrend=True)
+        fft_data = my_fft.do_fft_local(io_array_tr)
+
+
+        assert(np.linalg.norm(io_array_tr[c1.idx(), :] - L1102_fa) / np.linalg.norm(L1102_fa) < 1e-6)
+        assert(np.linalg.norm(io_array_tr[c2.idx(), :] - L0906_fa) / np.linalg.norm(L0906_fa) < 1e-6)
+
+
+        # Call the 
+        ch_it = [channel_pair(c1, c2)]
+        res, _ = cross_corr(fft_data, ch_it, config_fft["fft_params"], None)
+        res = np.squeeze(res)
+
+        assert( np.linalg.norm(A.Dlist[1].val[0][1:] - res * 128) / np.linalg.norm(res) < 512)
+
+
+if __name__ == '__main__':
+    unittest.main()
 
 # End of file test_analysis_cross_corr.py

@@ -53,7 +53,7 @@ def cross_phase(fft_data, ch_it, fft_config, info_dict):
     for idx, ch_pair in enumerate(ch_it):
         Pxy[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1)
 
-    return(np.arctan2(Pxy.real, Pxy.imag).real, info_dict)
+    return(np.arctan2(Pxy.imag, Pxy.real).real, info_dict)
 
 
 def cross_phase_store(fft_data, ch_it, fft_config, cfg, info_dict):
