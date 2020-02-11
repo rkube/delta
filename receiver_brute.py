@@ -13,7 +13,6 @@ import os
 import socket
 import queue
 import threading
-import pickle
 
 import sys
 from fluctana import *
@@ -54,9 +53,7 @@ with open(args.config, "r") as df:
 
 datapath = cfg["datapath"]
 resultspath = cfg["resultspath"]
-shot = cfg["shot"]
 my_analysis = cfg["analysis"][0]
-gen_id = 2203 #TODO: Not clear if this was 
 
 #TODO: Remove for non-debug
 if args.debug:
@@ -85,7 +82,8 @@ if args.debug:
                 return data
 
         def BeginStep(self):
-            return (self.current_step<len(self.dataSplit))
+            if (self.current_step<len(self.dataSplit)):
+                return adios2.stepStatus.OK
 
         def CurrentStep(self):
             return self.current_step
@@ -110,10 +108,6 @@ def save_spec(results,tstep):
             fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
 
 
-#HARDCODED fluctana, does all channels
-#number of vertical and radial channels
-NV = 24
-NR = 8
 A = FluctAna(verbose=False)
 #TODO: Modify so it can take in a cfg set
 #dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=['ECEI_L0101-2408'],verbose=False)
@@ -130,7 +124,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     t0 = time.time()
     if(my_analysis["name"] == "all"):
         results = {} 
-        dobjAll = KstarEcei(shot=shot,cfg=cfg,clist=cfg["channel_range"],verbose=False)
+        dobjAll = KstarEcei(shot=cfg["shotnr"],cfg=cfg,clist=cfg["channel_range"],verbose=False)
         if len(A.Dlist)==0: 
             A.Dlist.append(dobjAll)
         else:
@@ -216,8 +210,11 @@ if __name__ == "__main__":
             # Only the master thread will open a data stream.
             # General reader: engine type and params can be changed with the config file
             if not args.debug:
-                reader = reader_gen(shot, gen_id, cfg["engine"], cfg["params"])
+                logging.info(f"Starting reader_gen")
+                reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
+                logging.info(f"Finished reader_gen, continue to Open")
                 reader.Open()
+                logging.info(f"Finished Open")
             else:
                 reader.get_all_data()
 
@@ -229,13 +226,16 @@ if __name__ == "__main__":
             tstart = time.time()
             while(True):
                 stepStatus = reader.BeginStep()
-                if stepStatus == True:#adios2.StepStatus.OK:
-                    trange = list(reader.get_data("trange"))
-                    channel_data = reader.get_data("floats")
+                if stepStatus == adios2.StepStatus.OK:
                     currentStep = reader.CurrentStep()
+                    logging.info(f"Step {currentStep} started")
+                    trange = list(reader.get_data("trange"))
+                    logging.info(f"Got trange")
+                    channel_data = reader.get_data("floats")
+                    logging.info(f"Got channel_data")
                     if not cfg_update:
-                        picklestr = reader.get_attrs("cfg")
-                        cfg.update(pickle.loads(picklestr))
+                        logging.info(f"Getting cfg")
+                        cfg.update(reader.get_attrs("cfg"))
                         cfg_update = True
                     reader.EndStep()
                     #print("rank {0:d}: Step".format(rank), reader.CurrentStep(), ", io_array = ", io_array)
