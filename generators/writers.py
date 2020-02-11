@@ -4,6 +4,7 @@ from mpi4py import MPI
 import adios2
 import numpy as np
 import json
+from contextlib import contextmanager
 
 class writer_base():
     def __init__(self, shotnr, id):
@@ -82,6 +83,14 @@ class writer_base():
     #    if self.writer is not None:
     #        self.writer.Close()
 
+    @contextmanager
+    def step(self):
+        """ This is for using with with keyword """
+        self.writer.BeginStep()
+        try:
+            yield self
+        finally:
+            self.writer.EndStep()
 
 
 class writer_dataman(writer_base):
