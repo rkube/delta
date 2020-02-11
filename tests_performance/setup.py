@@ -7,10 +7,11 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 import numpy 
 
-
 extensions = [
     Extension("diagnostics_cython", ["diagnostics_cython.pyx"],
-        include_dirs=[numpy.get_include()]),
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=['-qopenmp'],
+        extra_link_args=['-qopenmp']),
 ]
 
-setup(name="diag_cython", ext_modules=cythonize(extensions))
+setup(name="diag_cython", ext_modules=cythonize(extensions, compiler_directives={'language_level' : "3"}))

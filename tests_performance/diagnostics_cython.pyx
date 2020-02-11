@@ -34,7 +34,7 @@ def my_coherence_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1
     cdef cnp.ndarray[cnp.float64_t, ndim=2] result = np.zeros([num_idx, num_fft], dtype=np.float64)
 
     with nogil:
-        for idx in prange(num_idx):
+        for idx in prange(num_idx, schedule=static):
             ch1_idx = ch1_idx_arr[idx]
             ch2_idx = ch2_idx_arr[idx]
 

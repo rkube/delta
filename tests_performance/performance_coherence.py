@@ -64,19 +64,19 @@ res_coherence_cy = my_coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
 print(f"Distance: {np.linalg.norm(res_coherence_no - res_coherence_cy)}")
 
 
-n_loop = 100
+n_loop = 10
 
 tic_no = timeit.default_timer()
 for _ in range(n_loop):
     res_coherence_no = coherence(fft_data, ch_it, None, None)[0]
 toc_no = timeit.default_timer()
-print(f"Default implementation: {(toc_no - tic_no) / n_loop:6.4f}s")
+print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
 
 tic_cy = timeit.default_timer()
 for _ in range(n_loop):
     res_coherence_cy = my_coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
 toc_cy = timeit.default_timer()
-print(f"Cython implementation:{(toc_cy - tic_cy) / n_loop:6.4f}s")
+print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
 
 
 # End of file performance_coherence.py
