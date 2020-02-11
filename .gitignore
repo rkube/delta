@@ -1,9 +1,14 @@
 .vscode
 __pycache__
-*.bp
 worker-*
 *lock
 *npz
-**/.ipynb_checkpoints/
+*.bp
+*.c
+*.o
+*.so
 core
 test_data/
+**/.ipynb_checkpoints/
+**/build/
+
