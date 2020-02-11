@@ -121,7 +121,7 @@ def cross_power(fft_data, ch_it, fft_config, info_dict):
     for idx, ch_pair in enumerate(ch_it):
         res[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1) / fft_config["win_factor"]
     
-    return(res, info_dict)
+    return(np.abs(res).real, info_dict)
 
 
 
