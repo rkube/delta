@@ -51,9 +51,6 @@ with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
 
-datapath = cfg["datapath"]
-resultspath = cfg["resultspath"]
-my_analysis = cfg["analysis"][0]
 
 #TODO: Remove for non-debug
 if args.debug:
@@ -93,7 +90,7 @@ if args.debug:
 
 
     shot = 18431; nchunk=10000
-    reader = read_stream(shot=shot,nchunk=nchunk,data_path=datapath)
+    reader = read_stream(shot=shot,nchunk=nchunk,data_path=cfg["datapath"])
     #merge into cfg dict
     cfg.update({'shot':shot,'nfft':1000,'window':'hann','overlap':0.0,'detrend':1, 
             'TriggerTime':reader.dobj.tt,'SampleRate':[reader.dobj.fs/1e3], 
@@ -103,7 +100,7 @@ if args.debug:
 def save_spec(results,tstep):
     #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
     #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
-    with adios2.open(resultspath+'delta.'+str(tstep).zfill(4)+'.bp','w') as fw:
+    with adios2.open(cfg["resultspath"]+'delta.'+str(tstep).zfill(4)+'.bp','w') as fw:
         for key in results.keys():
             fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
 
@@ -122,7 +119,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     logging.info(f"\tWorker: do analysis: tstep = {tstep}, rank = {rank}")
     t0 = time.time()
-    if(my_analysis["name"] == "all"):
+    if(cfg["analysis"][0]["name"] == "all"):
         results = {} 
         dobjAll = KstarEcei(shot=cfg["shotnr"],cfg=cfg,clist=cfg["channel_range"],verbose=False)
         if len(A.Dlist)==0: 
@@ -132,8 +129,8 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         A.Dlist[0].data = channel_data
         A.Dlist[0].time,_,_,_,_ = A.Dlist[0].time_base(trange)
         #this could be done on rank==0 as Ralph imagined
-        A.fftbins(nfft=cfg['nfft'],window=cfg['window'],
-          overlap=cfg['overlap'],detrend=cfg['detrend'],full=1,scipy=True)
+        A.fftbins(nfft=cfg['fft_params']['nfft'],window=cfg['fft_params']['window'],
+          overlap=cfg['fft_params']['overlap'],detrend=cfg['fft_params']['detrend'],full=1,scipy=True)
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
@@ -210,11 +207,8 @@ if __name__ == "__main__":
             # Only the master thread will open a data stream.
             # General reader: engine type and params can be changed with the config file
             if not args.debug:
-                logging.info(f"Starting reader_gen")
                 reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
-                logging.info(f"Finished reader_gen, continue to Open")
                 reader.Open()
-                logging.info(f"Finished Open")
             else:
                 reader.get_all_data()
 
@@ -230,15 +224,11 @@ if __name__ == "__main__":
                     currentStep = reader.CurrentStep()
                     logging.info(f"Step {currentStep} started")
                     trange = list(reader.get_data("trange"))
-                    logging.info(f"Got trange")
                     channel_data = reader.get_data("floats")
-                    logging.info(f"Got channel_data")
                     if not cfg_update:
-                        logging.info(f"Getting cfg")
                         cfg.update(reader.get_attrs("cfg"))
                         cfg_update = True
                     reader.EndStep()
-                    #print("rank {0:d}: Step".format(rank), reader.CurrentStep(), ", io_array = ", io_array)
                 else:
                     logging.info(f"Receiver: end of stream, rank = {rank}")
                     break
