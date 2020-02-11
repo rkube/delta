@@ -56,6 +56,13 @@ class writer_base():
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
 
+    def BeginStep(self):
+        """wrapper for writer.BeginStep()"""
+        return self.writer.BeginStep()
+
+    def EndStep(self):
+        """wrapper for writer.EndStep()"""
+        return self.writer.EndStep()
 
     def put_data(self, var, data):
         """Opens a new stream and send data through it
@@ -66,9 +73,7 @@ class writer_base():
         """
 
         if self.writer is not None:
-            self.writer.BeginStep()
             self.writer.Put(var, data, adios2.Mode.Sync)
-            self.writer.EndStep()
 
     #RMC - I find relying on this gives segfaults in bp files.
     #Better to explicitly close it in the main program
