@@ -3,6 +3,7 @@
 from mpi4py import MPI 
 import adios2
 import numpy as np 
+import json
 
 
 class reader_base():
@@ -44,10 +45,16 @@ class reader_base():
         """Attempt to load `varname` from the opened stream"""
 
         var = self.IO.InquireVariable(varname)
-        io_array = np.zeros(np.prod(var.Shape()), dtype=np.float)
+        io_array = np.zeros(var.Shape(), dtype=np.float)
         self.reader.Get(var, io_array, adios2.Mode.Sync)
 
         return(io_array)
+
+    def get_attrs(self, attrsname):
+        """Get json string `attrsname` from the opened stream"""
+
+        attrs = self.IO.InquireAttribute(attrsname)
+        return json.loads(attrs.DataString()[0])
 
 
     def CurrentStep(self):

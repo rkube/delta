@@ -3,7 +3,7 @@
 from mpi4py import MPI
 import adios2
 import numpy as np
-import pickle
+import json
 
 class writer_base():
     def __init__(self, shotnr, id):
@@ -44,8 +44,8 @@ class writer_base():
         atts, dict: Dictionary of key,value pairs to be put into attributes
 
         """
-        picklestr = pickle.dumps(attrs)
-        self.attrs = self.IO.DefineAttribute(attrsname,picklestr,"floats")
+        attrsstr = json.dumps(attrs)
+        self.attrs = self.IO.DefineAttribute(attrsname,attrsstr)
 
     def Open(self):
         """Opens a new channel. 
@@ -56,6 +56,13 @@ class writer_base():
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
 
+    def BeginStep(self):
+        """wrapper for writer.BeginStep()"""
+        return self.writer.BeginStep()
+
+    def EndStep(self):
+        """wrapper for writer.EndStep()"""
+        return self.writer.EndStep()
 
     def put_data(self, var, data):
         """Opens a new stream and send data through it
@@ -66,15 +73,14 @@ class writer_base():
         """
 
         if self.writer is not None:
-            self.writer.BeginStep()
             self.writer.Put(var, data, adios2.Mode.Sync)
-            self.writer.EndStep()
 
-
-    def __del__(self):
-        """Close the IO."""
-        if self.writer is not None:
-            self.writer.Close()
+    #RMC - I find relying on this gives segfaults in bp files.
+    #Better to explicitly close it in the main program
+    #def __del__(self):
+    #    """Close the IO."""
+    #    if self.writer is not None:
+    #        self.writer.Close()
 
 
 
