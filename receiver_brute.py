@@ -130,7 +130,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         A.Dlist[0].time,_,_,_,_ = A.Dlist[0].time_base(trange)
         #this could be done on rank==0 as Ralph imagined
         A.fftbins(nfft=cfg['fft_params']['nfft'],window=cfg['fft_params']['window'],
-          overlap=cfg['fft_params']['overlap'],detrend=cfg['fft_params']['detrend'],full=1,scipy=True)
+          overlap=cfg['fft_params']['overlap'],detrend=cfg['fft_params']['detrend'],full=1)
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
@@ -241,7 +241,6 @@ if __name__ == "__main__":
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
                 dq.put((channel_data, cfg, currentStep, trange))
-                time.sleep(1)
             logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart}")
             
             ## Clean up
