@@ -130,7 +130,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         A.Dlist[0].time,_,_,_,_ = A.Dlist[0].time_base(trange)
         #this could be done on rank==0 as Ralph imagined
         A.fftbins(nfft=cfg['fft_params']['nfft'],window=cfg['fft_params']['window'],
-          overlap=cfg['fft_params']['overlap'],detrend=cfg['fft_params']['detrend'],full=1)
+          overlap=cfg['fft_params']['overlap'],detrend=cfg['fft_params']['detrend'],full=1,scipy=True)
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
