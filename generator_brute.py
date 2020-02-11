@@ -80,10 +80,10 @@ t0 = time.time()
 for i in range(nstep):
     if(rank == 0):
         print("Sending: {0:d} / {1:d}".format(i, nstep))
-    writer.BeginStep()
-    writer.put_data(varTime,np.array([tstarts[i],tstops[i]]))
-    writer.put_data(varData,data_all[i])
-    writer.EndStep()
+    with writer.step() as w:
+        w.put_data(varTime,np.array([tstarts[i],tstops[i]]))
+        w.put_data(varData,data_all[i])
+
 t1 = time.time()
 writer.writer.Close()
 
