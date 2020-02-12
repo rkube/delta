@@ -6,16 +6,18 @@ import numpy as np
 from scipy.signal import get_window
 import json
 
+import more_itertools
+
 import sys
 sys.path.append("/global/homes/r/rkube/repos/delta")
 from analysis.channels import channel, channel_pair
 
-from analysis.tasks_mpi import cross_phase, cross_corr, cross_power, coherence
+from analysis.kernels_spectral import kernel_crossphase, kernel_crosscorr, kernel_crosspower, kernel_coherence
 from analysis.task_fft import task_fft_scipy
-from analysis.channels import channel, channel_pair
+from analysis.channels import channel, channel_pair, channel_range
 
 
-from diagnostics_cython import my_coherence_cy
+from diagnostics_cython import coherence_cy, crossphase_cy, crosspower_cy
 
 """
 Compare the performance of the coherence kernel to an implementation in cython
@@ -34,7 +36,6 @@ config_fft["fft_params"]["fsample"] = config_fft["ECEI_cfg"]["SampleRate"] * 1e3
 
 win = get_window(config_fft["fft_params"]["window"], config_fft["fft_params"]["nfft"])
 win_factor = (win**2).mean()
-print(f"win_Factor = {win_factor}")
 
 config_fft["fft_params"]["win_factor"] = win_factor
 
@@ -45,22 +46,31 @@ fft_data = my_fft.do_fft_local(io_array_tr)
 
 ###################################################
 # Generate channels to iterate over
-ch_it = [channel_pair(channel("L", i, 1), channel("L", i, 2)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 3)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 4)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 4)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 5)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 6)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 7)) for i in range(1, 25)]
-ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 8)) for i in range(1, 25)]
+
+ref_chrg = channel_range.from_str("L0101-2408")
+cmp_chrg = channel_range.from_str("L0101-2408")
+channel_pairs = [channel_pair(cr, cx) for cr in ref_chrg for cx in cmp_chrg]
+unique_channels = [i[0] for i in more_itertools.distinct_combinations(channel_pairs, 1)]
+
+#ch_it = [channel_pair(channel("L", i, 1), channel("L", i, 2)) for i in range(1, 25)]
+#ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 3)) for i in range(1, 25)]
+#h_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 4)) for i in range(1, 25)]
+#ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 4)) for i in range(1, 25)]
+#ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 5)) for i in range(1, 25)]
+#ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 6)) for i in range(1, 25)]
+#ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 7)) for i in range(1, 25)]
+#ch_it = ch_it + [channel_pair(channel("L", i, 1), channel("L", i, 8)) for i in range(1, 25)]
 
 
-ch1_idx_arr = np.array([int(ch_pair.ch1.idx()) for ch_pair in ch_it], dtype=np.uint64)
-ch2_idx_arr = np.array([int(ch_pair.ch2.idx()) for ch_pair in ch_it], dtype=np.uint64)
+ch1_idx_arr = np.array([int(ch_pair.ch1.idx()) for ch_pair in unique_channels], dtype=np.uint64)
+ch2_idx_arr = np.array([int(ch_pair.ch2.idx()) for ch_pair in unique_channels], dtype=np.uint64)
 
 
-res_coherence_no = coherence(fft_data, ch_it, None, None)[0]
-res_coherence_cy = my_coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+
+print("++++++++++++++++++++++++++++++ Testing coherence +++++++++++++++++++++++++++++++++++++")
+
+res_coherence_no = kernel_coherence(fft_data, unique_channels, None)
+res_coherence_cy = coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
 print(f"Distance: {np.linalg.norm(res_coherence_no - res_coherence_cy)}")
 
 
@@ -68,15 +78,58 @@ n_loop = 10
 
 tic_no = timeit.default_timer()
 for _ in range(n_loop):
-    res_coherence_no = coherence(fft_data, ch_it, None, None)[0]
+    res_coherence_no = kernel_coherence(fft_data, unique_channels, None)
 toc_no = timeit.default_timer()
 print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
 
 tic_cy = timeit.default_timer()
 for _ in range(n_loop):
-    res_coherence_cy = my_coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+    res_coherence_cy = coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
 toc_cy = timeit.default_timer()
 print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+print("++++++++++++++++++++++++++++++ Testing cross-power +++++++++++++++++++++++++++++++++++++")
+res_cross_power_no = kernel_crosspower(fft_data, unique_channels, config_fft["fft_params"])
+res_cross_power_cy = crosspower_cy(fft_data, ch1_idx_arr, ch2_idx_arr) / config_fft["fft_params"]["win_factor"]
+print(f"Distance: {np.linalg.norm(res_cross_power_no - res_cross_power_cy)}")
+
+
+n_loop = 10
+
+tic_no = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crosspower(fft_data, unique_channels, config_fft["fft_params"])
+toc_no = timeit.default_timer()
+print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = crosspower_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+toc_cy = timeit.default_timer()
+print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+print("++++++++++++++++++++++++++++++ Testing cross-phase +++++++++++++++++++++++++++++++++++++")
+res_cross_phase_no = kernel_crossphase(fft_data, unique_channels, config_fft["fft_params"])
+res_cross_phase_cy = crossphase_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+print(f"Distance: {np.linalg.norm(res_cross_phase_no - res_cross_phase_cy)}")
+
+
+n_loop = 10
+
+tic_no = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crossphase(fft_data, unique_channels, config_fft["fft_params"])
+toc_no = timeit.default_timer()
+print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = crossphase_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+toc_cy = timeit.default_timer()
+print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
 
 
 # End of file performance_coherence.py

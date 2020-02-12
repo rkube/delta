@@ -43,19 +43,20 @@ import backends
 
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
-from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec, task_null
+from analysis.tasks_mpi import task_spectral
+#from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec, task_null
 
 
 # task_object_dict maps the string-value of the analysis field in the json file
 # to an object that defines an appropriate analysis function.
-task_object_dict = {"null": task_null,
-                    "cross_correlation": task_cross_correlation,
-                    "cross_phase": task_cross_phase,
-                    "cross_power": task_cross_power,
-                    "coherence": task_coherence,
-                    "bicoherence": task_bicoherence,
-                    "xspec": task_xspec,
-                    "skw": task_skw}
+# task_object_dict = {"null": task_null,
+#                     "cross_correlation": task_cross_correlation,
+#                     "cross_phase": task_cross_phase,
+#                     "cross_power": task_cross_power,
+#                     "coherence": task_coherence,
+#                     "bicoherence": task_bicoherence,
+#                     "xspec": task_xspec,
+#                     "skw": task_skw}
 
 
 @attr.s 
@@ -73,7 +74,7 @@ def consume(Q, executor, my_fft, task_list):
     """Executed by a local thread. Dispatch work items from the
     Queue to the PoolExecutor"""
 
-    logger = logging.getLogger('benchmark')
+    logger = logging.getLogger('simple')
     global cfg
 
     while True:
@@ -91,7 +92,8 @@ def consume(Q, executor, my_fft, task_list):
 
         # Step 2) Distribute the work via the executor 
         for task in task_list:
-            task.calc_and_store(executor, fft_data, msg.tstep_idx, cfg)
+            #task.calc_and_store(executor, fft_data, msg.tstep_idx, cfg)
+            task.submit(executor, fft_data, msg.tstep_idx, cfg)
 
         Q.task_done()
         logger.info(f"Consumed {msg}")
@@ -173,7 +175,8 @@ def main():
             # Create the task list
             task_list = []
             for task_config in cfg["task_list"]:
-                task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
+                #task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
+                task_list.append(task_spectral(task_config, fft_params, cfg["ECEI_cfg"]))
                 store_backend.store_metadata(task_config, task_list[-1].get_dispatch_sequence())
                 
             dq = queue.Queue()
@@ -207,6 +210,11 @@ def main():
             logger.info("Workers have joined")
             dq.join()
             logger.info("Queue joined")
+
+            # for task in task_list:
+            #     print(task.futures_list)
+
+            #print(all_futures)
 
             # Shotdown the executioner
             executor.shutdown(wait=True)

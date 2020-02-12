@@ -8,10 +8,10 @@ from Cython.Build import cythonize
 import numpy 
 
 extensions = [
-    Extension("diagnostics_cython", ["diagnostics_cython.pyx"],
+    Extension("kernels_spectral_cy", ["kernels_spectral_cy.pyx"],
         include_dirs=[numpy.get_include()],
-        extra_compile_args=['-qopenmp',  '-qopt-report=5'],
+        extra_compile_args=['-qopenmp'],
         extra_link_args=['-qopenmp']),
 ]
 
-setup(name="diag_cython", ext_modules=cythonize(extensions, compiler_directives={'language_level' : "3"}))
+setup(name="kernels_spectral_cy", ext_modules=cythonize(extensions, compiler_directives={'language_level' : "3"}))

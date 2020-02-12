@@ -1,5 +1,4 @@
 # -*- Encoding: UTF-8 -*-
-# ~/.conda/envs/intel/bin/cython diagnostics_cython.pyx
 
 import numpy as np
 cimport numpy as cnp
@@ -19,9 +18,9 @@ from libc.math cimport atan2
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def coherence_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] ch1_idx_arr, cnp.uint64_t[::1] ch2_idx_arr):
+def kernel_coherence_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, ch_it, fft_config):
     
-    cdef size_t num_idx = ch1_idx_arr.size   # Length of index array
+    cdef size_t num_idx = len(ch_it)      # Length of index array
     cdef size_t num_fft = data.shape[1]   # Number of fft frequencies
     cdef size_t num_bins = data.shape[2]  # Number of ffts
     cdef size_t ch1_idx
@@ -31,7 +30,8 @@ def coherence_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] c
     cdef double complex Pxx
     cdef double complex Pyy
     
-
+    cdef cnp.ndarray[cnp.uint64_t, ndim=1] ch1_idx_arr = np.array([int(ch_pair.ch1.idx()) for ch_pair in ch_it], dtype=np.uint64)
+    cdef cnp.ndarray[cnp.uint64_t, ndim=1] ch2_idx_arr = np.array([int(ch_pair.ch2.idx()) for ch_pair in ch_it], dtype=np.uint64)
     cdef cnp.ndarray[cnp.float64_t, ndim=2] result = np.zeros([num_idx, num_fft], dtype=np.float64)
 
     with nogil:
@@ -57,9 +57,9 @@ def coherence_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] c
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def crossphase_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] ch1_idx_arr, cnp.uint64_t[::1] ch2_idx_arr):
+def kernel_crossphase_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, ch_it, fft_config):
     
-    cdef size_t num_idx = ch1_idx_arr.size   # Length of index array
+    cdef size_t num_idx = len(ch_it)      # Length of index array
     cdef size_t num_fft = data.shape[1]   # Number of fft frequencies
     cdef size_t num_bins = data.shape[2]  # Number of ffts
     cdef size_t ch1_idx
@@ -67,7 +67,8 @@ def crossphase_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] 
     cdef size_t idx, nn, bb # Loop variables
     cdef double complex _tmp
 
-
+    cdef cnp.ndarray[cnp.uint64_t, ndim=1] ch1_idx_arr = np.array([int(ch_pair.ch1.idx()) for ch_pair in ch_it], dtype=np.uint64)
+    cdef cnp.ndarray[cnp.uint64_t, ndim=1] ch2_idx_arr = np.array([int(ch_pair.ch2.idx()) for ch_pair in ch_it], dtype=np.uint64)
     cdef cnp.ndarray[cnp.float64_t, ndim=2] result = np.zeros([num_idx, num_fft], dtype=np.float64)
 
     with nogil:
@@ -90,9 +91,9 @@ def crossphase_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def crosspower_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] ch1_idx_arr, cnp.uint64_t[::1] ch2_idx_arr):
+def kernel_crosspower_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, ch_it, fft_config):
     
-    cdef size_t num_idx = ch1_idx_arr.size   # Length of index array
+    cdef size_t num_idx = len(ch_it)      # Length of index array
     cdef size_t num_fft = data.shape[1]   # Number of fft frequencies
     cdef size_t num_bins = data.shape[2]  # Number of ffts
     cdef size_t ch1_idx
@@ -100,6 +101,8 @@ def crosspower_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] 
     cdef size_t idx, nn, bb # Loop variables
     cdef double complex _tmp
 
+    cdef cnp.ndarray[cnp.uint64_t, ndim=1] ch1_idx_arr = np.array([int(ch_pair.ch1.idx()) for ch_pair in ch_it], dtype=np.uint64)
+    cdef cnp.ndarray[cnp.uint64_t, ndim=1] ch2_idx_arr = np.array([int(ch_pair.ch2.idx()) for ch_pair in ch_it], dtype=np.uint64)
     cdef cnp.ndarray[cnp.float64_t, ndim=2] result = np.zeros([num_idx, num_fft], dtype=np.float64)
 
     with nogil:
@@ -116,4 +119,4 @@ def crosspower_cy(cnp.ndarray[cnp.complex128_t, ndim=3] data, cnp.uint64_t[::1] 
 
     return(result)
 
-# End of file diagnostics_cython.pyx
+# End of file kernels_spectral_py.pyx
