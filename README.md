@@ -95,6 +95,78 @@ with a larger number of tasks than available on the machine.
 
 ### MPI processor brute
 RMC's implementation of fluctana in the framework
+```
+  generator_brute.py   =====>    receiver_brute.py
+(running on KSTAR DTN)   |     (running on NERSC DTN)
+                         v
+     stream name: shotnum-ch00000.bp
+```
+
+We can run as follows. 
+
+First, on a Cori DTN node, run as follows:
+```
+module use -a /global/cscratch1/sd/jyc/dtn/sw/spack/share/spack/modules/linux-centos7-ivybridge
+module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
+
+module load openmpi
+module load zeromq adios2
+module load python py-numpy py-mpi4py py-h5py py-scipy py-matplotlib
+
+mpirun -n 5 python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json 
+```
+
+Then, on KSTAR, run as follows:
+```
+module use -a /home/choij/sw/spack/share/spack/modules/linux-centos7-haswell
+module use -a /home/choij/sw/spack/share/spack/modules/linux-centos7-broadwell
+module use -a /home/choij/sw/modulefiles
+
+module load openmpi
+module load zeromq adios2
+module load python py-numpy py-mpi4py py-h5py py-scipy py-matplotlib
+
+python -u generator_brute.py --config config-kstar.json
+```
+
+Here is config files used in the above:
+`config-dtn.json`:
+```
+{
+    "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
+    "shotnr": 18431,
+    "channel_range": ["ECEI_L0101-2408"],
+    "analysis": [{"name" : "all"}],
+    "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
+    "engine": "DataMan",
+    "params": { "IPAddress": "203.230.120.125",
+                "Timeout": "60",
+                "OneToOneMode": "TRUE",
+                "OpenTimeoutSecs": "600"},
+    "nstep": 200,
+    "batch_size": 10000,
+    "resultspath": "./",
+}
+
+```
+`config-kstar.json`:
+```
+{
+    "datapath": "/home/choij/kstar_streaming/",
+    "shotnr": 18431,
+    "channel_range": ["ECEI_L0101-2408"],
+    "analysis": [{"name" : "all"}],
+    "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
+    "engine": "DataMan",
+    "params": { "IPAddress": "203.230.120.125",
+                "Timeout": "60",
+                "OneToOneMode": "TRUE",
+                "OpenTimeoutSecs": "600"},
+    "nstep": 200,
+    "batch_size": 10000,
+    "resultspath": "./",
+}
+```
 
 # (obsolete) Workflow Scenario #2 (3-node scenario)
 It consists of three components:
@@ -105,5 +177,3 @@ It consists of three components:
      stream name: shotnum-channelid.bp          shotnum-channelid.s1.bp
 ```
 This scenario is currently not implemented fully.
-
-
