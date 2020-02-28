@@ -193,3 +193,5 @@ for change in cursor():
     print(change)
     print("")
 ```
+
+Flask/Javascript/Plotly based web-dashboard: [https://github.com/rkube/dashboard_v2](https://github.com/rkube/dashboard_v2)
