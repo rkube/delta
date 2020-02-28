@@ -21,7 +21,7 @@ Generators, processors, and backends read their configuration from a shared json
 implementations don't have a common syntax yet.
 
 Here is a diagram of the framework:
-![Delta Architecture](https://github.com/rkube/delta/blob/master/Streaming%20analysis%20architecture.png "Delta Architecture")
+![Delta Architecture](https://github.com/rkube/delta/blob/master/doc/delta_architecture.png "Delta Architecture")
 
 # Implemented Workflows
 
