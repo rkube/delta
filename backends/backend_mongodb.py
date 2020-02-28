@@ -66,7 +66,6 @@ class backend_mongodb(backend):
         cfg.update(j)
         cfg.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %X UTC")})
     
-
         cfg.update({"description": "metadata"})
 
         try:
@@ -103,8 +102,6 @@ class backend_mongodb(backend):
         storage_scheme = task.storage_scheme
         # Add a time stamp to the scheme
         storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
 
         if dummy:
             storage_scheme["results"] = result

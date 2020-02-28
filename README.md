@@ -177,3 +177,20 @@ This mitigates the low bandwidth available to the compute nodes to the outside.
      stream name: shotnum-channelid.bp          shotnum-channelid.s1.bp
 ```
 This scenario is currently not fully.
+
+
+# Interfacing to visualizers
+
+Visualizers interface to the streaming data analysis through the database. Using the mongodb backend allows
+for siphoning the analysis as it comes in through change streams:
+[https://docs.mongodb.com/manual/changeStreams/](https://docs.mongodb.com/manual/changeStreams/)
+
+Let's say `processor_mpi.py` is running with runID `1ABCDE`, writing updates into mongodb. By default,
+delta writes the analysis results into the collection test_analysis_RUNID, where RUNID is just the 6-char
+runID. In a python session you can follow them 
+```
+cursor = db.test_analysis_1ABCDE.watch()
+for change in cursor():
+    print(change)
+    print("")
+```
