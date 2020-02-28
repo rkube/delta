@@ -35,7 +35,8 @@ nstep = cfg["nstep"]
 
 
 channels = expand_clist(cfg["channel_range"])
-channel_split = np.array_split(cfg["channel_range"],size)
+n = len(channels) // size
+channel_split = [channels[i:i+n] for i in range(0,len(channels),n)]
 # Enforce 1:1 mapping of channels and tasks
 assert(len(channel_split) == size)
 # Channels this process is reading
@@ -53,7 +54,7 @@ num_batches = data_pts // batch_size
 
 # Get a data_loader
 dobj = KstarEcei(shot=shotnr,data_path=datapath,clist=my_channel_range,verbose=False)
-cfg.update({'TriggerTime':dobj.tt,'SampleRate':[dobj.fs/1e3],
+cfg.update({'TriggerTime':dobj.tt.tolist(),'SampleRate':[dobj.fs/1e3],
             'TFcurrent':dobj.itf/1e3,'Mode':dobj.mode, 
             'LoFreq':dobj.lo,'LensFocus':dobj.sf,'LensZoom':dobj.sz})
 
@@ -79,9 +80,12 @@ t0 = time.time()
 for i in range(nstep):
     if(rank == 0):
         print("Sending: {0:d} / {1:d}".format(i, nstep))
-    writer.put_data(varTime,np.array([tstarts[i],tstops[i]]))
-    writer.put_data(varData,data_all[i])
+    with writer.step() as w:
+        w.put_data(varTime,np.array([tstarts[i],tstops[i]]))
+        w.put_data(varData,data_all[i])
+
 t1 = time.time()
+writer.writer.Close()
 
 chunk_size = np.prod(data_arr.shape)*data_arr.itemsize/1024/1024
 print("")

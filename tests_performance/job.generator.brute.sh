@@ -8,8 +8,5 @@ printf "%s" "$(<$0)"
 echo ""
 
 module load python
-#DEBUG: Run to test local analysis
-#srun -n 192 -c 2 python receiver_brute_mpi.py --debug
-
 #NORMAL: Run to test streaming with adios2 analysis
-srun -n 1 python generator_brute.py
+srun -n 1 -c 2 python ~/delta_rmchurch/generator_brute.py --config config.generator.brute.json
