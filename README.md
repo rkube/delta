@@ -6,45 +6,41 @@ fusion experiments or large-scale simulations.
 Implemented as part of "Adaptive near-real time net-worked analysis of big
 fusion data", (FY18).
 
+This project implements a streaming analysis workflow. Data is streamed by a generator, using the new
+ADIOS2 WAN capabilities, to a processing facility. At the processing facility, the received data packets
+are analyzed and stored by a backend. Optional visualization can be attached by coupling to the backend.
 
-The current implementation features a data generator and a data processor.
-Both are MPI applications. Each generator task reads data from a single group of channels
-and writes them via the ADIOS2 dataman interface.
-Each processor task reads this data and performs a single analysis routine.
-The output of the analysis is stored in a database for later analysis and visualization.
+This repository is a loose collection of 
+* generators
+* processors
+* backends
 
+The implemented analysis routines are based on [https://www.github.com:minjunJchoi/fluctana](https://www.github.com:minjunJchoi/fluctana) refactored in cython and adapted as computational kernels
 
-To run the analysis framework run a generator and a processor simultaneously on a node:
-```
-srun -n 2 -c 2 --mem=1G --gres=craynetwork:0 python generator_adios2.py
-srun -n 2 -c 2 --mem=1G --gres=craynetwork:0 python processor_adios2.py
-```
-
-To have generator and processor side-by-side within an interactive session it is convenient 
-to [split the terminal using screen]
-(https://unix.stackexchange.com/questions/7453/how-to-split-the-terminal-into-more-than-one-view)
+Generators, processors, and backends read their configuration from a shared json file. The different
+implementations don't have a common syntax yet.
 
 
-# Workflow Scenario #1 (2-node scenario)
+# Implemented Workflows
+
+## Workflow Scenario #1 (2-node scenario)
+In this scenario, data is streamed from a KSTAR Data Transfer Node (DTN) to a NERSC DTN:
+
 ```
   generator.py         =====>    processor_xyz.py
 (running on KSTAR DTN)   |     (running on NERSC DTN)
                          v                      
      stream name: shotnum-channelid.bp          
 ```
-xyz=[mpi, mpi_brute, dask, ...]
-
-
-In this scenario, the processor reads a configuration file, performs the analysis routines
-defined in that file, and stores the data for subsequent analysis.
-
-
-As of now, there is no common format for configuration file. Each processor and receiver has its own
-format. 
+Processors implement distributed computing in different ways xyz=[mpi, mpi_brute, dask, ...]
+Here mpi refers to the new mpi implementation with cython kernels, mpi_brute refers to the
+brute-force adaption of the fluctana routines by wrapping them in mpi and dask refers to 
+an implementation using dask-distributed.
+As of 2020-02, the dask-distributed implementation is out-dated.
 
 
 
-Parameters can be provided with a json file. Here is an example:
+Here is an example configuration file for the generator running on the KSTAR DTN:
 ```
 {
     "datapath": "/home/choij/kstar_streaming/018431",
@@ -57,17 +53,13 @@ Parameters can be provided with a json file. Here is an example:
                 "OpenTimeoutSecs": "600"},
     "nstep": 100,
     "analysis_engine": "BP4"
-
 }
 ```
 
+### Jongs reference implementation of the 2-node workflow
+This reference implmentation shows the feasability of streaming the data from KSTAR to NERSC with
+high velocity. To run this scenaris log in to the respective DTNS and execute:
 
-
-
-## Currently implemented processors
-
-### Jongs reference implementation.
-Example commands are as follows:
 ```
 python generator.py --config config-jychoi.json
 python receiver.py --config config-jychoi.json
@@ -76,21 +68,22 @@ python receiver.py --config config-jychoi.json
 Note that the processor is called receiver
 
 ### MPI processor 
-processor_mpi_mockup.py: Implements a naked reference implementation that
-* Reads dummy data, mimicking a received data package from KSTAR, in the main loop
-* Puts the dummy data in a queue
-* A worker thread reads data from the queue and dispatches it to a MPIPoolExecutor for 
-  analysis
+This is the xyz=mpi case. 
+processor_mpi.py implements this case. This processor
+* Reads ECEI data from a bp file
+* Puts the data in a queue
+* A worker thread reads data from the queue and dispatches it to a MPI Executor for analysis
+* Calls the multi-threaded cython kernels for data processing
 
 Run this implemntation as
 ```
-export OMP_NUM_THREAD=1
-srun -n 16 python -m mpi4py.futures processor_mpi_mockup.py --config configs/test_crossphase.json
+export OMP_NUM_THREAD=N
+srun -n 6 -c N python -m mpi4py.futures processor_mpi.py --config configs/test_crossphase.json
 ```
 
-The number of OpenMP threads needs to be small since the linked BLAS libraries from
-some numpy packages are inherently multithreaded. This causes the processor to run
-with a larger number of tasks than available on the machine.
+For the KNL nodes, best performance is with N=8/16 and 24 or 48 MPI ranks.
+
+Data storage is implmented for numpy and mongodb backends. See the configuration files configs/test_all.json.
 
 
 ### MPI processor brute
@@ -168,12 +161,16 @@ Here is config files used in the above:
 }
 ```
 
-# (obsolete) Workflow Scenario #2 (3-node scenario)
-It consists of three components:
+# Workflow Scenario #2 (3-node scenario)
+This scenario adds an additional station, from the NERSC DTNs and the Cori compute nodes.
+Data streamed to the DTN and then forwarded to the processor running on the compute nodes.
+This mitigates the low bandwidth available to the compute nodes to the outside.
+
+
 ```
   generator.py         =====>    receiver.py         =====>  analysis.py
 (running on KSTAR DTN)   |     (running on NERSC DTN)  |      (running on NERSC compute nodes)
                          v                             v
      stream name: shotnum-channelid.bp          shotnum-channelid.s1.bp
 ```
-This scenario is currently not implemented fully.
+This scenario is currently not fully.
