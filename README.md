@@ -20,6 +20,7 @@ The implemented analysis routines are based on [https://www.github.com:minjunJch
 Generators, processors, and backends read their configuration from a shared json file. The different
 implementations don't have a common syntax yet.
 
+(https://github.com/rkube/delta/blob/master/Streaming%20analysis%20architecture.png)
 
 # Implemented Workflows
 
