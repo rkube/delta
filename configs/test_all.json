@@ -11,7 +11,7 @@
    "username": "delta-fusion_admin",
    "password": "eeww33ekekww212aa"
  },
- "storage_no": 
+ "storage_null": 
  {
    "backend": "null"
   },
@@ -32,31 +32,31 @@
               "LensZoom": 340},
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{
-                 "task_description" : "cross_phase", 
-                 "analysis": "cross_phase",
-                 "channel_chunk_size": 32768, 
-                 "ref_channels" : "L0101-2408",
-                 "cmp_channels" : "L0101-2408"
-               },
-               {
-                  "task_description" : "cross_power",
-                  "analysis": "cross_power",
-                  "channel_chunk_size": 32768,
-                  "ref_channels" : "L0101-2408",
-                  "cmp_channels" : "L0101-2408"
-                },
-                {
-                  "task_description" : "coherence",
-                  "analysis": "coherence",
-                  "channel_chunk_size": 32768,
-                  "ref_channels" : "L0101-2408",
-                  "cmp_channels" : "L0101-2408"
-                },
-                {
-                  "task_description" : "cross_correlation",
-                  "analysis": "cross_correlation",
-                  "channel_chunk_size": 32768,
-                  "ref_channels" : "L0101-2408",
-                  "cmp_channels" : "L0101-2408"
-                }]   
+                "task_description" : "cross_phase", 
+                "analysis": "cross_phase",
+                "channel_chunk_size": 32768, 
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              },
+              {
+                "task_description" : "cross_power",
+                "analysis": "cross_power",
+                "channel_chunk_size": 32768,
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              },
+              {
+                "task_description" : "coherence",
+                "analysis": "coherence",
+                "channel_chunk_size": 32768,
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              },
+              {
+                "task_description" : "cross_correlation",
+                "analysis": "cross_correlation",
+                "channel_chunk_size": 32768,
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              }]  
 }

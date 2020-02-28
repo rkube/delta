@@ -44,19 +44,6 @@ import backends
 from readers.reader_mpi import reader_bpfile
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
-#from analysis.tasks_mpi import task_cross_correlation, task_cross_phase, task_cross_power, task_coherence, task_bicoherence, task_skw, task_xspec, task_null
-
-
-# task_object_dict maps the string-value of the analysis field in the json file
-# to an object that defines an appropriate analysis function.
-# task_object_dict = {"null": task_null,
-#                     "cross_correlation": task_cross_correlation,
-#                     "cross_phase": task_cross_phase,
-#                     "cross_power": task_cross_power,
-#                     "coherence": task_coherence,
-#                     "bicoherence": task_bicoherence,
-#                     "xspec": task_xspec,
-#                     "skw": task_skw}
 
 
 @attr.s 
@@ -111,9 +98,6 @@ def main():
     with open(args.config, "r") as df:
         cfg = json.load(df)
         df.close()
-
-    # create a 6 run id
-
     
     # Load logger configuration from file: 
     # http://zetcode.com/python/logging/
@@ -200,7 +184,7 @@ def main():
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
 
-                if reader.CurrentStep() >= 3:
+                if reader.CurrentStep() >= 10:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
@@ -210,11 +194,6 @@ def main():
             logger.info("Workers have joined")
             dq.join()
             logger.info("Queue joined")
-
-            # for task in task_list:
-            #     print(task.futures_list)
-
-            #print(all_futures)
 
             # Shotdown the executioner
             executor.shutdown(wait=True)
