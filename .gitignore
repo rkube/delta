@@ -6,6 +6,7 @@ worker-*
 *.bp
 *.c
 *.o
+*.a
 *.so
 core
 test_data/

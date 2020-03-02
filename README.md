@@ -194,3 +194,5 @@ for change in cursor():
     print(change)
     print("")
 ```
+
+Visualizers are implemented separately, see f.ex. the web-based 
