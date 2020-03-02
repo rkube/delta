@@ -21,8 +21,7 @@ Generators, processors, and backends read their configuration from a shared json
 implementations don't have a common syntax yet.
 
 Here is a diagram of the framework:
-
-(https://github.com/rkube/delta/blob/master/Streaming%20analysis%20architecture.png)
+![Delta Architecture](https://github.com/rkube/delta/blob/master/doc/delta_architecture.png "Delta Architecture")
 
 # Implemented Workflows
 
@@ -195,4 +194,4 @@ for change in cursor():
     print("")
 ```
 
-Visualizers are implemented separately, see f.ex. the web-based 
+Visualizers are implemented separately, see f.ex. the web-based dashboard: [https://github.com/rkube/dashboard_v2](https://github.com/rkube/dashboard_v2)
