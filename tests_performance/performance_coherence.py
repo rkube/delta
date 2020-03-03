@@ -10,14 +10,21 @@ import more_itertools
 
 import sys
 sys.path.append("/global/homes/r/rkube/repos/delta")
-from analysis.channels import channel, channel_pair
-
-from analysis.kernels_spectral import kernel_crossphase, kernel_crosscorr, kernel_crosspower, kernel_coherence
-from analysis.task_fft import task_fft_scipy
 from analysis.channels import channel, channel_pair, channel_range
 
+from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_coherence_64_v2
+from analysis.kernels_spectral_cy import kernel_coherence_32_cy, kernel_coherence_32_v2
 
-from diagnostics_cython import coherence_cy, crossphase_cy, crosspower_cy
+from analysis.kernels_spectral_cy import kernel_crossphase_64_cy, kernel_crossphase_64_v2
+from analysis.kernels_spectral_cy import kernel_crossphase_32_cy, kernel_crossphase_32_v2
+
+from analysis.kernels_spectral_cy import kernel_crosspower_64_cy, kernel_crosspower_64_v2
+from analysis.kernels_spectral_cy import kernel_crosspower_32_cy, kernel_crosspower_32_v2
+
+
+from analysis.task_fft import task_fft_scipy
+
+
 
 """
 Compare the performance of the coherence kernel to an implementation in cython
@@ -69,66 +76,150 @@ ch2_idx_arr = np.array([int(ch_pair.ch2.idx()) for ch_pair in unique_channels], 
 
 print("++++++++++++++++++++++++++++++ Testing coherence +++++++++++++++++++++++++++++++++++++")
 
-res_coherence_no = kernel_coherence(fft_data, unique_channels, None)
-res_coherence_cy = coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
-print(f"Distance: {np.linalg.norm(res_coherence_no - res_coherence_cy)}")
+#res_coherence_no = kernel_coherence(fft_data, unique_channels, None)
+#res_coherence_cy = kernel_coherence_cy(fft_data, channel_pairs, config_fft)
+#print(f"Distance: {np.linalg.norm(res_coherence_no.flatten() - res_coherence_cy.flatten()) / np.linalg.norm(res_coherence_no.flatten())}")
 
 
 n_loop = 10
 
-tic_no = timeit.default_timer()
-for _ in range(n_loop):
-    res_coherence_no = kernel_coherence(fft_data, unique_channels, None)
-toc_no = timeit.default_timer()
-print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
+# tic_no = timeit.default_timer()
+# for _ in range(n_loop):
+#     res_coherence_no = kernel_coherence(fft_data, unique_channels, None)
+# toc_no = timeit.default_timer()
+# print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
+
+
+fft_data_64 = np.ascontiguousarray(fft_data)
+fft_data_32 = np.require(fft_data_64, dtype=np.complex64, requirements=['A', 'C'])
+
 
 tic_cy = timeit.default_timer()
 for _ in range(n_loop):
-    res_coherence_cy = coherence_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+    _ = kernel_coherence_64_cy(fft_data_64, channel_pairs, config_fft)
 toc_cy = timeit.default_timer()
-print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+print(f"Cython implementation 64byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
 
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_coherence_64_v2(fft_data_64, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"C      implementation 64byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_coherence_32_cy(fft_data_32, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"Cython implementation 32byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_coherence_32_v2(fft_data_32, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"C      implementation 32byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
 
 print("++++++++++++++++++++++++++++++ Testing cross-power +++++++++++++++++++++++++++++++++++++")
-res_cross_power_no = kernel_crosspower(fft_data, unique_channels, config_fft["fft_params"])
-res_cross_power_cy = crosspower_cy(fft_data, ch1_idx_arr, ch2_idx_arr) / config_fft["fft_params"]["win_factor"]
-print(f"Distance: {np.linalg.norm(res_cross_power_no - res_cross_power_cy)}")
 
-
-n_loop = 10
-
-tic_no = timeit.default_timer()
-for _ in range(n_loop):
-    _ = kernel_crosspower(fft_data, unique_channels, config_fft["fft_params"])
-toc_no = timeit.default_timer()
-print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
 
 tic_cy = timeit.default_timer()
 for _ in range(n_loop):
-    _ = crosspower_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+    _ = kernel_crosspower_64_cy(fft_data_64, channel_pairs, config_fft)
 toc_cy = timeit.default_timer()
-print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+print(f"Cython implementation 64byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
 
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crosspower_64_v2(fft_data_64, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"C      implementation 64byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crosspower_32_cy(fft_data_32, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"Cython implementation 32byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crosspower_32_v2(fft_data_32, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"C      implementation 32byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
 
 print("++++++++++++++++++++++++++++++ Testing cross-phase +++++++++++++++++++++++++++++++++++++")
-res_cross_phase_no = kernel_crossphase(fft_data, unique_channels, config_fft["fft_params"])
-res_cross_phase_cy = crossphase_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
-print(f"Distance: {np.linalg.norm(res_cross_phase_no - res_cross_phase_cy)}")
-
-
-n_loop = 10
-
-tic_no = timeit.default_timer()
-for _ in range(n_loop):
-    _ = kernel_crossphase(fft_data, unique_channels, config_fft["fft_params"])
-toc_no = timeit.default_timer()
-print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
 
 tic_cy = timeit.default_timer()
 for _ in range(n_loop):
-    _ = crossphase_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+    _ = kernel_crossphase_64_cy(fft_data_64, channel_pairs, config_fft)
 toc_cy = timeit.default_timer()
-print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+print(f"Cython implementation 64byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crossphase_64_v2(fft_data_64, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"C      implementation 64byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crossphase_32_cy(fft_data_32, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"Cython implementation 32byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+tic_cy = timeit.default_timer()
+for _ in range(n_loop):
+    _ = kernel_crossphase_32_v2(fft_data_32, channel_pairs, config_fft)
+toc_cy = timeit.default_timer()
+print(f"C      implementation 32byte:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+
+# res_cross_power_no = kernel_crosspower(fft_data, unique_channels, config_fft["fft_params"])
+# res_cross_power_cy = crosspower_cy(fft_data, ch1_idx_arr, ch2_idx_arr) / config_fft["fft_params"]["win_factor"]
+# print(f"Distance: {np.linalg.norm(res_cross_power_no - res_cross_power_cy)}")
+
+
+# n_loop = 10
+
+# tic_no = timeit.default_timer()
+# for _ in range(n_loop):
+#     _ = kernel_crosspower(fft_data, unique_channels, config_fft["fft_params"])
+# toc_no = timeit.default_timer()
+# print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
+
+# tic_cy = timeit.default_timer()
+# for _ in range(n_loop):
+#     _ = crosspower_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+# toc_cy = timeit.default_timer()
+# print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
+
+
+# res_cross_phase_no = kernel_crossphase(fft_data, unique_channels, config_fft["fft_params"])
+# res_cross_phase_cy = crossphase_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+# print(f"Distance: {np.linalg.norm(res_cross_phase_no - res_cross_phase_cy)}")
+
+
+# n_loop = 10
+
+# tic_no = timeit.default_timer()
+# for _ in range(n_loop):
+#     _ = kernel_crossphase(fft_data, unique_channels, config_fft["fft_params"])
+# toc_no = timeit.default_timer()
+# print(f"Default implementation: {((toc_no - tic_no) / n_loop):6.4f}s")
+
+# tic_cy = timeit.default_timer()
+# for _ in range(n_loop):
+#     _ = crossphase_cy(fft_data, ch1_idx_arr, ch2_idx_arr)
+# toc_cy = timeit.default_timer()
+# print(f"Cython implementation:{((toc_cy - tic_cy) / n_loop):6.4f}s")
 
 
 
