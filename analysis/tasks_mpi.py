@@ -8,7 +8,7 @@ import more_itertools
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_crosscorr, kernel_bicoherence, kernel_skw
 
-from analysis.kernels_spectral_cy import kernel_coherence_cy, kernel_crosspower_cy, kernel_crossphase_cy
+from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
 
 import backends
 
@@ -54,13 +54,13 @@ class task_spectral():
         self.analysis = task_config["analysis"]
 
         if self.analysis == "cross_phase":
-            self.kernel = kernel_crossphase_cy
+            self.kernel = kernel_crossphase_64_cy
         elif self.analysis == "cross_power":
-            self.kernel = kernel_crosspower_cy
+            self.kernel = kernel_crosspower_64_cy
         elif self.analysis == "cross_correlation":
             self.kernel = kernel_crosscorr
         elif self.analysis == "coherence":
-            self.kernel = kernel_coherence_cy
+            self.kernel = kernel_coherence_64_cy
         elif self.analysis == "skw":
             self.kernel = kernel_skw
         elif self.analysis == "bicoherence":
@@ -141,9 +141,7 @@ class task_spectral():
                 store_backend = backends.backend_null(cfg['storage'])
 
             # Calculate the cross phase
-            #logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Starting")
             result = self.kernel(fft_data, ch_it, fft_config)
-            #logging.info(f"coherence tidx {info_dict['tidx']} chunk{info_dict['channel_batch']}: Finished calculation")
 
             #Store result in the DB
             store_backend.store_data(result, info_dict)

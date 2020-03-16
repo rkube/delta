@@ -20,7 +20,6 @@ from mpi4py.futures import MPIPoolExecutor, MPICommExecutor
 import sys
 sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
 
-
 import logging
 import logging.config
 import random
@@ -184,7 +183,7 @@ def main():
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
 
-                if reader.CurrentStep() >= 10:
+                if reader.CurrentStep() >= 5:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break

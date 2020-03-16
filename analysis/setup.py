@@ -1,5 +1,4 @@
-# CC=icc  LDSHARED="icc -shared" python setup.py build_ext --inplace
-
+#  CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
 
 from distutils.core import setup
 from distutils.extension import Extension
@@ -12,8 +11,8 @@ extensions = [
               libraries=["kernels"],
               library_dirs=["lib"],
               include_dirs=[numpy.get_include(), "lib"],
-              extra_compile_args=['-qopenmp'],
-              extra_link_args=['-qopenmp']),
+              extra_compile_args=["-qopenmp", "-xHost"],
+              extra_link_args=[]),
 ]
 
 setup(name="kernels_spectral_cy", 
