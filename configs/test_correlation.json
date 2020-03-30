@@ -1,6 +1,11 @@
 {"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
  "shotnr": 18431,
- "storage": {"backend": "numpy", "basedir": "/global/homes/r/rkube/repos/delta/test_data/run1/"},
+ "storage": 
+ {
+    "backend": "mongo",
+    "datastore": "numpy",
+    "datadir": "/global/cscratch1/sd/rkube/delta" 
+},
  "storage_no": {"backend": "mongo", "username": "delta-fusion_admin", "password": "eeww33ekekww212aa"},
  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
               "t_norm": [-0.119, -0.109],

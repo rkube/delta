@@ -7,9 +7,9 @@
   },
  "storage_no2": 
  {
-   "backend": "mongo",
-   "username": "delta-fusion_admin",
-   "password": "eeww33ekekww212aa"
+  "backend": "mongo",
+  "datastore": "numpy",
+  "datadir": "/global/cscratch1/sd/rkube/delta"
  },
  "storage": 
  {

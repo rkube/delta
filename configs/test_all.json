@@ -1,15 +1,10 @@
 {"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
  "shotnr": 18431,
- "storage_no": 
- {
-   "backend": "numpy", 
-   "basedir": "/global/homes/r/rkube/repos/delta/test_data/run2/"
-  },
  "storage": 
  {
    "backend": "mongo",
-   "username": "delta-fusion_admin",
-   "password": "eeww33ekekww212aa"
+   "datastore": "numpy",
+   "datadir": "/global/cscratch1/sd/rkube/delta"
  },
  "storage_null": 
  {
@@ -17,10 +12,7 @@
   },
  "storage_no3": 
  {
-   "backend": "postgre", 
-   "hostname": "nerscdb03.nersc.gov",
-   "username": "delta_admin",
-   "password": "dsjwj242sss"
+   "backend": "postgre"
   },
  "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
               "t_norm": [-0.119, -0.109],
@@ -35,28 +27,28 @@
                 "task_description" : "cross_phase", 
                 "analysis": "cross_phase",
                 "channel_chunk_size": 32768, 
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : "L0101-0808",
+                "cmp_channels" : "L0101-0808"
               },
               {
                 "task_description" : "cross_power",
                 "analysis": "cross_power",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : "L0101-0808",
+                "cmp_channels" : "L0101-0808"
               },
               {
                 "task_description" : "coherence",
                 "analysis": "coherence",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : "L0101-0808",
+                "cmp_channels" : "L0101-0808"
               },
               {
                 "task_description" : "cross_correlation",
                 "analysis": "cross_correlation",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : "L0101-0808",
+                "cmp_channels" : "L0101-0808"
               }]  
 }

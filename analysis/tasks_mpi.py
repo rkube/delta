@@ -144,7 +144,7 @@ class task_spectral():
             result = self.kernel(fft_data, ch_it, fft_config)
 
             #Store result in the DB
-            store_backend.store_data(result, info_dict)
+            store_backend.store_data(result, info_dict, cfg)
             logging.info(f"{self.analysis}: _submit tidx {info_dict['tidx']}, chunk {info_dict['channel_batch']}: Finished")
 
             # Zero out the result once it has been written

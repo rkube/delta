@@ -22,21 +22,29 @@ class backend_mongodb(backend):
     """
     Author: Ralph Kube
 
-    This defines an access to the mongodb storage backend.
+    Defines the MongoDB storage backend.
     """
     def __init__(self, cfg_mongo):
+        """Connect to MongoDB and, if necessary, initializes gridFS."""
         # Connect to mongodb
 
-        self.client = pymongo.MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion", 
-                                          username = cfg_mongo["storage"]["username"],
-                                          password = cfg_mongo["storage"]["password"])
+        with open("mongo_secret", "r") as secret:
+            lines = secret.readlines()
+            username = lines[0].strip()
+            password = lines[1].strip()
+            connection_str = lines[2].strip()
+
+        self.client = pymongo.MongoClient(connection_str, 
+                                          username=username,
+                                          password=password)
+
         db = self.client.get_database()
         self.datadir = join(cfg_mongo["storage"]["datadir"], cfg_mongo["run_id"])
 
         # Analysis data is either stored in gridFS(slow!) or numpy.
-        assert cfg_mongo["datastore"] in ["gridfs", "numpy"]
+        assert cfg_mongo["storage"]["datastore"] in ["gridfs", "numpy"]
 
-        if cfg_mongo["datastore"] == "numpy":
+        if cfg_mongo["storage"]["datastore"] == "numpy":
             # Initialize storage directory
             if (isdir(self.datadir) == False):
                 try:
@@ -45,7 +53,7 @@ class backend_mongodb(backend):
                     raise ValueError(f"Could not access path {self.datadir}")
             self.fs = None
 
-        elif cfg_mongo["datastore"] == "gridfs":
+        elif cfg_mongo["storage"]["datastore"] == "gridfs":
             # Initialize gridFS
             self.fs = gridfs.GridFS(db)       
         
@@ -57,7 +65,7 @@ class backend_mongodb(backend):
             
 
     def store_metadata(self, cfg, dispatch_seq):
-        """Stores the metadata to the database
+        """Stores metadata that allows to identify channel pairs with the stored data.
 
         Parameters
         ----------
@@ -87,9 +95,9 @@ class backend_mongodb(backend):
 
 
     def store_task(self, task, future=None, dummy=True):
-        """Stores data from an analysis task in the mongodb backend.
+        """Stores results from analysis tasks in the database.
 
-        The data anylsis results from analysis_task object are evaluated in this method.
+        The results from analysis_task futures are evaluated in this method.
 
         Parameters
         ----------
@@ -123,8 +131,8 @@ class backend_mongodb(backend):
         return None
 
 
-    def store_data(self, data, info_dict):
-        """Stores data in mongodb
+    def store_data(self, data, info_dict, cfg):
+        """Stores arbitrary data in mongodb
 
         Parameters
         ----------
@@ -133,12 +141,12 @@ class backend_mongodb(backend):
         cfg: delta configuration object
         """
 
-        if cfg["datastore"] == "gridfs":
+        if cfg["storage"]["datastore"] == "gridfs":
             # Create a binary object and store it in gridfs
             fid = self.fs.put(Binary(pickle.dumps(data)))
             info_dict.update({"result_gridfs": fid})
         
-        elif cfg["datastore"] == "numpy":
+        elif cfg["storage"]["datastore"] == "numpy":
             # Create a unique file-name
             unq_fname = uuid.uuid1()
             unq_fname = unq_fname.__str__() + ".npz"
@@ -147,7 +155,6 @@ class backend_mongodb(backend):
 
         info_dict.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")})
         info_dict.update({"description": "analysis results"})
-        
 
         try:
             inserted_id = self.collection.insert_one(info_dict)

@@ -11,4 +11,4 @@ core
 test_data/
 **/.ipynb_checkpoints/
 **/build/
-
+mongo_secret

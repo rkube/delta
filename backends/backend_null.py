@@ -24,7 +24,7 @@ class backend_null(backend):
     def store_one(self, item):
         pass
 
-    def store_data(self, data, info_dict):
+    def store_data(self, data, info_dict, cfg):
         pass
 
     def store_metadata(self, cfg, dispatch_seq):

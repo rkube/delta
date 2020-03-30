@@ -140,7 +140,7 @@ def main():
             if cfg['storage']['backend'] == "numpy":
                 store_backend = backends.backend_numpy(cfg['storage'])
             elif cfg['storage']['backend'] == "mongo":
-                store_backend = backends.backend_mongodb(cfg)    
+                store_backend = backends.backend_mongodb(cfg)
             elif cfg['storage']['backend'] == "null":
                 store_backend = backends.backend_null(cfg['storage'])
 
@@ -183,7 +183,7 @@ def main():
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
 
-                if reader.CurrentStep() >= 5:
+                if reader.CurrentStep() >= 100:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break

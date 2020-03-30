@@ -3,11 +3,10 @@
     "shotnr": 18431,
     "storage": 
     {
-        "backend": "mongo", 
-        "username": "delta-fusion_admin", 
-        "password": "eeww33ekekww212aa",
+        "backend": "mongo",
         "datastore": "numpy",
-        "datadir": "/global/cscratch1/sd/rkube/delta"},
+        "datadir": "/global/cscratch1/sd/rkube/delta"     
+    },
     "storage_null": 
     {
         "backend": "null"
