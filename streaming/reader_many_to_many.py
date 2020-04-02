@@ -20,7 +20,7 @@ class reader_base():
 
     def Open(self):
         """Opens a new channel"""
-        self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+        self.channel_name = gen_channel_name(self.shotnr, self.id, 0)
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
 

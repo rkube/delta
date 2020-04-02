@@ -40,7 +40,7 @@ import adios2
 
 import backends
 
-from readers.reader_mpi import reader_bpfile
+from readers.reader_mpi import reader_bpfile, reader_dataman
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
 
@@ -136,6 +136,8 @@ def main():
             cfg['run_id'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             logger.info(f"Starting run {cfg['run_id']}")
     
+            logger.info("I am here")
+
             # Instantiate a storage backend and store the run configuration and task configuration
             if cfg['storage']['backend'] == "numpy":
                 store_backend = backends.backend_numpy(cfg['storage'])
@@ -146,14 +148,17 @@ def main():
 
             store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
+            logger.info("Stored")
+
             # Create the FFT task
             cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
             my_fft = task_fft_scipy(10_000, cfg["fft_params"], normalize=True, detrend=True)
             fft_params = my_fft.get_fft_params()
 
             # Create ADIOS reader object
-            reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
-            reader.Open(cfg["datapath"])
+            reader = reader_bpfile(cfg["shotnr"], cfg)
+            reader.Open()
+            logger.info("Created reader")
 
             # Create the task list
             task_list = []
@@ -183,7 +188,7 @@ def main():
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
 
-                if reader.CurrentStep() >= 100:
+                if reader.CurrentStep() >= 5:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break

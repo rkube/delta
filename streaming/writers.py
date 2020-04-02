@@ -6,43 +6,48 @@ import numpy as np
 import json
 from contextlib import contextmanager
 
+from streaming.adios_helpers import gen_channel_name, gen_io_name
+
 class writer_base():
     def __init__(self, shotnr, id):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
-        #print("writer_base.__init__(): rank = {0:02d}".format(self.rank))
 
         self.shotnr = shotnr
         self.id = id
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
-        self.IO = self.adios.DeclareIO("stream_{0:03d}".format(self.rank))
+        self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
         self.writer = None
 
 
-    def DefineVariable(self, data_name, data_array):
+    def DefineVariable(self, data_name:str, data_array:np.ndarray):
         """Wrapper around DefineVariable
 
         Input:
         ======
-        data_name, str: Name of data
-        data_array, ndarray: numpy array with sme number of elements and data type that will be sent in 
+        data_name: Name of data
+        data_array: array with same shape and data type that will be sent in 
                              all subsequent steps
         """
-        return self.IO.DefineVariable(data_name, data_array, 
-                                               data_array.shape, 
-                                               list(np.zeros_like(data_array.shape, dtype=int)), 
-                                               data_array.shape, 
-                                               adios2.ConstantDims)
+        self.variable =  self.IO.DefineVariable(data_name, data_array, 
+                                                data_array.shape, # shape
+                                                list(np.zeros_like(data_array.shape, dtype=int)),  # start 
+                                                data_array.shape, # count
+                                                adios2.ConstantDims)
+
+        print(f"Defined A2 variable {data_name}")
+
+        return(self.variable)
 
 
-    def DefineAttributes(self,attrsname,attrs):
+    def DefineAttributes(self, attrsname: str, attrs: dict):
         """Wrapper around DefineAttribute, takes in dictionary and writes each as an Attribute
         NOTE: Currently no ADIOS cmd to use dict, pickle to string
 
         Input:
         ======
-        atts, dict: Dictionary of key,value pairs to be put into attributes
+        attrs: Dictionary of key,value pairs to be put into attributes
 
         """
         attrsstr = json.dumps(attrs)
@@ -52,7 +57,7 @@ class writer_base():
         """Opens a new channel. 
         """
 
-        self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+        self.channel_name = gen_channel_name(self.shotnr, self.id, 0)    #f"{self.shotnr:05d}_{self.id}.bp"
 
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
@@ -65,7 +70,7 @@ class writer_base():
         """wrapper for writer.EndStep()"""
         return self.writer.EndStep()
 
-    def put_data(self, var, data):
+    def put_data(self, data:np.ndarray):
         """Opens a new stream and send data through it
         Input:
         ======
@@ -74,7 +79,7 @@ class writer_base():
         """
 
         if self.writer is not None:
-            self.writer.Put(var, data, adios2.Mode.Sync)
+            self.writer.Put(self.variable, data, adios2.Mode.Sync)
 
     #RMC - I find relying on this gives segfaults in bp files.
     #Better to explicitly close it in the main program

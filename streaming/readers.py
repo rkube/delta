@@ -5,6 +5,7 @@ import adios2
 import numpy as np 
 import json
 
+from streaming.adios_helpers import gen_io_name, gen_channel_name
 
 class reader_base():
     def __init__(self, shotnr, id):
@@ -15,17 +16,17 @@ class reader_base():
         self.shotnr = shotnr
         self.id = id
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
-        self.IO = self.adios.DeclareIO("stream_{0:03d}".format(self.rank))
-        print("reader_base.__init__(): rank = {0:02d}".format(self.rank))
-
+        self.IO = self.adios.DeclareIO(gen_channel_name(self.rank))
+        print(f"reader_base.__init__(): rank = {self.rank:02d}")
 
     def Open(self, worker_id=None):
         """Opens a new channel"""
+
         if worker_id is None:
-            self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+            self.channel_name = gen_channel_name(self.shotnr, self.id, 0)
         else:
-            self.channel_name = "{0:05d}_ch{1:06d}.s{2:02d}.bp".format(self.shotnr, self.id, worker_id)
-        print (">>> Opening ... %s"%(self.channel_name))
+            self.channel_name = gen_channel_name(self.shotnr, self.worker_id, self.rank)
+        print (">>> Opening ... {self.channel_name}")
 
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)

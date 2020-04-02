@@ -1,27 +1,41 @@
-{"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
- "shotnr": 18431,
- "storage": 
- {
-   "backend": "mongo",
-   "datastore": "numpy",
-   "datadir": "/global/cscratch1/sd/rkube/delta"
- },
- "storage_null": 
- {
-   "backend": "null"
+{
+  "shotnr": 18431,
+  "reader":
+  {
+    "engine": "BP4",
+    "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/"
   },
- "storage_no3": 
- {
-   "backend": "postgre"
+  "reader_dm":
+  {
+    "engine": "dataman",
+    "IPAddress": "10.128.0.252",
+    "Port": "12300",
+    "OpenTimeoutSecs": "600",
+    "Verbose": "20"
   },
- "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
-              "t_norm": [-0.119, -0.109],
-              "SampleRate": 500,
-              "TFcurrent": 23000.0,
-              "Mode": "O",
-              "LoFreq": 81,
-              "LensFocus": 80,
-              "LensZoom": 340},
+  "storage_mongo": 
+  {
+    "backend": "mongo",
+    "datastore": "numpy",
+    "datadir": "/global/cscratch1/sd/rkube/delta"
+  },
+  "storage": 
+  {
+    "backend": "null"
+  },
+  "storage_postgre": 
+  {
+    "backend": "postgre"
+  },
+  "ECEI_cfg": {
+               "TriggerTime": [-0.12, 61.2, 60],
+               "t_norm": [-0.119, -0.109],
+               "SampleRate": 500,
+               "TFcurrent": 23000.0,
+               "Mode": "O",
+               "LoFreq": 81,
+               "LensFocus": 80,
+               "LensZoom": 340},
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{
                 "task_description" : "cross_phase", 

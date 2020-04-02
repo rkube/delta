@@ -21,10 +21,10 @@ class reader_base():
     def Open(self, worker_id=None):
         """Opens a new channel"""
         if worker_id is None:
-            self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+            self.channel_name = gen_channel_name(self.shotnr, self.id, 0)
         else:
-            self.channel_name = "{0:05d}_ch{1:06d}.s{2:02d}.bp".format(self.shotnr, self.id, worker_id)
-        print (">>> Opening ... %s"%(self.channel_name))
+            self.channel_name = gen_channel_name(self.shotnr, self.worker_id, self.rank)
+        print (f">>> Opening ...{self.channel_name}")
 
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
@@ -68,7 +68,7 @@ class reader_dataman(reader_base):
 
         dataman_port = 12300 + self.rank
         transport_params = {"IPAddress": "203.230.120.125",
-                            "Port": "{0:5d}".format(dataman_port),
+                            "Port": f"{dataman_port:5d}",
                             "OpenTimeoutSecs": "600",
                             "AlwaysProvideLatestTimestep": "true"}
         self.IO.SetParameters(transport_params)
@@ -100,7 +100,7 @@ class reader_gen(reader_base):
         _params = params
         if engine.lower() == "dataman":
             dataman_port = 12300 + self.rank
-            _params.update(Port = "{0:5d}".format(dataman_port))
+            _params.update(Port = f"{dataman_port:5d}")
         self.IO.SetParameters(_params)
         self.reader = None
 

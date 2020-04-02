@@ -1,10 +1,10 @@
 #-*- Coding: UTF-8 -*-
 
-
 from mpi4py import MPI
 import adios2
 import logging
 import string
+from os.path import join
 
 import numpy as np
 from analysis.channels import channel, channel_range
@@ -14,9 +14,11 @@ Author: Ralph Kube
 """
 
 
-
 class reader_base():
-    def __init__(self, shotnr, ecei_cfg):
+    def __init__(self, shotnr: int, cfg: dict):
+        comm = MPI.COMM_WORLD
+        self.rank = comm.Get_rank()
+        self.size = comm.Get_size()
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
         self.shotnr = shotnr
         self.IO = self.adios.DeclareIO("KSTAR_18431")
@@ -24,7 +26,7 @@ class reader_base():
         self.chunk_sizes = []
         
         # Store configuration of the ECEI diagnostic
-        self.ecei_cfg = ecei_cfg
+        self.ecei_cfg = cfg["ECEI_cfg"]
 
         # If false, indicates that raw data is returned.
         # If true, indicates that normalized data is returned.
@@ -32,14 +34,13 @@ class reader_base():
         self.is_data_normalized = False
 
         # Defines the time where we take the offset
-        self.tnorm = ecei_cfg["t_norm"]
+        self.tnorm = cfg["ECEI_cfg"]["t_norm"]
 
 
-    def Open(self, datapath):
+    def Open(self):
         """Opens a new channel"""
-        from os.path import join
 
-        self.channel_name = join(datapath, f"KSTAR.bp")
+        #self.channel_name = join(datapath, f"KSTAR.bp")
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
 
@@ -64,10 +65,17 @@ class reader_base():
         return(res)
 
 
-    def InquireVariable(self, varname):
+    def InquireVariable(self, varname: str):
         """Wrapper for IO.InquireVariable"""
         res = self.IO.InquireVariable(varname)
         return(res)
+
+
+    def get_attrs(self, attrsname: str):
+        """Inquire json string `attrsname` from the opened stream"""
+
+        attrs = self.IO.InquireAttribute(attrsname)
+        return json.loads(attrs.DataString()[0])
 
 
     def gen_timebase(self):
@@ -88,7 +96,6 @@ class reader_base():
         # Scale timebase with t_sample and shift to tt0
         tb = (tb * t_sample) + tt0        
         return(tb)
-
 
     
     def Get(self, channels=None, save=False):
@@ -116,7 +123,6 @@ class reader_base():
         ========
         io_array: numpy ndarray containing data of the current step
         """
-
 
         if (isinstance(channels, channel_range)):
             data_list = []
@@ -174,15 +180,30 @@ class reader_base():
             if save:
                 np.savez(f"test_data/io_array_tr_s{self.CurrentStep():04d}.npz", io_array=io_array)
 
-
         return io_array
 
 
 class reader_bpfile(reader_base):
-    def __init__(self, shotnr, ecei_cfg):
-        super().__init__(shotnr, ecei_cfg)
+    def __init__(self, shotnr: int, cfg: dict):
+        super().__init__(shotnr, cfg)
+        assert(cfg["reader"]["engine"] == "BP4")
         self.IO.SetEngine("BP4")
+        self.channel_name = join(cfg["reader"]["datapath"], f"KSTAR.bp")
         self.reader = None
 
+
+class reader_dataman(reader_base):
+    def __init__(self, shotnr:int, cfg: dict):
+        print("Instantiating reader_dataman")
+
+        super().__init__(shotnr, cfg)
+        assert(cfg["reader"]["engine"] == "dataman")
+        self.IO.SetEngine("DataMan")
+        self.IO.SetParameters({"IPAddress": cfg["reader"]["IPAddress"]})
+        self.IO.SetParameters({"Port": cfg["reader"]["Port"]})
+        self.IO.SetParameters({"OpenTimeoutSecs": cfg["reader"]["OpenTimeoutSecs"]})
+        self.IO.SetParameters({"Verbose": cfg["reader"]["Verbose"]})
+        self.reader = None
+        self.channel_name = f"{cfg['shotnr']:5d}"
 
 # End of file reader_one_to_one.py
