@@ -117,7 +117,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     Perform analysis
     """ 
-    logging.info(f"\tWorker: do analysis: tstep = {tstep}, rank = {rank}")
+    logging.info(f"\tWorker: start perform_analysis: tstep = {tstep}, rank = {rank}")
     t0 = time.time()
     if(cfg["analysis"][0]["name"] == "all"):
         results = {} 
@@ -135,7 +135,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
 
         Nchannels = channel_data.shape[0] 
         for ic in range(Nchannels):
-            logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
+            #logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
             chstr = A.Dlist[0].clist[ic]
             done_subset = [ic]
             dtwo_subset = range(done_subset[0],Nchannels)
@@ -169,13 +169,13 @@ def perform_analysis(channel_data, cfg, tstep, trange):
             #9 bicoherence
             #A.bicoherence(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
             #results['bicoherence/'+chstr] = A.Dlist[0].val
-            t1 = time.time()
             # Store result in database
             # backend.store(my_analysis, analysis_result)
-            logging.info(f"\tWorker: done with analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
-        logging.info(f"Worker: loop done: tstep={tstep}, rank={rank}, hostname={hostname}")
+            #logging.info(f"\tWorker: loop done: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
+        t1 = time.time()
         save_spec(results,tstep)
-        logging.info(f"perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname}")
+        t2 = time.time()
+        logging.info(f"\tWorker: perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname} time elapsed: {t2-t0}")
 
 # Function for a helper thead (dispatcher).
 # The dispatcher will dispatch data in the queue (dq) and 

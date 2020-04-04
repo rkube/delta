@@ -25,7 +25,7 @@ class reader_base():
             self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
         else:
             self.channel_name = "{0:05d}_ch{1:06d}.s{2:02d}.bp".format(self.shotnr, self.id, worker_id)
-        print (">>> Opening ... %s"%(self.channel_name))
+        print (">>> Reading: %s"%(self.channel_name))
 
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
