@@ -70,8 +70,9 @@ data_all = np.array_split(data,num_batches,axis=-1)
 writer = writer_gen(shotnr, gen_id, cfg["engine"], cfg["params"])
 
 data_arr = data_all[0]
-varData = writer.DefineVariable("floats",data_arr)
-varTime = writer.DefineVariable("trange",np.array([0.0,0.0]))
+writer.DefineVariable("tstep",np.array(0))
+writer.DefineVariable("floats",data_arr)
+writer.DefineVariable("trange",np.array([0.0,0.0]))
 writer.DefineAttributes("cfg",cfg)
 writer.Open()
 
@@ -81,8 +82,9 @@ for i in range(nstep):
     if(rank == 0):
         print("Sending: {0:d} / {1:d}".format(i, nstep))
     with writer.step() as w:
-        w.put_data(varTime,np.array([tstarts[i],tstops[i]]))
-        w.put_data(varData,data_all[i])
+        w.put_data("tstep",np.array(i))
+        w.put_data("trange",np.array([tstarts[i],tstops[i]]))
+        w.put_data("floats",data_all[i])
 
 t1 = time.time()
 writer.writer.Close()

@@ -18,6 +18,7 @@ class writer_base():
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
         self.IO = self.adios.DeclareIO("stream_{0:03d}".format(self.rank))
         self.writer = None
+        self.vars = dict() ## dict for vars
 
 
     def DefineVariable(self, data_name, data_array):
@@ -29,11 +30,13 @@ class writer_base():
         data_array, ndarray: numpy array with sme number of elements and data type that will be sent in 
                              all subsequent steps
         """
-        return self.IO.DefineVariable(data_name, data_array, 
-                                               data_array.shape, 
-                                               list(np.zeros_like(data_array.shape, dtype=int)), 
-                                               data_array.shape, 
-                                               adios2.ConstantDims)
+        v = self.IO.DefineVariable(data_name, data_array, 
+                                data_array.shape, 
+                                list(np.zeros_like(data_array.shape, dtype=int)), 
+                                data_array.shape, 
+                                adios2.ConstantDims)
+        self.vars[data_name] = v
+        return v
 
 
     def DefineAttributes(self,attrsname,attrs):
@@ -48,11 +51,14 @@ class writer_base():
         attrsstr = json.dumps(attrs)
         self.attrs = self.IO.DefineAttribute(attrsname,attrsstr)
 
-    def Open(self):
+    def Open(self, worker_id=None):
         """Opens a new channel. 
         """
-
-        self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+        if worker_id is None:
+            self.channel_name = "{0:05d}_ch{1:06d}.bp".format(self.shotnr, self.id)
+        else:
+            self.channel_name = "{0:05d}_ch{1:06d}.s{2:02d}.bp".format(self.shotnr, self.id, worker_id)
+        print (">>> Writing: %s"%(self.channel_name))
 
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
@@ -65,15 +71,16 @@ class writer_base():
         """wrapper for writer.EndStep()"""
         return self.writer.EndStep()
 
-    def put_data(self, var, data):
+    def put_data(self, varname, data):
         """Opens a new stream and send data through it
         Input:
         ======
-        var: adios2 object from DefineVariable
+        varname: adios2 variable name
         data: ndarray. Data to send)
         """
 
         if self.writer is not None:
+            var = self.IO.InquireVariable(varname)
             self.writer.Put(var, data, adios2.Mode.Sync)
 
     #RMC - I find relying on this gives segfaults in bp files.

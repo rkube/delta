@@ -45,7 +45,13 @@ class reader_base():
         """Attempt to load `varname` from the opened stream"""
 
         var = self.IO.InquireVariable(varname)
-        io_array = np.zeros(var.Shape(), dtype=np.float)
+        if var.Type() == 'int64_t':
+            dtype = np.dtype('int64')
+        elif var.Type() == 'double':
+            dtype = np.dtype('double')
+        else:
+            dtype = np.dtype(var.Type())
+        io_array = np.zeros(var.Shape(), dtype=dtype)
         self.reader.Get(var, io_array, adios2.Mode.Sync)
 
         return(io_array)

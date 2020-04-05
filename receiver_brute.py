@@ -28,19 +28,24 @@ parser = argparse.ArgumentParser(description="Receive KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 parser.add_argument('--debug', help='Use input file to debug', action='store_true')
+parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
+parser.add_argument('--nworkers', type=int, help='Number of workers to middle', default=1)
+parser.add_argument('--workwithmiddleman', help='Process with middleman', action='store_true')
+parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
 
 if not args.nompi:
-    from processors.readers import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    from processors.readers import reader_gen
+    from generators.writers import writer_gen
     from mpi4py import MPI
     from mpi4py.futures import MPICommExecutor
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 else:
-    #from processors.readers_nompi import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    from generators.writers_nompi import writer_gen
     from concurrent.futures import ProcessPoolExecutor as MPICommExecutor
     comm = None
     rank = 0
@@ -96,6 +101,16 @@ if args.debug:
             'TriggerTime':reader.dobj.tt,'SampleRate':[reader.dobj.fs/1e3], 
             'TFcurrent':reader.dobj.itf/1e3,'Mode':reader.dobj.mode, 
             'LoFreq':reader.dobj.lo,'LensFocus':reader.dobj.sf,'LensZoom':reader.dobj.sz})
+
+def writer_init(shotnr, gen_id, worker_id, data_arr):
+    writer = writer_gen(shotnr, gen_id, cfg["middleman_engine"], cfg["middleman_params"])
+
+    writer.DefineVariable("tstep",np.array(0))
+    writer.DefineVariable("floats",data_arr)
+    writer.DefineVariable("trange",np.array([0.0,0.0]))
+    writer.DefineAttributes("cfg",cfg)
+    writer.Open(worker_id=worker_id)
+    return writer
 
 def save_spec(results,tstep):
     #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
@@ -175,7 +190,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         t1 = time.time()
         save_spec(results,tstep)
         t2 = time.time()
-        logging.info(f"\tWorker: perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname} time elapsed: {t2-t0}")
+        logging.info(f"\tWorker: perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname} time elapsed: {t2-t0:.2f}")
 
 # Function for a helper thead (dispatcher).
 # The dispatcher will dispatch data in the queue (dq) and 
@@ -186,11 +201,51 @@ def dispatch():
         logging.info(f"\tDispatcher: read data: tstep = {tstep}, rank = {rank}")
         if channel_data is None:
             break
-        future = executor.submit(perform_analysis, channel_data, cfg, tstep, trange)
+        ## If middleman, we write data. Otherwise, distribute to others for analysis
+        if args.middleman:
+            writer = writer_list[tstep%args.nworkers]
+            with writer.step() as w:
+                w.put_data("tstep",np.array(tstep))
+                w.put_data("floats",channel_data)
+                w.put_data("trange",np.array(trange))
+        else:
+            future = executor.submit(perform_analysis, channel_data, cfg, tstep, trange)
         dq.task_done()
+
+    ## Once done, we close open files for writing
+    if args.middleman:
+        nworkers = args.nworkers
+        for i in range(nworkers):
+            writer = writer_list[i]
+            writer.writer.Close()
 
 # Main
 if __name__ == "__main__":
+
+    # ## Create a subcomm
+    # color = rank*args.ngroups//size
+    # key = rank
+    # print ('rank, color, key:', rank, color, key)
+    # newcomm = comm.Split(color, key)
+
+    # newrank = newcomm.Get_rank()
+    # newsize = newcomm.Get_size()
+    # print ('rank, newrank, newsize:', rank, newrank, newsize)
+
+    # ## Act as a middleman
+    # ## Middleman receives data from the generator and distribute to n processors
+    # if args.middleman:
+    #     nworkers = args.nworkers
+    #     writer_list = list()
+    #     for i in range(nworkers):
+    #         shotnr = cfg["shotnr"]
+    #         gen_id = 100000 * rank
+    #         channels = expand_clist(cfg["channel_range"])
+    #         batch_size = cfg['batch_size']
+    #         data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+    #         w = writer_init(shotnr, gen_id, i, data_array)
+    #         writer_list.append(w)
+
     with MPICommExecutor(comm, root=0) as executor:
         if executor is not None:
             # Only master will execute the following block
@@ -207,8 +262,12 @@ if __name__ == "__main__":
             # Only the master thread will open a data stream.
             # General reader: engine type and params can be changed with the config file
             if not args.debug:
-                reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
-                reader.Open()
+                if args.workwithmiddleman:
+                    reader = reader_gen(cfg["shotnr"], 0, cfg["middleman_engine"], cfg["middleman_params"])
+                    reader.Open(worker_id=0)
+                else:
+                    reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
+                    reader.Open()
             else:
                 reader.get_all_data()
 
@@ -221,13 +280,29 @@ if __name__ == "__main__":
             while(True):
                 stepStatus = reader.BeginStep()
                 if stepStatus == adios2.StepStatus.OK:
-                    currentStep = reader.CurrentStep()
+                    #currentStep = reader.CurrentStep()
+                    currentStep = reader.get_data("tstep")
                     logging.info(f"Step {currentStep} started")
                     trange = list(reader.get_data("trange"))
                     channel_data = reader.get_data("floats")
                     if not cfg_update:
                         cfg.update(reader.get_attrs("cfg"))
                         cfg_update = True
+
+                        ## Act as a middleman
+                        ## Middleman receives data from the generator and distribute to n processors
+                        if args.middleman:
+                            nworkers = args.nworkers
+                            writer_list = list()
+                            for i in range(nworkers):
+                                shotnr = cfg["shotnr"]
+                                gen_id = 100000 * rank
+                                channels = expand_clist(cfg["channel_range"])
+                                batch_size = cfg['batch_size']
+                                data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+                                w = writer_init(shotnr, gen_id, i, data_array)
+                                writer_list.append(w)
+                        
                     reader.EndStep()
                 else:
                     logging.info(f"Receiver: end of stream, rank = {rank}")
@@ -241,7 +316,8 @@ if __name__ == "__main__":
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
                 dq.put((channel_data, cfg, currentStep, trange))
-            logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart}")
+                #perform_analysis(channel_data, cfg, currentStep, trange)
+            logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart:.2f}")
             
             ## Clean up
             dq.join()
