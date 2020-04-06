@@ -34,6 +34,8 @@ parser.add_argument('--middleman', help='Run as a middleman', action='store_true
 parser.add_argument('--nworkers', type=int, help='Number of workers to middle', default=1)
 parser.add_argument('--workwithmiddleman', help='Process with middleman', action='store_true')
 parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
+parser.add_argument('--subjob', help='subjob', action='store_true')
+parser.add_argument('--onlyn', type=int, help='process only n', default=1000)
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
@@ -321,24 +323,28 @@ if __name__ == "__main__":
                 #dq.put((channel_data, cfg, currentStep, trange))
                 #perform_analysis(channel_data, cfg, currentStep, trange)
                 ## jyc: Testing decomposition
-                blocksize = 24
-                comb = list()
-                for i,j in combinations(range(channel_data.shape[0]//blocksize), 2):
-                    comb.append((i,j))
-                for i in range(channel_data.shape[0]//blocksize):
-                    comb.append((i,i))
-                logging.info(f"Decomposition: created {len(comb)} subjobs")
-                for i,j in comb:
-                    logging.info(f"Decomposition: received data tstep={currentStep}, rank = {rank}, ({i},{j})")
-                    np.r_[channel_data[i:8,:], channel_data[0:8,:]].shape
-                    block1 = channel_data[i*blocksize:i*blocksize+blocksize,:]
-                    block2 = channel_data[j*blocksize:j*blocksize+blocksize,:]
-                    data = np.r_[block1,block2]
-                    dq.put((data, cfg, currentStep, trange))
-                    #perform_analysis(data, cfg, currentStep, trange)
+                if args.subjob:
+                    blocksize = 24
+                    comb = list()
+                    for i,j in combinations(range(channel_data.shape[0]//blocksize), 2):
+                        comb.append((i,j))
+                    for i in range(channel_data.shape[0]//blocksize):
+                        comb.append((i,i))
+                    logging.info(f"Decomposition: created {len(comb)} subjobs")
+                    for i,j in comb:
+                        logging.info(f"Decomposition: received data tstep={currentStep}, rank = {rank}, ({i},{j})")
+                        np.r_[channel_data[i:8,:], channel_data[0:8,:]].shape
+                        block1 = channel_data[i*blocksize:i*blocksize+blocksize,:]
+                        block2 = channel_data[j*blocksize:j*blocksize+blocksize,:]
+                        data = np.r_[block1,block2]
+                        dq.put((data, cfg, currentStep, trange))
+                else:
+                    dq.put((channel_data, cfg, currentStep, trange))
+                    #perform_analysis(channel_data, cfg, currentStep, trange)
+
                 n = n + 1
                 if not args.middleman:
-                    if n>=1: 
+                    if n>=args.onlyn: 
                         break
             logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart:.2f}")
             
