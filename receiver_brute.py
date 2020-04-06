@@ -280,11 +280,16 @@ if __name__ == "__main__":
             # Dispatcher (a helper thread) will asynchronously fetch data in the queue and distribute to other workers.
             cfg_update = False
             logging.info(f"Start data reading loop")
-            tstart = time.time()
+            t0 = time.time()
+            isfirst = True
             n = 0
             while(True):
                 stepStatus = reader.BeginStep()
                 if stepStatus == adios2.StepStatus.OK:
+                    ## Set a timer when we receive the first chunk
+                    if isfirst:
+                        t1 = time.time()
+                        isfirst = False                    
                     #currentStep = reader.CurrentStep()
                     currentStep = reader.get_data("tstep")
                     logging.info(f"Step {currentStep} started")
@@ -345,7 +350,8 @@ if __name__ == "__main__":
                 n = n + 1
                 if (args.onlyn is not None) and (n >= args.onlyn):
                     break
-            logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart:.2f}")
+            t2 = time.time()
+            logging.info(f"All data read and dispatched, time elapsed: {t2-t1:.2f}")
             
             ## Clean up
             dq.join()
