@@ -360,6 +360,12 @@ if __name__ == "__main__":
 
     ## All done
     t3 = time.time()
-    if (rank==0): logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
+    if (rank==0): 
+        logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
+        logging.info(f"")
+        logging.info(f"Summary:")
+        logging.info(f"Data waiting time: {t1-t0:.2f}")
+        logging.info(f"Data loading and queuing time: {t2-t1:.2f}")
+        logging.info(f"Overall time: {t3-t1:.2f}")
 
 # End of file processor_adios2.
