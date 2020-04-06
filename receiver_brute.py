@@ -357,7 +357,9 @@ if __name__ == "__main__":
             dq.join()
             dq.put((None, None, -1, -1))
             dispatcher.join()
-            t3 = time.time()
-            logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
+
+    ## All done
+    t3 = time.time()
+    if (rank==0): logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
 
 # End of file processor_adios2.
