@@ -35,7 +35,7 @@ parser.add_argument('--nworkers', type=int, help='Number of workers to middle', 
 parser.add_argument('--workwithmiddleman', help='Process with middleman', action='store_true')
 parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
 parser.add_argument('--subjob', help='subjob', action='store_true')
-parser.add_argument('--onlyn', type=int, help='process only n', default=1000)
+parser.add_argument('--onlyn', type=int, help='process only n')
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
@@ -343,9 +343,8 @@ if __name__ == "__main__":
                     #perform_analysis(channel_data, cfg, currentStep, trange)
 
                 n = n + 1
-                if not args.middleman:
-                    if n>=args.onlyn: 
-                        break
+                if (args.onlyn is not None) and (n >= args.onlyn):
+                    break
             logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart:.2f}")
             
             ## Clean up
