@@ -17,6 +17,8 @@ import threading
 import sys
 from fluctana import *
 
+from itertools import combinations 
+
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -188,7 +190,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
             # backend.store(my_analysis, analysis_result)
             #logging.info(f"\tWorker: loop done: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
         t1 = time.time()
-        save_spec(results,tstep)
+        #save_spec(results,tstep)
         t2 = time.time()
         logging.info(f"\tWorker: perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname} time elapsed: {t2-t0:.2f}")
 
@@ -277,6 +279,7 @@ if __name__ == "__main__":
             cfg_update = False
             logging.info(f"Start data reading loop")
             tstart = time.time()
+            n = 0
             while(True):
                 stepStatus = reader.BeginStep()
                 if stepStatus == adios2.StepStatus.OK:
@@ -315,8 +318,28 @@ if __name__ == "__main__":
 
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
-                dq.put((channel_data, cfg, currentStep, trange))
+                #dq.put((channel_data, cfg, currentStep, trange))
                 #perform_analysis(channel_data, cfg, currentStep, trange)
+                ## jyc: Testing decomposition
+                blocksize = 24
+                comb = list()
+                for i,j in combinations(range(channel_data.shape[0]//blocksize), 2):
+                    comb.append((i,j))
+                for i in range(channel_data.shape[0]//blocksize):
+                    comb.append((i,i))
+                logging.info(f"Decomposition: created {len(comb)} subjobs")
+                for i,j in comb:
+                    logging.info(f"Decomposition: received data tstep={currentStep}, rank = {rank}, ({i},{j})")
+                    np.r_[channel_data[i:8,:], channel_data[0:8,:]].shape
+                    block1 = channel_data[i*blocksize:i*blocksize+blocksize,:]
+                    block2 = channel_data[j*blocksize:j*blocksize+blocksize,:]
+                    data = np.r_[block1,block2]
+                    dq.put((data, cfg, currentStep, trange))
+                    #perform_analysis(data, cfg, currentStep, trange)
+                n = n + 1
+                if not args.middleman:
+                    if n>=1: 
+                        break
             logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart:.2f}")
             
             ## Clean up
