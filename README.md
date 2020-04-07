@@ -88,27 +88,30 @@ For the KNL nodes, best performance is with N=8/16 and 24 or 48 MPI ranks.
 Data storage is implmented for numpy and mongodb backends. See the configuration files configs/test_all.json.
 
 
-### MPI processor brute
+### MPI processor brute (2-node scenario)
 RMC's implementation of fluctana in the framework
 ```
   generator_brute.py   =====>    receiver_brute.py
-(running on KSTAR DTN)   |     (running on NERSC DTN)
+(running on KSTAR DTN)   |     (running on Cori compute nodes)
                          v
      stream name: shotnum-ch00000.bp
 ```
 
 We can run as follows. 
 
-First, on a Cori DTN node, run as follows:
+First, run the following by using 6 Cori compute nodes (haswell):
 ```
-module use -a /global/cscratch1/sd/jyc/dtn/sw/spack/share/spack/modules/linux-centos7-ivybridge
-module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
+module unload PrgEnv-cray PrgEnv-gnu PrgEnv-intel
+module load PrgEnv-gnu
 
-module load openmpi
-module load zeromq adios2
-module load python py-numpy py-mpi4py py-h5py py-scipy py-matplotlib
+module load python3
 
-mpirun -n 5 python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json 
+module use -a /global/cscratch1/sd/jyc/sw/modulefiles
+module load adios2/devel
+
+srun -n $((6*32)) -c 1 -N 6 --cpu-bind=cores \
+    python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json
+
 ```
 
 Then, on KSTAR, run as follows:
@@ -163,19 +166,97 @@ Here is config files used in the above:
 }
 ```
 
-# Workflow Scenario #2 (3-node scenario)
-This scenario adds an additional station, from the NERSC DTNs and the Cori compute nodes.
-Data streamed to the DTN and then forwarded to the processor running on the compute nodes.
+### MPI processor brute (3-node scenario)
+RMC's implementation of fluctana in the framework with 3-node scenario.
+
+This scenario adds an additional station, called middleman, running on a NERSC DTN.
+Data streams go to the NERSC DTN and then are forwarded to the processor running on the compute nodes.
 This mitigates the low bandwidth available to the compute nodes to the outside.
 
-
 ```
-  generator.py         =====>    receiver.py         =====>  analysis.py
-(running on KSTAR DTN)   |     (running on NERSC DTN)  |      (running on NERSC compute nodes)
+  generator_brute.py   =====>   middleman_brute.py   =====>   receiver_brute.py
+(running on KSTAR DTN)   |     (running on NERSC DTN)  |    (running on Cori compute nodeN)
                          v                             v
-     stream name: shotnum-channelid.bp          shotnum-channelid.s1.bp
+     stream name: shotnum-ch00000.bp            stream name: shotnum-ch00000.s00.bp
 ```
-This scenario is currently not fully.
+
+First, we run the following using 6 Cori compute nodes (haswell).
+```
+export OMP_NUM_THREADS=1
+export OMP_PLACES=cores
+export OMP_PROC_BIND=true
+
+srun -n $((6*32)) -c 1 -N 6 --cpu-bind=cores \
+    python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json --workwithmiddleman
+```
+Note: we use `--workwithmiddleman` option to work with a middleman
+
+Second, we run the middleman on NERSC dtn:
+```
+module use -a /global/cscratch1/sd/jyc/dtn/sw/spack/share/spack/modules/linux-centos7-ivybridge
+module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
+
+module load openmpi
+module load zeromq adios2
+module load python py-numpy py-mpi4py py-h5py py-scipy py-matplotlib
+
+mpirun -n 2 python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json --middleman
+```
+Note: we use the same `receiver_brute.py` script but give `--middleman` option to server as a middleman
+
+Finally, we run the generator on KSTAR:
+```
+python generator_brute.py --config config-kstar.json
+```
+
+Here is config files used in the above:
+`config-dtn.json`:
+```
+{
+    "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/",
+    "shotnr": 18431,
+    "channel_range": ["ECEI_L0101-2408"],
+    "analysis": [{"name" : "all"}],
+    "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
+    "engine": "DataMan",
+    "params": { "IPAddress": "203.230.120.125",
+                "Timeout": "60",
+                "OneToOneMode": "TRUE",
+                "OpenTimeoutSecs": "600",
+                "SpeculativePreloadMode": "Off",
+                "RegistrationMethod": "Screen"},
+    "nstep": 200,
+    "batch_size": 10000,
+    "resultspath": "./",
+
+    "middleman_engine": "SST",
+    "middleman_params": { "IPAddress": "203.230.120.125",
+                "Timeout": "60",
+                "OneToOneMode": "TRUE",
+                "OpenTimeoutSecs": "600",
+                "SpeculativePreloadMode": "Off",
+                "RegistrationMethod": "File"}
+}
+```
+`config-kstar.json`:
+```
+{
+    "datapath": "/home/choij/kstar_streaming/",
+    "shotnr": 18431,
+    "channel_range": ["ECEI_L0101-2408"],
+    "analysis": [{"name" : "all"}],
+    "engine": "DataMan",
+    "params": { "IPAddress": "203.230.120.125",
+                "Timeout": "60",
+                "OneToOneMode": "TRUE",
+                "OpenTimeoutSecs": "600",
+                "RegistrationMethod": "Screen"},
+    "nstep": 200,
+    "batch_size": 10000,
+    "resultspath": "./",
+}
+```
+
 
 
 # Interfacing to visualizers
