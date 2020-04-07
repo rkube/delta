@@ -5,31 +5,43 @@ import adios2
 import numpy as np 
 import json
 
+import logging
+
 from streaming.adios_helpers import gen_io_name, gen_channel_name
 
 class reader_base():
-    def __init__(self, shotnr, id):
+    """Base class for MPI based data readers.
+
+    IO name is {shotnr:05d}_ch{channel_id:03d}_r{rank:03d}.bp
+
+    A reader receives time-step data on a channel name based on a shotnr,
+    a channel_id and an MPI rank.
+    """
+    
+    def __init__(self, shotnr):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
 
         self.shotnr = shotnr
-        self.id = id
-        self.adios = adios2.ADIOS(MPI.COMM_SELF)
-        self.IO = self.adios.DeclareIO(gen_channel_name(self.rank))
-        print(f"reader_base.__init__(): rank = {self.rank:02d}")
+        self.adios = adios2.ADIOS(MPI.COMM_WORLD)
+        self.IO = self.adios.DeclareIO(f"KSTAR_ECEI_{self.shotnr:05d}")
+        self.logger = logging.getLogger("simple")
+        self.logger.info(f"reader_base.__init__(): rank = {self.rank:02d}")
 
-    def Open(self, worker_id=None):
+        self.reader = None
+
+    def Open(self):
         """Opens a new channel"""
-
-        if worker_id is None:
-            self.channel_name = gen_channel_name(self.shotnr, self.id, 0)
-        else:
-            self.channel_name = gen_channel_name(self.shotnr, self.worker_id, self.rank)
-        print (">>> Opening ... {self.channel_name}")
+        self.channel_name = gen_channel_name(self.shotnr, 0, self.rank)
+        self.logger.info(f">>> Opening ... {self.channel_name}")
 
         if self.reader is None:
-            self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
+            self.logger.info("Trying to call IO.Open")
+            self.reader = self.IO.Open("test123", adios2.Mode.Read, MPI.COMM_WORLD)
+            self.logger.info("...Success")
+
+        return None
 
 
     def BeginStep(self):
@@ -51,6 +63,7 @@ class reader_base():
 
         return(io_array)
 
+
     def get_attrs(self, attrsname):
         """Get json string `attrsname` from the opened stream"""
 
@@ -69,47 +82,73 @@ class reader_base():
 
 
 class reader_dataman(reader_base):
-    def __init__(self, shotnr, id):
-        super().__init__(shotnr, id)
+    """Reader that uses the DataMan Engine."""
+    def __init__(self, cfg):
+        super().__init__(cfg["shotnr"])
         self.IO.SetEngine("DataMan")
-        self.reader = None
+        cfg["transport"]["params"].update(Port = str(12300 + self.rank))
+        self.IO.SetParameters(cfg["transport"]["params"])
 
-        dataman_port = 12300 + self.rank
-        transport_params = {"IPAddress": "203.230.120.125",
-                            "Port": "{0:5d}".format(dataman_port),
-                            "OpenTimeoutSecs": "600",
-                            "AlwaysProvideLatestTimestep": "true"}
-        self.IO.SetParameters(transport_params)
-        print (">>> reader_dataman ... ")
+        self.logger.info("Trying to call IO.Open in __init__:")
+        self.reader = self.IO.Open("test123", adios2.Mode.Read, MPI.COMM_WORLD)
+        self.logger.info("success")
+
+
 
 
 class reader_bpfile(reader_base):
-    def __init__(self, shotnr, id):
-        super().__init__(shotnr, id)
+    """Reader that uses the BP4 engine."""
+    def __init__(self, cfg):
+        super().__init__(cfg["shotnr"])
         self.IO.SetEngine("BP4")
-        self.IO.SetParameter("OpenTimeoutSecs", "600")
-        self.reader = None
-        print (">>> reader_bpfile ... ")
+
 
 class reader_sst(reader_base):
-    def __init__(self, shotnr, id):
-        super().__init__(shotnr, id)
-        self.IO.SetEngine("SST")
-        self.IO.SetParameters({"OpenTimeoutSecs": "600.0"})
-        self.reader = None
-        print (">>> reader_sst ... ")
+    """Reader that uses the SST engine."""
+    def __init__(self, cfg):
+        super().__init__(cfg["shotnr"])
+        self.IO.SetEngine("BP4")
 
-class reader_gen(reader_base):
-    """ General reader to be initialized by name and parameters
-    """
-    def __init__(self, shotnr, id, engine, params):
-        super().__init__(shotnr, id)
-        self.IO.SetEngine(engine)
-        _params = params
-        if engine.lower() == "dataman":
-            dataman_port = 12300 + self.rank
-            _params.update(Port = "{0:5d}".format(dataman_port))
-        self.IO.SetParameters(_params)
-        self.reader = None
+
+# class reader_dataman(reader_base):
+#     def __init__(self, shotnr, id):
+#         super().__init__(shotnr, id)
+#         self.IO.SetEngine("DataMan")
+
+#         dataman_port = 12300 + self.rank
+#         transport_params = {"IPAddress": "203.230.120.125",
+#                             "Port": "{0:5d}".format(dataman_port),
+#                             "OpenTimeoutSecs": "600",
+#                             "AlwaysProvideLatestTimestep": "true"}
+#         self.IO.SetParameters(transport_params)
+#         self.logger.info(">>> reader_dataman ... ")
+
+
+# class reader_bpfile(reader_base):
+#     def __init__(self, shotnr, id):
+#         super().__init__(shotnr, id)
+#         self.IO.SetEngine("BP4")
+#         self.IO.SetParameter("OpenTimeoutSecs", "600")
+#         self.logger.info(">>> reader_bpfile ... ")
+
+# class reader_sst(reader_base):
+#     def __init__(self, shotnr, id):
+#         super().__init__(shotnr, id)
+#         self.IO.SetEngine("SST")
+#         self.IO.SetParameters({"OpenTimeoutSecs": "600.0"})
+#         self.logger.info(">>> reader_sst ... ")
+
+# class reader_gen(reader_base):
+#     """ General reader to be initialized by name and parameters
+#     """
+#     def __init__(self, shotnr, id, engine, params):
+#         super().__init__(shotnr, id)
+#         self.IO.SetEngine(engine)
+#         _params = params
+#         if engine.lower() == "dataman":
+#             dataman_port = 12300 + self.rank
+#             _params.update(Port = "{0:5d}".format(dataman_port))
+#         self.IO.SetParameters(_params)
+#         self.reader = None
 
 # end of file readers.py

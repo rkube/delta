@@ -6,6 +6,8 @@ import numpy as np
 import json
 from contextlib import contextmanager
 
+import logging
+
 from streaming.adios_helpers import gen_channel_name, gen_io_name
 
 class writer_base():
@@ -36,7 +38,7 @@ class writer_base():
                                                 data_array.shape, # count
                                                 adios2.ConstantDims)
 
-        print(f"Defined A2 variable {data_name}")
+        logging.info(f"Defined A2 variable {data_name}")
 
         return(self.variable)
 
@@ -57,7 +59,7 @@ class writer_base():
         """Opens a new channel. 
         """
 
-        self.channel_name = gen_channel_name(self.shotnr, self.id, 0)    #f"{self.shotnr:05d}_{self.id}.bp"
+        self.channel_name = gen_channel_name(self.shotnr, self.id, 0)  
 
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
@@ -128,6 +130,8 @@ class writer_gen(writer_base):
         self.IO.SetEngine(engine)
         _params = params
         if engine.lower() == "dataman":
+            logging.info("DATAMAN!!!")
+
             dataman_port = 12300 + self.rank
             _params.update(Port = "{0:5d}".format(dataman_port))
         self.IO.SetParameters(_params)

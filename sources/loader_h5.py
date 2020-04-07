@@ -5,8 +5,8 @@ from mpi4py import MPI
 
 from analysis.channels import channel_range
 
-class data_loader():
-    """Loads data time-chunk wise for a specified channel range"""
+class loader_h5():
+    """Loads KSTAR ECEi data time-chunk wise for a specified channel range from an HDF5 file"""
 
 
     def __init__(self, filename: str, ch_range: channel_range, chunk_size:int):
@@ -46,9 +46,6 @@ class data_loader():
         data_list: List of data elements from each channel
         """
         data_list = []
-        #comm = MPI.COMM_WORLD
-        #rank, size = comm.Get_rank(), comm.Get_size()
-        #print(f"rank: {rank:d} chunk: {self.current_chunk:d}, channel list: {self.channel_range}")
 
         with h5py.File(self.filename, "r") as df:
             for ch in [f"/ECEI/ECEI_{c}/Voltage" for c in self.ch_range]:

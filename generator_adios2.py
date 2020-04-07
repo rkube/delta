@@ -10,8 +10,8 @@ from os import path
 import json
 import argparse
 
-from generator.writers import writer_dataman, writer_bpfile
-from generator.data_loader import data_loader
+from streaming.writers import writer_dataman, writer_bpfile
+from streaming.data_loader import data_loader
 
 """
 Generates batches of ECEI data.
@@ -20,7 +20,6 @@ Generates batches of ECEI data.
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-
 
 parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')

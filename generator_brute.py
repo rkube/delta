@@ -10,7 +10,7 @@ from os import path
 import json
 import argparse
 
-from generators.writers import writer_gen
+from streaming.writers import writer_gen
 from fluctana import *
 
 """
