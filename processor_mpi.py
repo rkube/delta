@@ -40,9 +40,10 @@ import adios2
 
 import backends
 
-from readers.reader_mpi import reader_bpfile, reader_dataman
+from streaming.reader_mpi import reader_bpfile, reader_dataman
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
+from analysis.channels import channel_range
 
 
 @attr.s 
@@ -50,7 +51,7 @@ class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to
     local PoolExecutor"""
     tstep_idx = attr.ib(repr=True)
-    data       = attr.ib(repr=False)
+    data      = attr.ib(repr=False)
 
 
 cfg = {}
@@ -105,39 +106,18 @@ def main():
     logging.config.dictConfig(log_cfg)
 
 
-    # # Create a sub-directory in tests_performance if we run in benchmark mode
-    # if args.benchmark:
-    #     logger = logging.getLogger('benchmark')
-    #     logger.info("Running in benchmark mode")
-
-    #     tmpdir_name = os.path.join("tests_performance", cfg['run_id'])
-    #     logger.info(f"Runing in benchmark mode. Logging in {tmpdir_name}/performance.log")
-    #     os.mkdir(tmpdir_name)
-        
-    #     # Create the file handler
-    #     benchmark_fh = logging.FileHandler(os.path.join(tmpdir_name, 'performance.log'))
-    #     benchmark_formatter = logging.Formatter("%(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s ")
-    #     benchmark_fh.setFormatter(benchmark_formatter)
-
-    #     logger.addHandler(benchmark_fh)
-
-    # else:
-    #     logger = logging.getLogger('simple')
-
-
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     #executor = MPIPoolExecutor(max_workers=24)
 
+    adios2_varname = channel_range.from_str(cfg["transport"]["channel_range"][0])
+
     with MPICommExecutor(MPI.COMM_WORLD) as executor:
         if executor is not None:
-
             logger = logging.getLogger("simple")
             cfg['run_id'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             logger.info(f"Starting run {cfg['run_id']}")
     
-            logger.info("I am here")
-
             # Instantiate a storage backend and store the run configuration and task configuration
             if cfg['storage']['backend'] == "numpy":
                 store_backend = backends.backend_numpy(cfg['storage'])
@@ -148,22 +128,22 @@ def main():
 
             store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
-            logger.info("Stored")
-
             # Create the FFT task
             cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
             my_fft = task_fft_scipy(10_000, cfg["fft_params"], normalize=True, detrend=True)
             fft_params = my_fft.get_fft_params()
 
             # Create ADIOS reader object
-            reader = reader_bpfile(cfg["shotnr"], cfg)
-            reader.Open()
-            logger.info("Created reader")
+            if cfg["transport"]["engine"].lower() == "bp4":
+                reader = reader_bpfile(cfg)
+            elif cfg["transport"]["engine"].lower() == "dataman":
+                reader = reader_dataman(cfg)
+            else:
+                raise KeyError(f"cfg[transport][engine] = {cfg['transport']['engine']}. But it should be either bp4 or dataman")
 
             # Create the task list
             task_list = []
             for task_config in cfg["task_list"]:
-                #task_list.append(task_object_dict[task_config["analysis"]](task_config, fft_params, cfg["ECEI_cfg"]))
                 task_list.append(task_spectral(task_config, fft_params, cfg["ECEI_cfg"]))
                 store_backend.store_metadata(task_config, task_list[-1].get_dispatch_sequence())
                 
@@ -175,23 +155,31 @@ def main():
             worker = threading.Thread(target=consume, args=(dq, executor, my_fft, task_list))
             worker.start()
 
-            logger.info(f"Starting main loop")
+            # reader.Open() is blocking until it opens the data file or receives the
+            # data stream. Put this right before entering the main loop
+            logger.info("Waiting for generator")
+            reader.Open()
+            step = 0
             while True:
                 stepStatus = reader.BeginStep()
-
                 if stepStatus:
                     # Read data
-                    stream_data = reader.Get(save=True)
+                    stream_data = reader.Get(adios2_varname, save=True)
 
                     # Generate message id and publish is
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
+                else:
+                    logger.info(f"Exiting: StepStatus={stepStatus}")
+                    break
 
                 if reader.CurrentStep() >= 5:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
+
+
 
             logger.info("Exiting main loop")
             worker.join()
@@ -204,12 +192,10 @@ def main():
 
             toc_main = timeit.default_timer()
             logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
-
-
     # End MPICommExecutor section
 
 if __name__ == "__main__":
     main()
 
 
-# End of file processor_dask_mp.yp
+# End of file processor_mpi.py

@@ -3,11 +3,16 @@
 from mpi4py import MPI
 import adios2
 import logging
-import string
+import json
 from os.path import join
 
 import numpy as np
+
+
+
+
 from analysis.channels import channel, channel_range
+from streaming.adios_helpers import gen_io_name, gen_channel_name_v2
 
 """
 Author: Ralph Kube
@@ -15,13 +20,23 @@ Author: Ralph Kube
 
 
 class reader_base():
-    def __init__(self, shotnr: int, cfg: dict):
-        comm = MPI.COMM_WORLD
+    def __init__(self, cfg: dict):
+        """Generates a reader for KSTAR ECEI data.
+
+        Parameters:
+        -----------
+        cfg: delta config dictionary
+        """
+
+        comm  = MPI.COMM_SELF
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
+        # This should be MPI.COMM_SELF, not MPI.COMM_WORLD
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
-        self.shotnr = shotnr
-        self.IO = self.adios.DeclareIO("KSTAR_18431")
+        self.logger = logging.getLogger("simple")
+
+        self.shotnr = cfg["shotnr"]
+        self.IO = self.adios.DeclareIO(gen_io_name(self.shotnr))
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
         self.chunk_sizes = []
         
@@ -36,17 +51,22 @@ class reader_base():
         # Defines the time where we take the offset
         self.tnorm = cfg["ECEI_cfg"]["t_norm"]
 
+        self.reader = None
+        # Generate a descriptive channel name
+        chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
+        self.channel_name = gen_channel_name_v2(self.shotnr, chrg.to_str())
+        self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
+
 
     def Open(self):
         """Opens a new channel"""
 
-        #self.channel_name = join(datapath, f"KSTAR.bp")
+        self.logger.info(f"Waiting to receive channel name {self.channel_name}")
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
 
     def BeginStep(self):
         """Wrapper for reader.BeginStep()"""
-        logging.debug("Reader::BeginStep")
         res = self.reader.BeginStep()
         if res == adios2.StepStatus.OK:
             return(True)
@@ -98,7 +118,7 @@ class reader_base():
         return(tb)
 
     
-    def Get(self, channels=None, save=False):
+    def Get(self, ch_rg: channel_range, save: bool=False):
         """Get data from varname at current step.
 
         The ECEI data is usually normalized to a fixed offset, calculated using data 
@@ -116,41 +136,25 @@ class reader_base():
 
         Inputs:
         =======
-        channels: Either None, a string or a list of channels. Attempt to read all ECEI channels
-                  if channels is None
-        
+        ch_rg: channel_range that describes which channels to inquire. This is used to generate
+               a variable name which is inquired from the stream
+             
+
         Returns:
         ========
-        io_array: numpy ndarray containing data of the current step
+        time_chunk: numpy ndarray containing data of the current step
         """
 
-        if (isinstance(channels, channel_range)):
-            data_list = []
-            for c in channels:
-                var = self.IO.InquireVariable("ECEI_" + str(c))
-                io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
-                self.reader.Get(var, io_array, adios2.Mode.Sync)
-                data_list.append(io_array)
 
-            # Append size of current chunk to chunk sizes
-            self.chunk_sizes.append(data_list[0].size)
-            io_array = np.array(data_list) * 1e-4
-
-        elif isinstance(channels, type(None)):
-            data_list = []
-            logging.debug(f"Reader::Get*** Default reading channels L0101-L2408. Step no. {self.CurrentStep():d}")
-            clist = channel_range(channel("L", 1, 1), channel("L", 24, 8))
-
-            # Inquire the data of each channel from the ADIOS IO
-            for c in clist:
-                var = self.IO.InquireVariable("ECEI_" + str(c))
-                io_array = np.zeros(np.prod(var.Shape()), dtype=np.float64)
-                self.reader.Get(var, io_array, adios2.Mode.Sync)
-                data_list.append(io_array)
-
-            # Append size of current chunk to chunk sizes
-            self.chunk_sizes.append(data_list[0].size)
-            io_array = np.array(data_list) * 1e-4
+        # elif isinstance(channels, type(None)):
+        self.logger.info(f"Reader::Get*** Default reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
+        var = self.IO.InquireVariable(ch_rg.to_str())
+        time_chunk = np.zeros(var.Shape(), dtype=np.float64)
+        self.reader.Get(var, time_chunk, adios2.Mode.Sync)
+        self.logger.info(f"Got data: {time_chunk.shape}")
+        # Append size of current chunk to chunk sizes
+        self.chunk_sizes.append(time_chunk.shape[1])
+        time_chunk = time_chunk * 1e-4
             
         # If the normalization offset hasn't been calculated yet see if we have the
         # correct data to do so in the current chunk
@@ -159,51 +163,59 @@ class reader_base():
             tb = self.gen_timebase()
             # Calculate indices where we calculate the normalization offset from
             tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
-            logging.debug(f"*** Reader: I found {tnorm_idx.sum():d} indices where to normalize, tnorm = {self.tnorm}")
+            self.logger.debug(f"*** Reader: I found {tnorm_idx.sum():d} indices where to normalize, tnorm = {self.tnorm}")
             # Calculate normalization offset if we have enough indices
             if(tnorm_idx.sum() > 100):
-                self.offset_lvl = np.median(io_array[:, tnorm_idx], axis=1, keepdims=True)
-                self.offset_std = io_array[:, tnorm_idx].std(axis=1)
+                self.offset_lvl = np.median(time_chunk[:, tnorm_idx], axis=1, keepdims=True)
+                self.offset_std = time_chunk[:, tnorm_idx].std(axis=1)
                 self.is_data_normalized = True
 
                 if save:
                     np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
 
         if self.is_data_normalized:
-            logging.debug(f"*** Reader:Get: io_array.shape = {io_array.shape}")
+            self.logger.debug(f"*** Reader:Get: time_chunk.shape = {time_chunk.shape}")
             if save:
-                np.savez("test_data/io_array_s{0:04d}.npz".format(self.CurrentStep()), io_array=io_array)
+                np.savez("test_data/time_chunk_s{0:04d}.npz".format(self.CurrentStep()), time_chunk=time_chunk)
 
-            io_array = io_array - self.offset_lvl
-            io_array = io_array / io_array.mean(axis=1, keepdims=True) - 1.0
+            time_chunk = time_chunk - self.offset_lvl
+            time_chunk = time_chunk / time_chunk.mean(axis=1, keepdims=True) - 1.0
 
             if save:
-                np.savez(f"test_data/io_array_tr_s{self.CurrentStep():04d}.npz", io_array=io_array)
+                np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
 
-        return io_array
+        return time_chunk
 
 
 class reader_bpfile(reader_base):
-    def __init__(self, shotnr: int, cfg: dict):
-        super().__init__(shotnr, cfg)
-        assert(cfg["reader"]["engine"] == "BP4")
+    def __init__(self, cfg: dict):
+        """Instantiates a BP-file reader.
+
+        Parameters:
+        -----------
+        cfg : delta config dict
+        """
+        assert(cfg["transport"]["engine"] == "BP4")
+        super().__init__(cfg)
         self.IO.SetEngine("BP4")
         self.channel_name = join(cfg["reader"]["datapath"], f"KSTAR.bp")
         self.reader = None
 
 
 class reader_dataman(reader_base):
-    def __init__(self, shotnr:int, cfg: dict):
-        print("Instantiating reader_dataman")
+    def __init__(self, cfg: dict):
+        """Instantiates a DataMan reader.
 
-        super().__init__(shotnr, cfg)
-        assert(cfg["reader"]["engine"] == "dataman")
+        Parameters:
+        -----------
+        cfg : delta config dict
+        """
+        assert(cfg["transport"]["engine"].lower() == "dataman")
+        super().__init__(cfg)
         self.IO.SetEngine("DataMan")
-        self.IO.SetParameters({"IPAddress": cfg["reader"]["IPAddress"]})
-        self.IO.SetParameters({"Port": cfg["reader"]["Port"]})
-        self.IO.SetParameters({"OpenTimeoutSecs": cfg["reader"]["OpenTimeoutSecs"]})
-        self.IO.SetParameters({"Verbose": cfg["reader"]["Verbose"]})
-        self.reader = None
-        self.channel_name = f"{cfg['shotnr']:5d}"
+        cfg["transport"]["params"].update(Port = str(12306 + self.rank))
+        self.IO.SetParameters(cfg["transport"]["params"])
+
+
 
 # End of file reader_one_to_one.py

@@ -7,7 +7,8 @@ import json
 
 import logging
 
-from streaming.adios_helpers import gen_io_name, gen_channel_name
+from streaming.adios_helpers import gen_io_name, gen_channel_name_v2
+from analysis.channels import channel_range
 
 class reader_base():
     """Base class for MPI based data readers.
@@ -18,17 +19,24 @@ class reader_base():
     a channel_id and an MPI rank.
     """
     
-    def __init__(self, shotnr):
+    def __init__(self, cfg: dict):
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
 
         self.logger = logging.getLogger("simple")
 
-        self.shotnr = shotnr
+        self.shotnr = cfg["shotnr"]
         self.adios = adios2.ADIOS(MPI.COMM_WORLD)
-        self.IO = self.adios.DeclareIO(f"KSTAR_ECEI_{self.shotnr:05d}")
+        self.IO = self.adios.DeclareIO(gen_io_name(self.shotnr))
         self.reader = None
+
+        # Generate a descriptive channel name
+        chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
+        self.channel_name = gen_channel_name_v2(self.shotnr, chrg.to_str())
+        self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
+
+
 
     def Open(self):
         """Opens a new channel.
@@ -38,12 +46,9 @@ class reader_base():
         specified in config['transport']['params']. Open will wait for Timeout
         seconds until it throws an error.
         """
-        self.channel_name = gen_channel_name(self.shotnr, 0, self.rank)
-        self.logger.info(f">>> Opening ... {self.channel_name}")
-
+        self.logger.info(f"Waiting to receive {self.channel_name}")
         if self.reader is None:
-            self.logger.info(f"Waiting to receive {self.channel_name}")
-            self.reader = self.IO.Open("HelloDataMan", adios2.Mode.Read)
+            self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
 
         return None
 
@@ -88,7 +93,7 @@ class reader_base():
 class reader_dataman(reader_base):
     """Reader that uses the DataMan Engine."""
     def __init__(self, cfg):
-        super().__init__(cfg["shotnr"])
+        super().__init__(cfg)
         self.IO.SetEngine("DataMan")
         cfg["transport"]["params"].update(Port = str(12306 + self.rank))
 
@@ -101,15 +106,15 @@ class reader_dataman(reader_base):
 class reader_bpfile(reader_base):
     """Reader that uses the BP4 engine."""
     def __init__(self, cfg):
-        super().__init__(cfg["shotnr"])
+        super().__init__(cfg)
         self.IO.SetEngine("BP4")
 
 
 class reader_sst(reader_base):
     """Reader that uses the SST engine."""
     def __init__(self, cfg):
-        super().__init__(cfg["shotnr"])
-        self.IO.SetEngine("BP4")
+        super().__init__(cfg)
+        self.IO.SetEngine("SST")
 
 
 # class reader_dataman(reader_base):
