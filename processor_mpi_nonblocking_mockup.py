@@ -21,7 +21,6 @@ Mockup of Jong's Pool processing model with the addition of a global futures_lis
 The queue consumer does not evaluate futures but appends them to a global futures_list.
 The futures in that list are handled one-by-one as the results become available
 
-
 To run on an interactive node
 
 using MPIPoolExecutor

@@ -23,23 +23,27 @@ class reader_base():
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
 
+        self.logger = logging.getLogger("simple")
+
         self.shotnr = shotnr
         self.adios = adios2.ADIOS(MPI.COMM_WORLD)
         self.IO = self.adios.DeclareIO(f"KSTAR_ECEI_{self.shotnr:05d}")
-        self.logger = logging.getLogger("simple")
-        self.logger.info(f"reader_base.__init__(): rank = {self.rank:02d}")
-
         self.reader = None
 
     def Open(self):
-        """Opens a new channel"""
+        """Opens a new channel.
+
+        When using BP4, this will open file file self.channel_name.
+        When using DataMan, this will wait to connect to the channel and host
+        specified in config['transport']['params']. Open will wait for Timeout
+        seconds until it throws an error.
+        """
         self.channel_name = gen_channel_name(self.shotnr, 0, self.rank)
         self.logger.info(f">>> Opening ... {self.channel_name}")
 
         if self.reader is None:
-            self.logger.info("Trying to call IO.Open")
-            self.reader = self.IO.Open("test123", adios2.Mode.Read, MPI.COMM_WORLD)
-            self.logger.info("...Success")
+            self.logger.info(f"Waiting to receive {self.channel_name}")
+            self.reader = self.IO.Open("HelloDataMan", adios2.Mode.Read)
 
         return None
 
@@ -58,7 +62,7 @@ class reader_base():
         """Attempt to load `varname` from the opened stream"""
 
         var = self.IO.InquireVariable(varname)
-        io_array = np.zeros(var.Shape(), dtype=np.float)
+        io_array = np.zeros(var.Shape(), dtype=np.float32)
         self.reader.Get(var, io_array, adios2.Mode.Sync)
 
         return(io_array)
@@ -86,12 +90,10 @@ class reader_dataman(reader_base):
     def __init__(self, cfg):
         super().__init__(cfg["shotnr"])
         self.IO.SetEngine("DataMan")
-        cfg["transport"]["params"].update(Port = str(12300 + self.rank))
-        self.IO.SetParameters(cfg["transport"]["params"])
+        cfg["transport"]["params"].update(Port = str(12306 + self.rank))
 
-        self.logger.info("Trying to call IO.Open in __init__:")
-        self.reader = self.IO.Open("test123", adios2.Mode.Read, MPI.COMM_WORLD)
-        self.logger.info("success")
+        logging.info(f"reader_dataman: params = {cfg['transport']['params']}")
+        self.IO.SetParameters(cfg["transport"]["params"])
 
 
 
