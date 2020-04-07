@@ -95,6 +95,7 @@ RMC's implementation of fluctana in the framework
 (running on KSTAR DTN)   |     (running on Cori compute nodes)
                          v
      stream name: shotnum-ch00000.bp
+     stream method: DataMan
 ```
 
 We can run as follows. 
@@ -178,6 +179,7 @@ This mitigates the low bandwidth available to the compute nodes to the outside.
 (running on KSTAR DTN)   |     (running on NERSC DTN)  |    (running on Cori compute nodeN)
                          v                             v
      stream name: shotnum-ch00000.bp            stream name: shotnum-ch00000.s00.bp
+     stream method: DataMan                     stream method: SST
 ```
 
 First, we run the following using 6 Cori compute nodes (haswell).
