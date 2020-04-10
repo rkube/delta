@@ -24,6 +24,7 @@ size = comm.Get_size()
 
 parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
+parser.add_argument('--sleep', type=float, help='sleep', default=0.0)
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
@@ -85,6 +86,7 @@ for i in range(nstep):
         w.put_data("tstep",np.array(i))
         w.put_data("trange",np.array([tstarts[i],tstops[i]]))
         w.put_data("floats",data_all[i])
+    time.sleep(args.sleep)
 
 t1 = time.time()
 writer.writer.Close()

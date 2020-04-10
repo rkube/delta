@@ -36,6 +36,7 @@ parser.add_argument('--workwithmiddleman', help='Process with middleman', action
 parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
 parser.add_argument('--subjob', help='subjob', action='store_true')
 parser.add_argument('--onlyn', type=int, help='process only n')
+parser.add_argument('--blocksize', type=int, help='blocksize', default=24)
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
@@ -107,6 +108,7 @@ if args.debug:
             'LoFreq':reader.dobj.lo,'LensFocus':reader.dobj.sf,'LensZoom':reader.dobj.sz})
 
 def writer_init(shotnr, gen_id, worker_id, data_arr):
+    logging.info(f"\tMiddleman: opening a channel for writer #{worker_id}")
     writer = writer_gen(shotnr, gen_id, cfg["middleman_engine"], cfg["middleman_params"])
 
     writer.DefineVariable("tstep",np.array(0))
@@ -199,12 +201,31 @@ def perform_analysis(channel_data, cfg, tstep, trange):
 # Function for a helper thead (dispatcher).
 # The dispatcher will dispatch data in the queue (dq) and 
 # distribute to other workers (non-master MPI workers) with mpi4py's MPICommExecutor.
+# We assume only a single dispatcher
 def dispatch():
+    isfirst = True
     while True:
         channel_data, cfg, tstep, trange = dq.get()
         logging.info(f"\tDispatcher: read data: tstep = {tstep}, rank = {rank}")
         if channel_data is None:
             break
+        
+        ## Act as a middleman
+        ## Middleman receives data from the generator and distribute to n processors
+        ## We need to open channel only after receiving at least one step
+        if isfirst and args.middleman:
+            nworkers = args.nworkers
+            writer_list = list()
+            for i in range(nworkers):
+                shotnr = cfg["shotnr"]
+                gen_id = 100000 * rank
+                channels = expand_clist(cfg["channel_range"])
+                batch_size = cfg['batch_size']
+                data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+                w = writer_init(shotnr, gen_id, i, data_array)
+                writer_list.append(w)
+            isfirst = False
+
         ## If middleman, we write data. Otherwise, distribute to others for analysis
         if args.middleman:
             writer = writer_list[tstep%args.nworkers]
@@ -299,19 +320,19 @@ if __name__ == "__main__":
                         cfg.update(reader.get_attrs("cfg"))
                         cfg_update = True
 
-                        ## Act as a middleman
-                        ## Middleman receives data from the generator and distribute to n processors
-                        if args.middleman:
-                            nworkers = args.nworkers
-                            writer_list = list()
-                            for i in range(nworkers):
-                                shotnr = cfg["shotnr"]
-                                gen_id = 100000 * rank
-                                channels = expand_clist(cfg["channel_range"])
-                                batch_size = cfg['batch_size']
-                                data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
-                                w = writer_init(shotnr, gen_id, i, data_array)
-                                writer_list.append(w)
+                        # ## Act as a middleman
+                        # ## Middleman receives data from the generator and distribute to n processors
+                        # if args.middleman:
+                        #     nworkers = args.nworkers
+                        #     writer_list = list()
+                        #     for i in range(nworkers):
+                        #         shotnr = cfg["shotnr"]
+                        #         gen_id = 100000 * rank
+                        #         channels = expand_clist(cfg["channel_range"])
+                        #         batch_size = cfg['batch_size']
+                        #         data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+                        #         w = writer_init(shotnr, gen_id, i, data_array)
+                        #         writer_list.append(w)
                         
                     reader.EndStep()
                 else:
@@ -329,7 +350,7 @@ if __name__ == "__main__":
                 #perform_analysis(channel_data, cfg, currentStep, trange)
                 ## jyc: Testing decomposition
                 if args.subjob:
-                    blocksize = 24
+                    blocksize = args.blocksize
                     comb = list()
                     for i,j in combinations(range(channel_data.shape[0]//blocksize), 2):
                         comb.append((i,j))
