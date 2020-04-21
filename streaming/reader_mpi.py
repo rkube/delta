@@ -187,35 +187,20 @@ class reader_base():
         return time_chunk
 
 
-class reader_bpfile(reader_base):
+class reader_gen(reader_base):
     def __init__(self, cfg: dict):
-        """Instantiates a BP-file reader.
+        """Instantiates a reader.
+           Control Adios method and params through cfg
 
         Parameters:
         -----------
         cfg : delta config dict
         """
-        assert(cfg["transport"]["engine"] == "BP4")
         super().__init__(cfg)
-        self.IO.SetEngine("BP4")
-        self.channel_name = join(cfg["reader"]["datapath"], f"KSTAR.bp")
-        self.reader = None
-
-
-class reader_dataman(reader_base):
-    def __init__(self, cfg: dict):
-        """Instantiates a DataMan reader.
-
-        Parameters:
-        -----------
-        cfg : delta config dict
-        """
-        assert(cfg["transport"]["engine"].lower() == "dataman")
-        super().__init__(cfg)
-        self.IO.SetEngine("DataMan")
-        cfg["transport"]["params"].update(Port = str(12306 + self.rank))
+        self.IO.SetEngine(cfg["transport"]["engine"])
+        ## Set port number for DataMan
+        if cfg["transport"]["engine"].lower() == "dataman":
+            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
 
-
-
-# End of file reader_one_to_one.py
+# End of file 

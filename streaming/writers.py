@@ -114,64 +114,20 @@ class writer_base():
             self.writer.EndStep()
 
 
-class writer_dataman(writer_base):
+class writer_gen(writer_base):
     def __init__(self, cfg):
-        """Perform DataMan specific initialization on top of writer_base."""
+        """Instantiates a writer.
+           Control Adios method and params through cfg
 
+        Parameters:
+        -----------
+        cfg : delta config dict
+        """
+ 
         super().__init__(cfg)
-        self.IO.SetEngine("DataMan")
-        cfg["transport"]["params"].update(Port = str(12306 + self.rank))
+        self.IO.SetEngine(cfg["transport"]["engine"])
+        if cfg["transport"]["engine"].lower() == "dataman":
+            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
 
-
-class writer_bpfile(writer_base):
-    def __init__(self, cfg):
-        """Perform BP4 specific initialization on top of writer_base."""
-        super().__init__(cfg)
-        self.IO.SetEngine("BP4")
-
-
-class writer_sst(writer_base):
-    def __init__(self, cfg):
-        """Perform SST specific initialization on top of writer_base."""
-        super().__init__(cfg)
-        self.IO.SetEngine("SST")
-
-
-# class writer_dataman(writer_base):
-#     def __init__(self, cfg):
-#         super().__init__(cfg)
-#         self.IO.SetEngine("DataMan")
-#         dataman_port = 12300 + self.rank
-#         transport_params = {"IPAddress": "203.230.120.125",
-#                             "Port": "{0:5d}".format(dataman_port),
-#                             "OpenTimeoutSecs": "600",
-#                             "Verbose": "20"}
-#         self.IO.SetParameters(transport_params)
-
-# class writer_bpfile(writer_base):
-#     def __init__(self, shotnr):
-#         super().__init__(shotnr)
-#         self.IO.SetEngine("BP4")
-        
-# class writer_sst(writer_base):
-#     def __init__(self, shotnr, id):
-#         super().__init__(shotnr, id)
-#         self.IO.SetEngine("SST")
-#         self.IO.SetParameter("OpenTimeoutSecs", "600")
-
-# class writer_gen(writer_base):
-#     """ General writer to be initialized by name and parameters
-#     """
-#     def __init__(self, shotnr, id, engine, params):
-#         super().__init__(shotnr, id)
-#         self.IO.SetEngine(engine)
-#         _params = params
-#         if engine.lower() == "dataman":
-#             logging.info("DATAMAN!!!")
-
-#             dataman_port = 12300 + self.rank
-#             _params.update(Port = "{0:5d}".format(dataman_port))
-#         self.IO.SetParameters(_params)
-
-# End of file a2_sender.py
+# End of file
