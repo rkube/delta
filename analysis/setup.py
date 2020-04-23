@@ -11,7 +11,8 @@ extensions = [
               libraries=["kernels"],
               library_dirs=["lib"],
               include_dirs=[numpy.get_include(), "lib"],
-              extra_compile_args=["-qopenmp", "-xHost"],
+              #extra_compile_args=["-qopenmp", "-xHost"], ## for intel
+              extra_compile_args=["-fopenmp", ], ## for GCC. Recommended with Python
               extra_link_args=[]),
 ]
 

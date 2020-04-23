@@ -18,7 +18,7 @@ import os
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor, MPICommExecutor
 import sys
-sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
+#sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
 
 import logging
 import logging.config
@@ -40,7 +40,7 @@ import adios2
 
 import backends
 
-from streaming.reader_mpi import reader_bpfile, reader_dataman
+from streaming.reader_mpi import reader_gen
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
 from analysis.channels import channel_range
@@ -134,12 +134,7 @@ def main():
             fft_params = my_fft.get_fft_params()
 
             # Create ADIOS reader object
-            if cfg["transport"]["engine"].lower() == "bp4":
-                reader = reader_bpfile(cfg)
-            elif cfg["transport"]["engine"].lower() == "dataman":
-                reader = reader_dataman(cfg)
-            else:
-                raise KeyError(f"cfg[transport][engine] = {cfg['transport']['engine']}. But it should be either bp4 or dataman")
+            reader = reader_gen(cfg)
 
             # Create the task list
             task_list = []
@@ -170,14 +165,17 @@ def main():
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
                     dq.put(msg)
                     logger.info(f"Published message {msg}")
+                    reader.EndStep()
                 else:
-                    logger.info(f"Exiting: StepStatus={stepStatus}")
-                    break
-
-                if reader.CurrentStep() >= 5:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
+                step = step + 1
+
+                #if reader.CurrentStep() >= 5:
+                #    logger.info(f"Exiting: StepStatus={stepStatus}")
+                #    dq.put(AdiosMessage(tstep_idx=None, data=None))
+                #    break
 
 
 
