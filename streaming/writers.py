@@ -115,15 +115,23 @@ class writer_base():
             self.writer.EndStep()
 
 
-class writer_dataman(writer_base):
+class writer_gen(writer_base):
     def __init__(self, cfg):
-        """Perform DataMan specific initialization on top of writer_base."""
+        """Instantiates a writer.
+           Control Adios method and params through cfg
 
+        Parameters:
+        -----------
+        cfg : delta config dict
+        """
+ 
         super().__init__(cfg)
-        self.IO.SetEngine("DataMan")
-        cfg["transport"]["params"].update(Port = str(12306 + self.rank))
+        self.IO.SetEngine(cfg["transport"]["engine"])
+        if cfg["transport"]["engine"].lower() == "dataman":
+            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
 
+<<<<<<< HEAD
 
 class writer_bpfile(writer_base):
     def __init__(self, cfg):
@@ -144,3 +152,6 @@ class writer_sst(writer_base):
         return None
 
 # End of file a2_sender.py
+=======
+# End of file
+>>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768

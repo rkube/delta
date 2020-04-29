@@ -18,7 +18,7 @@ import os
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor, MPICommExecutor
 import sys
-sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
+#sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
 
 import logging
 import logging.config
@@ -40,7 +40,7 @@ import adios2
 
 import backends
 
-from streaming.reader_mpi import reader_bpfile, reader_dataman, reader_sst
+from streaming.reader_mpi import reader_gen
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
 from analysis.channels import channel_range
@@ -144,14 +144,7 @@ def main():
             fft_params = my_fft.get_fft_params()
 
             # Create ADIOS reader object
-            if cfg["transport"]["engine"].lower() == "bp4":
-                reader = reader_bpfile(cfg)
-            elif cfg["transport"]["engine"].lower() == "dataman":
-                reader = reader_dataman(cfg)
-            elif cfg["transport"]["engine"].lower() == "sst":
-                reader = reader_sst(cfg)
-            else:
-                raise KeyError(f"cfg[transport][engine] = {cfg['transport']['engine']}. But it should be either bp4 or dataman")
+            reader = reader_gen(cfg)
 
             # Create the task list
             logger.info(f"Storing metadata")
@@ -188,6 +181,7 @@ def main():
                     # Generate message id and publish is
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
                     dq.put(msg)
+<<<<<<< HEAD
                     logger.info(f"rank{rank} Published message {msg}")
                 else:
                     logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
@@ -195,8 +189,20 @@ def main():
 
                 if reader.CurrentStep() >= 90:
                     logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
+=======
+                    logger.info(f"Published message {msg}")
+                    reader.EndStep()
+                else:
+                    logger.info(f"Exiting: StepStatus={stepStatus}")
+>>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
+                step = step + 1
+
+                #if reader.CurrentStep() >= 5:
+                #    logger.info(f"Exiting: StepStatus={stepStatus}")
+                #    dq.put(AdiosMessage(tstep_idx=None, data=None))
+                #    break
 
                 last_step = reader.CurrentStep()
 
@@ -217,4 +223,9 @@ def main():
 if __name__ == "__main__":
     main()
 
+<<<<<<< HEAD
 # End of file processor_mpi.py
+=======
+
+# End of file processor_mpi.py
+>>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768

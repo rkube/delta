@@ -7,7 +7,15 @@ cimport openmp
 
 from cython.parallel import prange
 
-from libc.complex cimport conj, csqrt, cabs, creal, cimag
+#from libc.complex cimport conj, csqrt, cabs, creal, cimag
+cimport cython
+cdef extern from "complex.h" nogil:
+    double complex conj(double complex x)
+    double complex csqrt(double complex x)
+    double cabs(double complex x)
+    double creal(double complex x)
+    double cimag(double complex x)
+
 from libc.math cimport atan2
 from libc.stdint cimport uint32_t
 
