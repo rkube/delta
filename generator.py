@@ -64,7 +64,7 @@ data_all = dl.get_batch()
 logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport']['engine']}")
 
 writer = writer_gen(cfg)
-writer.DefineVariable(ch_rg.to_str(), data_arr)
+writer.DefineVariable(ch_rg.to_str(), data_all[0])
 writer.Open()
 
 logger.info("Start sending on channel:")

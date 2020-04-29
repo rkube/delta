@@ -22,7 +22,7 @@
     "chunk_size": 10000,
     "nstep": 100,
     "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
-    "engine": "SST",
+    "engine": "BP4",
     "channel_range": ["L0101-0808"],
     "params":
     {
@@ -34,14 +34,6 @@
       "OpenTimeoutSecs": "300"
     }
   },
-  "transport":
-  {
-    "chunk_size": 10000,
-    "nstep": 100,
-    "datapath": "/global/homes/r/rkube/repos/delta/",
-    "engine": "SST",
-    "channel_range": ["L0101-0808"]
-  },
   "storage_mongo": 
   {
     "backend": "mongo",
@@ -51,10 +43,6 @@
   "storage": 
   {
     "backend": "null"
-  },
-  "storage_postgre": 
-  {
-    "backend": "postgre"
   },
   "ECEI_cfg": {
                "TriggerTime": [-0.12, 61.2, 60],
