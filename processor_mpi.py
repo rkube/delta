@@ -40,7 +40,7 @@ import adios2
 
 import backends
 
-from streaming.reader_mpi import reader_bpfile, reader_dataman
+from streaming.reader_mpi import reader_bpfile, reader_dataman, reader_sst
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
 from analysis.channels import channel_range
@@ -64,6 +64,10 @@ def consume(Q, executor, my_fft, task_list):
     logger = logging.getLogger('simple')
     global cfg
 
+    comm  = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
     while True:
         msg = Q.get()
         # If we get our special break message, we exit
@@ -75,7 +79,7 @@ def consume(Q, executor, my_fft, task_list):
         tic_fft = timeit.default_timer()
         fft_data = my_fft.do_fft_local(msg.data)
         toc_fft = timeit.default_timer()
-        logger.info(f"tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
+        logger.info(f"rank {rank}: tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
         # Step 2) Distribute the work via the executor 
         for task in task_list:
@@ -83,7 +87,7 @@ def consume(Q, executor, my_fft, task_list):
             task.submit(executor, fft_data, msg.tstep_idx, cfg)
 
         Q.task_done()
-        logger.info(f"Consumed {msg}")
+        logger.info(f"rank {rank}: Consumed {msg}")
 
 
 def main():
@@ -105,6 +109,10 @@ def main():
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
 
+    comm  = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
@@ -114,7 +122,9 @@ def main():
 
     with MPICommExecutor(MPI.COMM_WORLD) as executor:
         if executor is not None:
-            logger = logging.getLogger("simple")
+
+            logger = logging.getLogger('simple')
+            logger.info(f"Starting up. Using adios2 from {adios2.__file__}")
             cfg['run_id'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
             logger.info(f"Starting run {cfg['run_id']}")
     
@@ -138,10 +148,13 @@ def main():
                 reader = reader_bpfile(cfg)
             elif cfg["transport"]["engine"].lower() == "dataman":
                 reader = reader_dataman(cfg)
+            elif cfg["transport"]["engine"].lower() == "sst":
+                reader = reader_sst(cfg)
             else:
                 raise KeyError(f"cfg[transport][engine] = {cfg['transport']['engine']}. But it should be either bp4 or dataman")
 
             # Create the task list
+            logger.info(f"Storing metadata")
             task_list = []
             for task_config in cfg["task_list"]:
                 task_list.append(task_spectral(task_config, fft_params, cfg["ECEI_cfg"]))
@@ -157,29 +170,35 @@ def main():
 
             # reader.Open() is blocking until it opens the data file or receives the
             # data stream. Put this right before entering the main loop
-            logger.info("Waiting for generator")
+            logger.info(f"{rank} Waiting for generator")
             reader.Open()
-            step = 0
+            last_step = 0
+
+            rx_list = []
             while True:
                 stepStatus = reader.BeginStep()
+                if last_step == reader.CurrentStep():
+                    continue
+
                 if stepStatus:
                     # Read data
                     stream_data = reader.Get(adios2_varname, save=True)
+                    rx_list.append(reader.CurrentStep())
 
                     # Generate message id and publish is
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
                     dq.put(msg)
-                    logger.info(f"Published message {msg}")
+                    logger.info(f"rank{rank} Published message {msg}")
                 else:
-                    logger.info(f"Exiting: StepStatus={stepStatus}")
+                    logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
                     break
 
-                if reader.CurrentStep() >= 5:
-                    logger.info(f"Exiting: StepStatus={stepStatus}")
+                if reader.CurrentStep() >= 90:
+                    logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
 
-
+                last_step = reader.CurrentStep()
 
             logger.info("Exiting main loop")
             worker.join()
@@ -192,10 +211,10 @@ def main():
 
             toc_main = timeit.default_timer()
             logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
+            logger.info(f"Processed time_chunks {rx_list}")
     # End MPICommExecutor section
 
 if __name__ == "__main__":
     main()
-
 
 # End of file processor_mpi.py

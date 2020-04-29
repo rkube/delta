@@ -2,6 +2,7 @@
 
 import h5py
 from mpi4py import MPI
+import numpy as np
 
 from analysis.channels import channel_range
 
@@ -34,6 +35,7 @@ class loader_h5():
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
         self.filename = filename
         self.chunk_size = chunk_size
+        self.num_chunks = 500
         # The current time-chunk. Increases by 1  for each call of get.
         self.current_chunk = 0
 
@@ -55,6 +57,20 @@ class loader_h5():
             df.close()
 
         return(data_list)
+
+    def get_batch(self):
+        """Returns a list with all time chunks. Loads all channels batch-wise and
+           splits using numpy.split"""
+
+        data_arr = np.zeros((self.ch_range.length(), 5000000), dtype=np.int16)
+        with h5py.File(self.filename, "r") as df:
+            for ch in self.ch_range:
+                data_arr[ch.idx(), :] = df[f"/ECEI/ECEI_{ch.__str__()}/Voltage"]
+
+        data_arr = data_arr.astype(np.float64)
+
+        return(np.split(data_arr, self.num_chunks, axis=1))
+
 
 
 # End of file 

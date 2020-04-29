@@ -8,9 +8,6 @@ from os.path import join
 
 import numpy as np
 
-
-
-
 from analysis.channels import channel, channel_range
 from streaming.adios_helpers import gen_io_name, gen_channel_name_v2
 
@@ -53,9 +50,10 @@ class reader_base():
 
         self.reader = None
         # Generate a descriptive channel name
-        chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
-        self.channel_name = gen_channel_name_v2(self.shotnr, chrg.to_str())
+        self.chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
+        #self.datapath = cfg["transport"]["datapath"]
 
 
     def Open(self):
@@ -64,6 +62,9 @@ class reader_base():
         self.logger.info(f"Waiting to receive channel name {self.channel_name}")
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
+        else:
+            pass
+        self.logger.info(f"Opened channel {self.channel_name}")
 
     def BeginStep(self):
         """Wrapper for reader.BeginStep()"""
@@ -147,7 +148,7 @@ class reader_base():
 
 
         # elif isinstance(channels, type(None)):
-        self.logger.info(f"Reader::Get*** Default reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
+        self.logger.info(f"Reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
         var = self.IO.InquireVariable(ch_rg.to_str())
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
@@ -198,7 +199,7 @@ class reader_bpfile(reader_base):
         assert(cfg["transport"]["engine"] == "BP4")
         super().__init__(cfg)
         self.IO.SetEngine("BP4")
-        self.channel_name = join(cfg["reader"]["datapath"], f"KSTAR.bp")
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 
 
@@ -215,6 +216,24 @@ class reader_dataman(reader_base):
         self.IO.SetEngine("DataMan")
         cfg["transport"]["params"].update(Port = str(12306 + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
+        self.reader = None
+
+class reader_sst(reader_base):
+    def __init__(self, cfg: dict):
+        """Instantiates a SST reader.
+
+        Parameters:
+        -----------
+        cfg : delta config dict
+        """
+        assert(cfg["transport"]["engine"].lower() == "sst")
+        super().__init__(cfg)
+        self.IO.SetEngine("sst")
+        # SST file is stored in datapath
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
+        #self.channel_name = "test.sst"
+        self.reader = None
 
 
 

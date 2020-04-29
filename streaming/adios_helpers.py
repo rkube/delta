@@ -13,12 +13,12 @@ def gen_io_name(shotnr: int):
 def gen_channel_name(channel_id: int, rank: int):
     """Generates a channel ID for readers."""
 
-    return f"ch{channel_id:04d}_r{rank:03d}.bp"
+    return f"ch{channel_id:04d}_r{rank:03d}"
 
 def gen_channel_name_v2(shotnr: int, channel_rg: str):
     """Generates a channel ID using channel range strings. (see analysis/channels.py)"""
 
-    return f"{shotnr:05d}_ch{channel_rg:s}.bp"
+    return f"{shotnr:05d}_ch{channel_rg:s}"
 
 
 # End of file adios_helpers.py

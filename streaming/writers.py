@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 
 from mpi4py import MPI
+from os.path import join
 import adios2
 import numpy as np
 import json
@@ -29,9 +30,9 @@ class writer_base():
         self.shape = None
 
         # Generate a descriptive channel name
-        chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
-        self.channel_name = gen_channel_name_v2(self.shotnr, chrg.to_str())
-        self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
+        self.chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
+        self.logger.info(f"writer_base: channel_name =  {self.channel_name}")
 
 
     def DefineVariable(self, data_name:str, data_array:np.ndarray):
@@ -129,49 +130,17 @@ class writer_bpfile(writer_base):
         """Perform BP4 specific initialization on top of writer_base."""
         super().__init__(cfg)
         self.IO.SetEngine("BP4")
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
 
-
+    
 class writer_sst(writer_base):
     def __init__(self, cfg):
         """Perform SST specific initialization on top of writer_base."""
         super().__init__(cfg)
         self.IO.SetEngine("SST")
+        self.datapath = cfg["transport"]["datapath"]
+        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
 
-
-# class writer_dataman(writer_base):
-#     def __init__(self, cfg):
-#         super().__init__(cfg)
-#         self.IO.SetEngine("DataMan")
-#         dataman_port = 12300 + self.rank
-#         transport_params = {"IPAddress": "203.230.120.125",
-#                             "Port": "{0:5d}".format(dataman_port),
-#                             "OpenTimeoutSecs": "600",
-#                             "Verbose": "20"}
-#         self.IO.SetParameters(transport_params)
-
-# class writer_bpfile(writer_base):
-#     def __init__(self, shotnr):
-#         super().__init__(shotnr)
-#         self.IO.SetEngine("BP4")
-        
-# class writer_sst(writer_base):
-#     def __init__(self, shotnr, id):
-#         super().__init__(shotnr, id)
-#         self.IO.SetEngine("SST")
-#         self.IO.SetParameter("OpenTimeoutSecs", "600")
-
-# class writer_gen(writer_base):
-#     """ General writer to be initialized by name and parameters
-#     """
-#     def __init__(self, shotnr, id, engine, params):
-#         super().__init__(shotnr, id)
-#         self.IO.SetEngine(engine)
-#         _params = params
-#         if engine.lower() == "dataman":
-#             logging.info("DATAMAN!!!")
-
-#             dataman_port = 12300 + self.rank
-#             _params.update(Port = "{0:5d}".format(dataman_port))
-#         self.IO.SetParameters(_params)
+        return None
 
 # End of file a2_sender.py

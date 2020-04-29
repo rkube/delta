@@ -251,8 +251,6 @@ class channel_range:
     The iteration proceeds linear from the index of a start_channel to the index of an end_channel:
     >>> ch_start = channel('L', 1, 7)
     >>> ch_end = channel('L', 2,)
-    ... to be continued
-
 
     """
 

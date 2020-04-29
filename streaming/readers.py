@@ -1,6 +1,8 @@
 #-*- coding: UTF-8 -*-
 
 from mpi4py import MPI 
+from os.path import join
+
 import adios2
 import numpy as np 
 import json
@@ -101,13 +103,16 @@ class reader_dataman(reader_base):
         self.IO.SetParameters(cfg["transport"]["params"])
 
 
-
-
 class reader_bpfile(reader_base):
     """Reader that uses the BP4 engine."""
     def __init__(self, cfg):
         super().__init__(cfg)
         self.IO.SetEngine("BP4")
+        self.datapath = "/global/homes/r/rkube/repos/delta"
+
+    def Open(self):
+        if self.reader is None:
+            self.reader = self.IO.Open("test.bp4", adios2.Mode.Read)
 
 
 class reader_sst(reader_base):
@@ -115,6 +120,16 @@ class reader_sst(reader_base):
     def __init__(self, cfg):
         super().__init__(cfg)
         self.IO.SetEngine("SST")
+        self.datapath = cfg["transport"]["datapath"]
+
+    def Open(self):
+        """Opens a new channel. Expects the SST contact information in self.datapath."""
+        
+        self.logger.info(f"Waiting to receive {self.channel_name}")
+        if self.reader is None:
+            self.reader = self.IO.Open(join(self.datapath, self.channel_name), adios2.Mode.Read)
+
+        return None
 
 
 # class reader_dataman(reader_base):
