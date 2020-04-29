@@ -75,7 +75,20 @@ processor_mpi.py implements this case. This processor
 * Reads ECEI data from a bp file
 * Puts the data in a queue
 * A worker thread reads data from the queue and dispatches it to a MPI Executor for analysis
-* Calls the multi-threaded cython kernels for data processing
+* Calls the multi-threaded C/cython kernels for data processing
+
+Some spectral analysis are implemented as C kernels and interfaced via cython.
+To compile the C kernels
+```
+cd analysis/lib
+make
+```
+
+To build the cython interface
+```
+cd analysis
+CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
+```
 
 Run this implemntation as
 ```

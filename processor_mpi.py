@@ -181,28 +181,17 @@ def main():
                     # Generate message id and publish is
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
                     dq.put(msg)
-<<<<<<< HEAD
-                    logger.info(f"rank{rank} Published message {msg}")
-                else:
-                    logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
-                    break
-
-                if reader.CurrentStep() >= 90:
-                    logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
-=======
                     logger.info(f"Published message {msg}")
                     reader.EndStep()
                 else:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
->>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768
                     dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
-                step = step + 1
 
-                #if reader.CurrentStep() >= 5:
-                #    logger.info(f"Exiting: StepStatus={stepStatus}")
-                #    dq.put(AdiosMessage(tstep_idx=None, data=None))
-                #    break
+                if reader.CurrentStep() >= 90:
+                    logger.info(f"Exiting: StepStatus={stepStatus}")
+                    dq.put(AdiosMessage(tstep_idx=None, data=None))
+                    break
 
                 last_step = reader.CurrentStep()
 
@@ -223,9 +212,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-<<<<<<< HEAD
-# End of file processor_mpi.py
-=======
 
 # End of file processor_mpi.py
->>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768

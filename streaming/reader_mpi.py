@@ -198,48 +198,13 @@ class reader_gen(reader_base):
         cfg : delta config dict
         """
         super().__init__(cfg)
-<<<<<<< HEAD
-        self.IO.SetEngine("BP4")
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
-        self.reader = None
-
-
-class reader_dataman(reader_base):
-    def __init__(self, cfg: dict):
-        """Instantiates a DataMan reader.
-
-        Parameters:
-        -----------
-        cfg : delta config dict
-        """
-        assert(cfg["transport"]["engine"].lower() == "dataman")
-        super().__init__(cfg)
-        self.IO.SetEngine("DataMan")
-        cfg["transport"]["params"].update(Port = str(12306 + self.rank))
-=======
         self.IO.SetEngine(cfg["transport"]["engine"])
         ## Set port number for DataMan
         if cfg["transport"]["engine"].lower() == "dataman":
             cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
->>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768
         self.IO.SetParameters(cfg["transport"]["params"])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 
-class reader_sst(reader_base):
-    def __init__(self, cfg: dict):
-        """Instantiates a SST reader.
-
-        Parameters:
-        -----------
-        cfg : delta config dict
-        """
-        assert(cfg["transport"]["engine"].lower() == "sst")
-        super().__init__(cfg)
-        self.IO.SetEngine("sst")
-        # SST file is stored in datapath
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
-        #self.channel_name = "test.sst"
-        self.reader = None
 
 # End of file 

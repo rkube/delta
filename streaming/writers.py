@@ -131,27 +131,4 @@ class writer_gen(writer_base):
             cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
 
-<<<<<<< HEAD
-
-class writer_bpfile(writer_base):
-    def __init__(self, cfg):
-        """Perform BP4 specific initialization on top of writer_base."""
-        super().__init__(cfg)
-        self.IO.SetEngine("BP4")
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
-
-    
-class writer_sst(writer_base):
-    def __init__(self, cfg):
-        """Perform SST specific initialization on top of writer_base."""
-        super().__init__(cfg)
-        self.IO.SetEngine("SST")
-        self.datapath = cfg["transport"]["datapath"]
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
-
-        return None
-
-# End of file a2_sender.py
-=======
 # End of file
->>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768
