@@ -1,22 +1,5 @@
 {
   "shotnr": 18431,
-  "transport_dataman":
-  {
-    "chunk_size": 10000,
-    "nstep": 100,
-    "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
-    "engine": "dataman",
-    "channel_range": ["L0101-0808"],
-    "params":
-    {
-      "IPAddress": "128.55.205.18", 
-      "Timeout": "300",
-      "Port": "12306",
-      "OneToOneMode": "TRUE",
-      "AlwaysProvideLatestTimestep": "FALSE",
-      "OpenTimeoutSecs": "300"
-    }
-  },
   "transport":
   {
     "chunk_size": 10000,
