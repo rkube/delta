@@ -188,16 +188,17 @@ class reader_base():
         return time_chunk
 
 
-class reader_bpfile(reader_base):
+class reader_gen(reader_base):
     def __init__(self, cfg: dict):
-        """Instantiates a BP-file reader.
+        """Instantiates a reader.
+           Control Adios method and params through cfg
 
         Parameters:
         -----------
         cfg : delta config dict
         """
-        assert(cfg["transport"]["engine"] == "BP4")
         super().__init__(cfg)
+<<<<<<< HEAD
         self.IO.SetEngine("BP4")
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
@@ -215,6 +216,12 @@ class reader_dataman(reader_base):
         super().__init__(cfg)
         self.IO.SetEngine("DataMan")
         cfg["transport"]["params"].update(Port = str(12306 + self.rank))
+=======
+        self.IO.SetEngine(cfg["transport"]["engine"])
+        ## Set port number for DataMan
+        if cfg["transport"]["engine"].lower() == "dataman":
+            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
+>>>>>>> 8d1396632742289d44d8722271da3ab0c2de0768
         self.IO.SetParameters(cfg["transport"]["params"])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
@@ -235,6 +242,4 @@ class reader_sst(reader_base):
         #self.channel_name = "test.sst"
         self.reader = None
 
-
-
-# End of file reader_one_to_one.py
+# End of file 

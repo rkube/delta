@@ -13,7 +13,8 @@ import time
 import logging, logging.config
 
 from analysis.channels import channel_range
-from streaming.writers import writer_dataman, writer_bpfile, writer_sst
+from streaming.writers import writer_gen
+from streaming.adios_helpers import gen_channel_name_v2
 from sources.loader_h5 import loader_h5
 
 """
@@ -62,17 +63,8 @@ data_all = dl.get_batch()
 
 logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport']['engine']}")
 
-writer = None
-if cfg["transport"]["engine"].lower() == "dataman":
-    writer = writer_dataman(cfg)
-elif cfg["transport"]["engine"].lower() == "bp4":
-    writer = writer_bpfile(cfg)
-elif cfg["transport"]["engine"].lower() == "sst":
-    writer = writer_sst(cfg)
-else:
-    raise KeyError(f"Invalid IO engine: {cfg['transport']['engine']}. This should be either dataman, bp4 or sst")
-
-writer.DefineVariable(ch_rg.to_str(), data_all[0])
+writer = writer_gen(cfg)
+writer.DefineVariable(ch_rg.to_str(), data_arr)
 writer.Open()
 
 logger.info("Start sending on channel:")
@@ -83,8 +75,9 @@ for i in range(nstep):
     writer.BeginStep()
     writer.put_data(data_all[i])
     writer.EndStep()
-    #time.sleep(0.2)
+    #time.sleep(1.0)
 t1 = time.time()
+writer.writer.Close()
 
 chunk_size = np.prod(data_all[0].shape)*data_all[0].itemsize/1024/1024
 logger.info("")
