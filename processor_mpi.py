@@ -41,6 +41,7 @@ import adios2
 import backends
 
 from streaming.reader_mpi import reader_gen
+
 from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_spectral
 from analysis.channels import channel_range
@@ -190,8 +191,10 @@ def main():
 
                 if reader.CurrentStep() >= 90:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
-                    dq.put(AdiosMessage(tstep_idx=None, data=None))
+                else:
+                    logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
                     break
+
 
                 last_step = reader.CurrentStep()
 
@@ -211,6 +214,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 # End of file processor_mpi.py

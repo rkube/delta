@@ -131,4 +131,5 @@ class writer_gen(writer_base):
             cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
 
-# End of file
+
+# End of file writers.py

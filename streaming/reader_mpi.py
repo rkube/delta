@@ -198,13 +198,8 @@ class reader_gen(reader_base):
         cfg : delta config dict
         """
         super().__init__(cfg)
-        self.IO.SetEngine(cfg["transport"]["engine"])
-        ## Set port number for DataMan
-        if cfg["transport"]["engine"].lower() == "dataman":
-            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
-        self.IO.SetParameters(cfg["transport"]["params"])
+
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
-
 
 # End of file 
