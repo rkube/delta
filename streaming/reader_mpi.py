@@ -66,6 +66,8 @@ class reader_base():
             pass
         self.logger.info(f"Opened channel {self.channel_name}")
 
+        return None
+
     def BeginStep(self):
         """Wrapper for reader.BeginStep()"""
         res = self.reader.BeginStep()
@@ -198,7 +200,8 @@ class reader_gen(reader_base):
         cfg : delta config dict
         """
         super().__init__(cfg)
-
+        self.IO.SetEngine(cfg["transport"]["engine"])
+        self.IO.SetParameters(cfg["transport"]["params"])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 

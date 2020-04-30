@@ -167,15 +167,18 @@ def main():
             logger.info(f"{rank} Waiting for generator")
             reader.Open()
             last_step = 0
+            logger.info(f"Starting main loop")
 
             rx_list = []
             while True:
                 stepStatus = reader.BeginStep()
-                if last_step == reader.CurrentStep():
-                    continue
-
+                logger.info(f"stepStatus = {stepStatus}")
+                #if last_step == reader.CurrentStep():
+                #    continue
+                logger.info(f"currentStep = {reader.CurrentStep()}")
                 if stepStatus:
                     # Read data
+                    logger.info(f"stepStatus == True")
                     stream_data = reader.Get(adios2_varname, save=True)
                     rx_list.append(reader.CurrentStep())
 
@@ -190,11 +193,9 @@ def main():
                     break
 
                 if reader.CurrentStep() >= 90:
-                    logger.info(f"Exiting: StepStatus={stepStatus}")
-                else:
-                    logger.info(f"rank{rank} Exiting: StepStatus={stepStatus}")
+                    logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
+                    dq.put(AdiosMessage(tstep_idx=None, data=None))
                     break
-
 
                 last_step = reader.CurrentStep()
 

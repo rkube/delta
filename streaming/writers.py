@@ -127,9 +127,10 @@ class writer_gen(writer_base):
  
         super().__init__(cfg)
         self.IO.SetEngine(cfg["transport"]["engine"])
-        if cfg["transport"]["engine"].lower() == "dataman":
-            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
         self.IO.SetParameters(cfg["transport"]["params"])
 
+        if cfg["transport"]["engine"].lower() == "dataman":
+            cfg["transport"]["params"].update(Port = str(int(cfg["transport"]["params"]["Port"]) + self.rank))
 
-# End of file writers.py
+
+# End of file writers.pyf

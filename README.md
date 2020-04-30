@@ -71,11 +71,13 @@ Note that the processor is called receiver
 
 ### MPI processor 
 This is the xyz=mpi case. 
-processor_mpi.py implements this case. This processor
+processor_mpi.py implements this flexible workflow. This processor
 * Reads ECEI data from a bp file
 * Puts the data in a queue
 * A worker thread reads data from the queue and dispatches it to a MPI Executor for analysis
 * Calls the multi-threaded C/cython kernels for data processing
+
+This workflow allows for flexible channel sizes, so we call it the flexible workflow.
 
 Some spectral analysis are implemented as C kernels and interfaced via cython.
 To compile the C kernels
@@ -90,8 +92,15 @@ cd analysis
 CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
 ```
 
-Run this implemntation as
+Run this implemntation on cori compute nodes as
 ```
+moule unload craype-hugepages2M
+module unload darshan
+module switch PrgEnv-intel PrgEnv-gnu
+module use -a /global/cscratch1/sd/jyc/sw/modulefiles
+module load adios2/devel
+module load py-pyyaml 
+
 export OMP_NUM_THREAD=N
 srun -n 6 -c N python -m mpi4py.futures processor_mpi.py --config configs/test_crossphase.json
 ```
@@ -99,6 +108,9 @@ srun -n 6 -c N python -m mpi4py.futures processor_mpi.py --config configs/test_c
 For the KNL nodes, best performance is with N=8/16 and 24 or 48 MPI ranks.
 
 Data storage is implmented for numpy and mongodb backends. See the configuration files configs/test_all.json.
+The mongodb backend allows to store data either internally using gridFS or on the filesystem using numpy.
+Using mongodb with the numpy backend still stores all metadata in mongodb. 
+Using the pure numpy backend stores also the metadata in numpy files.
 
 
 ### MPI processor brute
@@ -119,7 +131,7 @@ module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
 
 module load openmpi
 module load zeromq adios2
-module load python py-numpy py-mpi4py py-h5py py-scipy py-matplotlib
+module load python py-numpy py-mpi4py py-h5py py-yaml py-scipy py-matplotlib py-pyyaml
 
 mpirun -n 5 python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json 
 ```
