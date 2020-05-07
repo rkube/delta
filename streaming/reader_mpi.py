@@ -43,7 +43,7 @@ class reader_base():
         # If false, indicates that raw data is returned.
         # If true, indicates that normalized data is returned.
         # This flag is set in Get()
-        self.is_data_normalized = False
+        self.got_normalization = False
 
         # Defines the time where we take the offset
         self.tnorm = cfg["ECEI_cfg"]["t_norm"]
@@ -53,7 +53,6 @@ class reader_base():
         self.chrg = channel_range.from_str(cfg["transport"]["channel_range"][self.rank])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
-        #self.datapath = cfg["transport"]["datapath"]
 
 
     def Open(self):
@@ -154,38 +153,44 @@ class reader_base():
         var = self.IO.InquireVariable(ch_rg.to_str())
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
-        self.logger.info(f"Got data: {time_chunk.shape}")
+        self.logger.info(f"Got data: {time_chunk.shape}, mean = {time_chunk.mean()}")
         # Append size of current chunk to chunk sizes
         self.chunk_sizes.append(time_chunk.shape[1])
+        if save:
+            np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
+
+
         time_chunk = time_chunk * 1e-4
             
         # If the normalization offset hasn't been calculated yet see if we have the
         # correct data to do so in the current chunk
-        if self.is_data_normalized == False:
+        if self.got_normalization == False:
             # Generate the timebase for the current step
             tb = self.gen_timebase()
             # Calculate indices where we calculate the normalization offset from
             tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
-            self.logger.debug(f"*** Reader: I found {tnorm_idx.sum():d} indices where to normalize, tnorm = {self.tnorm}")
+            self.logger.info(f"I found {tnorm_idx} indices where to normalize, tnorm = {self.tnorm}")
             # Calculate normalization offset if we have enough indices
             if(tnorm_idx.sum() > 100):
                 self.offset_lvl = np.median(time_chunk[:, tnorm_idx], axis=1, keepdims=True)
                 self.offset_std = time_chunk[:, tnorm_idx].std(axis=1)
-                self.is_data_normalized = True
+                #self.got_normalization = True
+                self.logger.info(f"offset_lvl = {self.offset_lvl}, offset_std = {self.offset_std}")
 
                 if save:
                     np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
+                    np.savez("test_data/tnorm_idx.npz", tnorm_idx=tnorm_idx)
 
-        if self.is_data_normalized:
-            self.logger.debug(f"*** Reader:Get: time_chunk.shape = {time_chunk.shape}")
-            if save:
-                np.savez("test_data/time_chunk_s{0:04d}.npz".format(self.CurrentStep()), time_chunk=time_chunk)
-
-            time_chunk = time_chunk - self.offset_lvl
-            time_chunk = time_chunk / time_chunk.mean(axis=1, keepdims=True) - 1.0
-
-            if save:
-                np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
+        #if self.got_normalization:
+        #    self.logger.info(f"time_chunk.shape = {time_chunk.shape}")
+        #    if save:
+        #        np.savez("test_data/time_chunk_s{0:04d}.npz".format(self.CurrentStep()), time_chunk=time_chunk)#
+        #
+        #    time_chunk = (time_chunk - self.offset_lvl) / time_chunk.mean(axis=1, keepdims=True) - 1.0
+        #    #time_chunk = time_chunk / time_chunk.mean(axis=1, keepdims=True) - 1.0
+        #
+            # if save:
+            #     np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
 
         return time_chunk
 

@@ -62,14 +62,19 @@ class loader_h5():
         """Returns a list with all time chunks. Loads all channels batch-wise and
            splits using numpy.split"""
 
-        data_arr = np.zeros((self.ch_range.length(), 5000000), dtype=np.int16)
+        data_arr = np.zeros((self.ch_range.length(), 5_000_000), dtype=np.float64)
+
         with h5py.File(self.filename, "r") as df:
             for ch in self.ch_range:
-                data_arr[ch.idx(), :] = df[f"/ECEI/ECEI_{ch.__str__()}/Voltage"]
+                #print(f"Parsing /ECEI/ECEI_{ch.__str__()}/Voltage")
+                data_arr[ch.idx(), :] =  df[f"/ECEI/ECEI_{ch.__str__()}/Voltage"][:]
+                #print(f"   shape = {data_tmp.shape}, max = {data_tmp.max()}, min = {data_tmp.min()}")
+                #data_arr[ch.idx(), :] = data_tmp[:] #df[f"/ECEI/ECEI_{ch.__str__()}/Voltage"]
 
-        data_arr = data_arr.astype(np.float64)
+        data_sp = np.split(data_arr, self.num_chunks, axis=1)
+        print(data_sp[0].shape, data_sp[0][0, 0:10], data_sp[0][1, 0:10])
 
-        return(np.split(data_arr, self.num_chunks, axis=1))
+        return(data_sp)
 
 
 

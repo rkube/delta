@@ -106,14 +106,13 @@ def main():
     
     # Load logger configuration from file: 
     # http://zetcode.com/python/logging/
-    with open('configs/logger.yaml', 'r') as f:
+    with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
 
     comm  = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
-
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
@@ -126,7 +125,8 @@ def main():
 
             logger = logging.getLogger('simple')
             logger.info(f"Starting up. Using adios2 from {adios2.__file__}")
-            cfg['run_id'] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+            cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+            cfg["run_id"] = "ABC123"
             logger.info(f"Starting run {cfg['run_id']}")
     
             # Instantiate a storage backend and store the run configuration and task configuration
@@ -137,7 +137,9 @@ def main():
             elif cfg['storage']['backend'] == "null":
                 store_backend = backends.backend_null(cfg['storage'])
 
+            logger.info("Storing one")
             store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
+            logger.info("Done storing. Continuing:")
 
             # Create the FFT task
             cfg["fft_params"]["fsample"] = cfg["ECEI_cfg"]["SampleRate"] * 1e3
@@ -184,20 +186,20 @@ def main():
 
                     # Generate message id and publish is
                     msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
-                    dq.put(msg)
+                    dq.put_nowait(msg)
                     logger.info(f"Published message {msg}")
                     reader.EndStep()
                 else:
                     logger.info(f"Exiting: StepStatus={stepStatus}")
-                    dq.put(AdiosMessage(tstep_idx=None, data=None))
+                    dq.put_nowait(AdiosMessage(tstep_idx=None, data=None))
                     break
 
-                if reader.CurrentStep() >= 90:
-                    logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
-                    dq.put(AdiosMessage(tstep_idx=None, data=None))
-                    break
-
+                #if reader.CurrentStep() >= 90:
+                #    logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
+                #    dq.put(AdiosMessage(tstep_idx=None, data=None))
+                #    breaks
                 last_step = reader.CurrentStep()
+
 
             logger.info("Exiting main loop")
             worker.join()

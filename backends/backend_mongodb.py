@@ -27,6 +27,7 @@ class backend_mongodb(backend):
     def __init__(self, cfg_mongo):
         """Connect to MongoDB and, if necessary, initializes gridFS."""
         # Connect to mongodb
+        self.logger = logging.getLogger("DB")
 
         with open("mongo_secret", "r") as secret:
             lines = secret.readlines()
@@ -50,17 +51,19 @@ class backend_mongodb(backend):
                 try:
                     mkdir(self.datadir)
                 except:
+                    self.logger.error(f"Could not access path {self.datadir}")
                     raise ValueError(f"Could not access path {self.datadir}")
             self.fs = None
 
         elif cfg_mongo["storage"]["datastore"] == "gridfs":
             # Initialize gridFS
-            self.fs = gridfs.GridFS(db)       
+            self.fs = gridfs.GridFS(db)     
         
+        coll_str = "test_analysis_" + cfg_mongo["run_id"]
         try:
-            self.collection = db.get_collection("test_analysis_" + cfg_mongo['run_id'])
+            self.collection = db.get_collection(coll_str)
         except:
-            print("Could not get a collection")
+            self.logger.error(f"Could not access collection {coll_str}")
 
             
 
@@ -72,9 +75,6 @@ class backend_mongodb(backend):
         cfg: The configuration of the analysis run
         dispatch_seq: The serialized task dispatch sequence
         """
-
-        logger = logging.getLogger("DB")
-        logger.debug("backend_mongodb: entering store_metadata")
 
         j_str = serialize_dispatch_seq(dispatch_seq)
         # Put the channel serialization in the corresponding key
@@ -89,7 +89,7 @@ class backend_mongodb(backend):
         try:
             result = self.collection.insert_one(cfg)
         except pymongo.errors.PyMongoError as e:
-            logger.error("An error has occurred in store_metadata:: ", e)
+            self.logger.error("An error has occurred in store_metadata:: ", e)
 
         return result.inserted_id
 
@@ -161,13 +161,13 @@ class backend_mongodb(backend):
 
         except:
             print("Unexpected error:", sys.exc_info()[0])
-            raise
 
 
     def store_one(self, item):
         """Wrapper to store an item"""
-
         self.collection.insert_one(item)
+
+        return None
 
 
 # End of file mongodb.py

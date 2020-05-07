@@ -3,10 +3,10 @@
   "transport":
   {
     "chunk_size": 10000,
-    "nstep": 100,
+    "nstep": 5,
     "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
-    "engine": "SST",
-    "channel_range": ["L0101-0808"],
+    "engine": "BP4",
+    "channel_range": ["L0101-2408"],
     "params":
     {
       "IPAddress": "128.55.205.18", 
@@ -18,10 +18,10 @@
       "OpenTimeoutSecs": "300"
     }
   },
-  "storage_mongo": 
+  "storage_null": 
   {
     "backend": "mongo",
-    "datastore": "numpy",
+    "datastore": "gridfs",
     "datadir": "/global/cscratch1/sd/rkube/delta"
   },
   "storage": 
@@ -39,10 +39,10 @@
                "LensZoom": 340},
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{
-                "task_description" : "cross_phase", 
-                "analysis": "cross_phase",
+                "task_description" : "cross_correlation", 
+                "analysis": "cross_correlation",
                 "channel_chunk_size": 32768, 
-                "ref_channels" : "L0101-0808",
-                "cmp_channels" : "L0101-0808"
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
               }]  
 }

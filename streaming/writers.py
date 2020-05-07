@@ -51,7 +51,6 @@ class writer_base():
                                                 list(np.zeros_like(data_array.shape, dtype=int)),  # start 
                                                 data_array.shape, # count
                                                 adios2.ConstantDims)
-
         return(self.variable)
 
 

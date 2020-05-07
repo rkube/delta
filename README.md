@@ -94,15 +94,16 @@ CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
 
 Run this implemntation on cori compute nodes as
 ```
-moule unload craype-hugepages2M
+module unload craype-hugepages2M
 module unload darshan
 module switch PrgEnv-intel PrgEnv-gnu
 module use -a /global/cscratch1/sd/jyc/sw/modulefiles
 module load adios2/devel
 module load py-pyyaml 
+module load pymongo
 
 export OMP_NUM_THREAD=N
-srun -n 6 -c N python -m mpi4py.futures processor_mpi.py --config configs/test_crossphase.json
+srun -n 6 -c N python processor_mpi.py --config configs/test_all.json
 ```
 
 For the KNL nodes, best performance is with N=8/16 and 24 or 48 MPI ranks.
@@ -131,7 +132,7 @@ module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
 
 module load openmpi
 module load zeromq adios2
-module load python py-numpy py-mpi4py py-h5py py-yaml py-scipy py-matplotlib py-pyyaml
+module load python py-numpy py-mpi4py py-h5py py-pyyaml py-scipy py-matplotlibs
 
 mpirun -n 5 python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json 
 ```
