@@ -93,6 +93,8 @@ class writer_base():
 
         if self.writer is not None:
             self.logger.info(f"Putting data: name = {self.variable.Name()}, shape = {data.shape}")
+            if not data.flags.contiguous:
+                data = np.array(data, copy=True)
             self.writer.Put(self.variable, data, adios2.Mode.Sync)
 
         return None

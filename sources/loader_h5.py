@@ -52,7 +52,7 @@ class loader_h5():
         with h5py.File(self.filename, "r") as df:
             for ch in [f"/ECEI/ECEI_{c}/Voltage" for c in self.ch_range]:
                 data_list.append(df[ch][self.current_chunk * self.chunk_size:
-                                        (self.current_chunk + 1) * self.chunk_size])
+                                        (self.current_chunk + 1) * self.chunk_size].astype(np.float64))
             self.current_chunk += 1
             df.close()
 
@@ -72,8 +72,6 @@ class loader_h5():
                 #data_arr[ch.idx(), :] = data_tmp[:] #df[f"/ECEI/ECEI_{ch.__str__()}/Voltage"]
 
         data_sp = np.split(data_arr, self.num_chunks, axis=1)
-        print(data_sp[0].shape, data_sp[0][0, 0:10], data_sp[0][1, 0:10])
-
         return(data_sp)
 
 

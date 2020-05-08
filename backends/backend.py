@@ -3,8 +3,10 @@
 """
 Author: Ralph Kube
 
-This defines a basic interface to the backend-storage classes
+Defines a basic interface to the backend-storage classes and helper routines
 """
+
+from analysis.channels import channel, channel_pair
 
 class backend():
     def __init__(self):
@@ -77,5 +79,35 @@ def serialize_dispatch_seq(dispatch_seq):
     #
     #
     #j = json.loads(j_str)
+
+
+def deserialize_dispatch_seq(channel_ser):
+    """Returns a list of list of channel pairs, as created by serialize dispatch_seq
+
+    Parameters:
+    ===========
+    channel_ser: JSON serialization of the channel pairs
+
+    Returns:
+    ========
+    List of list of channel pairs
+    """
+
+    dispatch_seq = []
+    
+    for pair_list in channel_ser:
+        new_list = []
+        for pair in pair_list:
+            ch1 = channel(pair["ch1"]["dev"], 
+                          pair["ch1"]["ch_v"], 
+                          pair["ch1"]["ch_h"])
+            ch2 = channel(pair["ch2"]["dev"], 
+                          pair["ch2"]["ch_v"], 
+                          pair["ch2"]["ch_h"])
+            new_list.append(channel_pair(ch1, ch2))
+        dispatch_seq.append(new_list)
+
+    return dispatch_seq
+
 
 # End of file backend.py

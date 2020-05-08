@@ -132,7 +132,7 @@ module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
 
 module load openmpi
 module load zeromq adios2
-module load python py-numpy py-mpi4py py-h5py py-pyyaml py-scipy py-matplotlibs
+module load python py-numpy py-mpi4py py-h5py py-pyyaml py-scipy py-matplotlib
 
 mpirun -n 5 python -u -m mpi4py.futures receiver_brute.py --config config-dtn.json 
 ```

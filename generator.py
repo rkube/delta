@@ -58,12 +58,8 @@ num_batches = data_pts // data_per_batch
 # Get a data_loader
 logger.info("Loading h5 data into memory")
 dl = loader_h5(path.join(datapath, "ECEI.018431.LFS.h5"), ch_rg, cfg["transport"]["chunk_size"])
-data_all = dl.get()
+data_all = dl.get_batch()
 
-#data_all = []
-#for i in range(nstep):
-#    data = np.ones((192, 10_000)) * i
-#    data_all.append(data)
 
 logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport']['engine']}")
 
@@ -77,9 +73,8 @@ for i in range(nstep):
     if(rank == 0):
         logger.info(f"Sending: {i:d} / {nstep:d}. data: dtype={data_all[i].dtype}, min = {data_all[i].min()}, max = {data_all[i].max()}")
     writer.BeginStep()
-    #data_tmp = np.zeros_like(data_all[i])
-    #data_tmp[:] = data_all[i][:]
-    #writer.put_data(data_tmp)
+    # data_tmp = np.zeros_like(data_all[i])
+    # data_tmp[:] = data_all[i][:]
     writer.put_data(data_all[i])
     writer.EndStep()
 t1 = time.time()

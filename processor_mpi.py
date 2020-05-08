@@ -17,8 +17,6 @@ srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_cross
 import os
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor, MPICommExecutor
-import sys
-#sys.path.append("/global/homes/r/rkube/software/adios2-current/lib64/python3.7/site-packages")
 
 import logging
 import logging.config
@@ -49,11 +47,9 @@ from analysis.channels import channel_range
 
 @attr.s 
 class AdiosMessage:
-    """Storage class used to transfer data from Kstar(Dataman) to
-    local PoolExecutor"""
+    """Storage class used to transfer data from Kstar(Dataman) to local PoolExecutor"""
     tstep_idx = attr.ib(repr=True)
     data      = attr.ib(repr=False)
-
 
 cfg = {}
 
@@ -81,6 +77,9 @@ def consume(Q, executor, my_fft, task_list):
         fft_data = my_fft.do_fft_local(msg.data)
         toc_fft = timeit.default_timer()
         logger.info(f"rank {rank}: tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
+
+        np.savez(f"test_data/fft_array_s{msg.tstep_idx:04d}.npz", fft_data=fft_data)
+        logger.info("STORING FFT DATA")
 
         # Step 2) Distribute the work via the executor 
         for task in task_list:
@@ -126,7 +125,7 @@ def main():
             logger = logging.getLogger('simple')
             logger.info(f"Starting up. Using adios2 from {adios2.__file__}")
             cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-            cfg["run_id"] = "ABC123"
+            cfg["run_id"] = "ABC124"
             logger.info(f"Starting run {cfg['run_id']}")
     
             # Instantiate a storage backend and store the run configuration and task configuration

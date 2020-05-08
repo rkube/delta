@@ -169,28 +169,28 @@ class reader_base():
             tb = self.gen_timebase()
             # Calculate indices where we calculate the normalization offset from
             tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
-            self.logger.info(f"I found {tnorm_idx} indices where to normalize, tnorm = {self.tnorm}")
+            self.logger.info(f"I found {tnorm_idx.sum()} indices where to normalize, tnorm = {self.tnorm}")
             # Calculate normalization offset if we have enough indices
             if(tnorm_idx.sum() > 100):
                 self.offset_lvl = np.median(time_chunk[:, tnorm_idx], axis=1, keepdims=True)
                 self.offset_std = time_chunk[:, tnorm_idx].std(axis=1)
-                #self.got_normalization = True
-                self.logger.info(f"offset_lvl = {self.offset_lvl}, offset_std = {self.offset_std}")
+                self.got_normalization = True
+                # self.logger.info(f"offset_lvl = {self.offset_lvl}, offset_std = {self.offset_std}")
 
                 if save:
                     np.savez("test_data/offset_lvl.npz", offset_lvl = self.offset_lvl)
                     np.savez("test_data/tnorm_idx.npz", tnorm_idx=tnorm_idx)
 
-        #if self.got_normalization:
-        #    self.logger.info(f"time_chunk.shape = {time_chunk.shape}")
-        #    if save:
-        #        np.savez("test_data/time_chunk_s{0:04d}.npz".format(self.CurrentStep()), time_chunk=time_chunk)#
-        #
-        #    time_chunk = (time_chunk - self.offset_lvl) / time_chunk.mean(axis=1, keepdims=True) - 1.0
-        #    #time_chunk = time_chunk / time_chunk.mean(axis=1, keepdims=True) - 1.0
-        #
-            # if save:
-            #     np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
+        if self.got_normalization:
+            self.logger.info(f"time_chunk.shape = {time_chunk.shape}")
+            if save:
+                np.savez("test_data/time_chunk_s{0:04d}.npz".format(self.CurrentStep()), time_chunk=time_chunk)#
+    
+            time_chunk = (time_chunk - self.offset_lvl) / time_chunk.mean(axis=1, keepdims=True) - 1.0
+            #time_chunk = time_chunk / time_chunk.mean(axis=1, keepdims=True) - 1.0
+        
+            if save:
+                np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
 
         return time_chunk
 
