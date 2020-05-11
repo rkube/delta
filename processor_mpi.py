@@ -78,8 +78,8 @@ def consume(Q, executor, my_fft, task_list):
         toc_fft = timeit.default_timer()
         logger.info(f"rank {rank}: tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
-        np.savez(f"test_data/fft_array_s{msg.tstep_idx:04d}.npz", fft_data=fft_data)
-        logger.info("STORING FFT DATA")
+        #np.savez(f"test_data/fft_array_s{msg.tstep_idx:04d}.npz", fft_data=fft_data)
+        #logger.info("STORING FFT DATA")
 
         # Step 2) Distribute the work via the executor 
         for task in task_list:
@@ -105,9 +105,11 @@ def main():
     
     # Load logger configuration from file: 
     # http://zetcode.com/python/logging/
-    with open("configs/logger.yaml", "r") as f:
+    with open("configs/logger.yaml", "r") as f:  
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
+
+    print(yaml.__file__)
 
     comm  = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -125,7 +127,7 @@ def main():
             logger = logging.getLogger('simple')
             logger.info(f"Starting up. Using adios2 from {adios2.__file__}")
             cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-            cfg["run_id"] = "ABC124"
+            cfg["run_id"] = "ABC125"
             logger.info(f"Starting run {cfg['run_id']}")
     
             # Instantiate a storage backend and store the run configuration and task configuration
@@ -146,7 +148,7 @@ def main():
             fft_params = my_fft.get_fft_params()
 
             # Create ADIOS reader object
-            reader = reader_gen(cfg)
+            reader = reader_gen(cfg["transport"])
 
             # Create the task list
             logger.info(f"Storing metadata")

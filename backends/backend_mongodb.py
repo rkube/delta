@@ -160,7 +160,7 @@ class backend_mongodb(backend):
             inserted_id = self.collection.insert_one(info_dict)
 
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            logger.error("Unexpected error:", sys.exc_info()[0])
 
 
     def store_one(self, item):

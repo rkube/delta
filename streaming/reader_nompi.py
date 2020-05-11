@@ -1,6 +1,5 @@
 #-*- Coding: UTF-8 -*-
 
-from mpi4py import MPI
 import adios2
 import logging
 import json
@@ -15,7 +14,6 @@ from streaming.adios_helpers import gen_io_name, gen_channel_name_v2
 Author: Ralph Kube
 """
 
-
 class reader_base():
     def __init__(self, cfg: dict, shotnr: int=18431):
         """Generates a reader for KSTAR ECEI data.
@@ -24,12 +22,8 @@ class reader_base():
         -----------
         cfg: delta config dictionary
         """
-
-        comm  = MPI.COMM_SELF
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
-        # This should be MPI.COMM_SELF, not MPI.COMM_WORLD
-        self.adios = adios2.ADIOS(MPI.COMM_SELF)
+        
+        self.adios = adios2.ADIOS()
         self.logger = logging.getLogger("simple")
 
         self.shotnr = shotnr
@@ -121,12 +115,26 @@ class reader_base():
 
     
     def Get(self, ch_rg: channel_range, save: bool=False):
-        """Get data from varname at current step. This is diagnostic-independent code.
+        """Get data from varname at current step.
+
+        The ECEI data is usually normalized to a fixed offset, calculated using data 
+        at the beginning of the stream.
+
+        The time interval where the data we normalize to is taken from is given in ECEI_config, t_norm.
+        As long as this data is not seen by the reader, raw data is returned.
+        
+        Once the data we normalize to is seen, the normalization values are calculated.
+        After that, the data from the current and all subsequent chunks is normalized.
+    
+        The flag self.is_data_normalized is set to false if raw data is returned.
+        It is set to true if normalized data is returned.
+
 
         Inputs:
         =======
         ch_rg: channel_range that describes which channels to inquire. This is used to generate
                a variable name which is inquired from the stream
+             
 
         Returns:
         ========
@@ -142,9 +150,27 @@ class reader_base():
         self.logger.info(f"Got data: {time_chunk.shape}, mean = {time_chunk.mean()}")
         # Append size of current chunk to chunk sizes
         self.chunk_sizes.append(time_chunk.shape[1])
-        if save:
-            np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
 
+        time_chunk = time_chunk * 1e-4
+            
+        # If the normalization offset hasn't been calculated yet see if we have the
+        # correct data to do so in the current chunk
+        if self.got_normalization == False:
+            # Generate the timebase for the current step
+            tb = self.gen_timebase()
+            # Calculate indices where we calculate the normalization offset from
+            tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
+            self.logger.info(f"I found {tnorm_idx.sum()} indices where to normalize, tnorm = {self.tnorm}")
+            # Calculate normalization offset if we have enough indices
+            if(tnorm_idx.sum() > 100):
+                self.offset_lvl = np.median(time_chunk[:, tnorm_idx], axis=1, keepdims=True)
+                self.offset_std = time_chunk[:, tnorm_idx].std(axis=1)
+                self.got_normalization = True
+                
+
+        if self.got_normalization:
+            time_chunk = (time_chunk - self.offset_lvl) / time_chunk.mean(axis=1, keepdims=True) - 1.0
+            
         return time_chunk
 
 
@@ -158,8 +184,8 @@ class reader_gen(reader_base):
         cfg : delta config dict
         """
         super().__init__(cfg, shotnr)
-        self.IO.SetEngine(cfg["transport"]["engine"])
-        self.IO.SetParameters(cfg["transport"]["params"])
+        self.IO.SetEngine(cfg["engine"])
+        self.IO.SetParameters(cfg["params"])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 

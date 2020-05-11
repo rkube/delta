@@ -1,6 +1,9 @@
 # -*- Encoding: UTF-8 -*-
 
 """
+
+Author: Ralph Kube
+
 Helper functions for managing ADIOS2
 """
 

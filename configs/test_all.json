@@ -1,5 +1,11 @@
 {
   "shotnr": 18431,
+  "source":
+  {
+    "source_file": "/global/homes/r/rkube/repos/delta/ECEI.018431.LFS.h5",
+    "chunk_size": 10000,
+    "channel_range": ["L0101-2408"]
+  },
   "transport":
   {
     "chunk_size": 10000,
@@ -18,13 +24,13 @@
       "OpenTimeoutSecs": "300"
     }
   },
-  "storage_null": 
+  "storage": 
   {
     "backend": "mongo",
     "datastore": "gridfs",
     "datadir": "/global/cscratch1/sd/rkube/delta"
   },
-  "storage": 
+  "storage_null": 
   {
     "backend": "null"
   },

@@ -1,7 +1,7 @@
 #-*- Coding: UTF-8 -*-
 
 import h5py
-from mpi4py import MPI
+#from mpi4py import MPI
 import numpy as np
 
 from analysis.channels import channel_range

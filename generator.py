@@ -15,7 +15,7 @@ import logging, logging.config
 from analysis.channels import channel_range
 from streaming.writers import writer_gen
 from streaming.adios_helpers import gen_channel_name_v2
-from sources.loader_h5 import loader_h5
+from sources.loader_ecei import loader_ecei
 
 """
 Distributes time-chunked ECEI data via ADIOS2.

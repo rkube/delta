@@ -1,11 +1,9 @@
 # -*- coding: UTF-8 -*-
 
-from mpi4py import MPI
 from os.path import join
 import adios2
 import numpy as np
 import json
-from contextlib import contextmanager
 
 import logging
 
@@ -14,15 +12,12 @@ from analysis.channels import channel_range
 
 class writer_base():
     def __init__(self, cfg: dict, shotnr: int=18431):
-        comm = MPI.COMM_WORLD
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
 
         self.logger = logging.getLogger("simple")
 
         self.shotnr = shotnr
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
-        self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
+        self.IO = self.adios.DeclareIO(gen_io_name(0))
         self.writer = None
         # Adios2 variable that is defined in DefineVariable
         self.variable = None
@@ -30,7 +25,7 @@ class writer_base():
         self.shape = None
 
         # Generate a descriptive channel name
-        self.chrg = channel_range.from_str(cfg["channel_range"][self.rank])
+        self.chrg = channel_range.from_str(cfg["channel_range"][0])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.logger.info(f"writer_base: channel_name =  {self.channel_name}")
 
@@ -100,25 +95,14 @@ class writer_base():
         return None
 
 
-    @contextmanager
-    def step(self):
-        """ This is for using with with keyword """
-        self.writer.BeginStep()
-        try:
-            yield self
-        finally:
-            self.writer.EndStep()
-
-
 class writer_gen(writer_base):
     def __init__(self, cfg, shotnr: int=18431):
-        """Instantiates a writer. Control Adios method and params through 
-        transport section cfg
+        """Instantiates a writer.
+           Control Adios method and params through cfg
 
         Parameters:
         -----------
-        cfg : delta config dict. This corresponds to the transport section.
-        shotnr: Optional shot number. Defaults to 18431
+        cfg : delta config dict
         """
  
         super().__init__(cfg, shotnr)
@@ -126,7 +110,7 @@ class writer_gen(writer_base):
         self.IO.SetParameters(cfg["params"])
 
         if cfg["engine"].lower() == "dataman":
-            cfg["params"].update(Port = str(int(cfg["params"]["Port"]) + self.rank))
+            cfg["params"].update(Port = str(int(cfg["params"]["Port"]) + 0))
 
 
 # End of file writers.pyf
