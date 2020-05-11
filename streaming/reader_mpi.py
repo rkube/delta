@@ -35,18 +35,6 @@ class reader_base():
         self.shotnr = shotnr
         self.IO = self.adios.DeclareIO(gen_io_name(self.shotnr))
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
-        self.chunk_sizes = []
-        
-        # Store configuration of the ECEI diagnostic
-        self.ecei_cfg = cfg["ECEI_cfg"]
-
-        # If false, indicates that raw data is returned.
-        # If true, indicates that normalized data is returned.
-        # This flag is set in Get()
-        self.got_normalization = False
-
-        # Defines the time where we take the offset
-        self.tnorm = cfg["ECEI_cfg"]["t_norm"]
 
         self.reader = None
         # Generate a descriptive channel name
@@ -100,25 +88,6 @@ class reader_base():
         return json.loads(attrs.DataString()[0])
 
 
-    def gen_timebase(self):
-        """Create a dummy time base for chunk last read."""
-
-        # Unpack the trigger time, plasma time and end time from TriggerTime
-        tt0, pl, tt1 = self.ecei_cfg["TriggerTime"]
-        # Get the sampling frequency, in units of Hz
-        fs = self.ecei_cfg["SampleRate"] * 1e3
-
-        # The time base starts at t0. Assume samples are streaming in continuously with sampling frequency fs.
-        # Offset of the first sample in current chunk
-        offset = sum(self.chunk_sizes[:-1])
-        t_sample = 1. / fs
-        # Use integers in arange to avoid round-off errors. We want exactly chunk_sizes[-1] elements in
-        # this array
-        tb = np.arange(offset, offset + self.chunk_sizes[-1], dtype=np.float64)
-        # Scale timebase with t_sample and shift to tt0
-        tb = (tb * t_sample) + tt0        
-        return(tb)
-
     
     def Get(self, ch_rg: channel_range, save: bool=False):
         """Get data from varname at current step. This is diagnostic-independent code.
@@ -140,8 +109,7 @@ class reader_base():
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
         self.logger.info(f"Got data: {time_chunk.shape}, mean = {time_chunk.mean()}")
-        # Append size of current chunk to chunk sizes
-        self.chunk_sizes.append(time_chunk.shape[1])
+
         if save:
             np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
 
@@ -158,8 +126,8 @@ class reader_gen(reader_base):
         cfg : delta config dict
         """
         super().__init__(cfg, shotnr)
-        self.IO.SetEngine(cfg["transport"]["engine"])
-        self.IO.SetParameters(cfg["transport"]["params"])
+        self.IO.SetEngine(cfg["engine"])
+        self.IO.SetParameters(cfg["params"])
         self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 

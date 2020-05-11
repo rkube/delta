@@ -11,7 +11,7 @@
     "chunk_size": 10000,
     "nstep": 5,
     "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
-    "engine": "BP4",
+    "engine": "SST",
     "channel_range": ["L0101-2408"],
     "params":
     {
@@ -24,13 +24,13 @@
       "OpenTimeoutSecs": "300"
     }
   },
-  "storage": 
+  "storage_mongo": 
   {
     "backend": "mongo",
     "datastore": "gridfs",
     "datadir": "/global/cscratch1/sd/rkube/delta"
   },
-  "storage_null": 
+  "storage": 
   {
     "backend": "null"
   },

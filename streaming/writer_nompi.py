@@ -16,7 +16,7 @@ class writer_base():
         self.logger = logging.getLogger("simple")
 
         self.shotnr = shotnr
-        self.adios = adios2.ADIOS(MPI.COMM_SELF)
+        self.adios = adios2.ADIOS()
         self.IO = self.adios.DeclareIO(gen_io_name(0))
         self.writer = None
         # Adios2 variable that is defined in DefineVariable
@@ -71,11 +71,20 @@ class writer_base():
 
     def BeginStep(self):
         """wrapper for writer.BeginStep()"""
-        return self.writer.BeginStep()
+        if self.writer is not None:
+            return self.writer.BeginStep()
+
+        else:
+            raise AssertionError("writer not opened")
+
 
     def EndStep(self):
         """wrapper for writer.EndStep()"""
-        return self.writer.EndStep()
+        if self.writer is not None:
+            return self.writer.EndStep()
+
+        else:
+            raise AssertionError("writer not opened")
 
     def put_data(self, data:np.ndarray):
         """Opens a new stream and send data through it
@@ -85,6 +94,7 @@ class writer_base():
         """
 
         assert(data.shape == self.shape)
+        
 
         if self.writer is not None:
             self.logger.info(f"Putting data: name = {self.variable.Name()}, shape = {data.shape}")

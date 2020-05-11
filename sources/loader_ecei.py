@@ -93,6 +93,9 @@ class loader_ecei():
                     time_chunk[ch.idx(), :] = df[chname_h5][current_chunk * self.chunk_size:
                                                            (current_chunk + 1) * self.chunk_size].astype(np.float64)
 
+            # Scale, see get_data in kstarecei.py
+            time_chunk = time_chunk * 1e-4
+
             # See if we can calculate the normalization.
             if self.got_normalization:
                 # This corresponds to norm == 1 in kstarecei.py

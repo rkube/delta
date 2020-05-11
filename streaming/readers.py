@@ -22,6 +22,12 @@ class reader_base():
     """
     
     def __init__(self, cfg: dict):
+
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("+                                                                                    +")
+        print("+      readers.py is deprecated. Use reader_mpi.py or reader_nompi.py                +")
+        print("+                                                                                    +")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")        
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
@@ -48,6 +54,13 @@ class reader_base():
         specified in config['transport']['params']. Open will wait for Timeout
         seconds until it throws an error.
         """
+
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("+                                                                                    +")
+        print("+      readers.py is deprecated. Use reader_mpi.py or reader_nompi.py                +")
+        print("+                                                                                    +")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")      
+
         self.logger.info(f"Waiting to receive {self.channel_name}")
         if self.reader is None:
             self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
@@ -67,6 +80,13 @@ class reader_base():
 
     def get_data(self, varname):
         """Attempt to load `varname` from the opened stream"""
+
+
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("+                                                                                    +")
+        print("+      readers.py is deprecated. Use reader_mpi.py or reader_nompi.py                +")
+        print("+                                                                                    +")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")      
 
         var = self.IO.InquireVariable(varname)
         io_array = np.zeros(var.Shape(), dtype=np.float32)

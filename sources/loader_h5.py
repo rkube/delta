@@ -1,7 +1,7 @@
 #-*- Coding: UTF-8 -*-
 
 import h5py
-#from mpi4py import MPI
+from mpi4py import MPI
 import numpy as np
 
 from analysis.channels import channel_range
@@ -31,6 +31,12 @@ class loader_h5():
 
         """
         
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("+                                                                                    +")
+        print("+      loader_h5 is deprecated for ECEi data. Please use loader_ecei                 +")
+        print("+                                                                                    +")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
         self.ch_range = ch_range
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
         self.filename = filename
@@ -47,6 +53,13 @@ class loader_h5():
         ========
         data_list: List of data elements from each channel
         """
+
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("+                                                                                    +")
+        print("+      loader_h5 is deprecated for ECEi data. Please use loader_ecei                 +")
+        print("+                                                                                    +")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
         data_list = []
 
         with h5py.File(self.filename, "r") as df:
@@ -61,6 +74,12 @@ class loader_h5():
     def get_batch(self):
         """Returns a list with all time chunks. Loads all channels batch-wise and
            splits using numpy.split"""
+
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("+                                                                                    +")
+        print("+      loader_h5 is deprecated for ECEi data. Please use loader_ecei                 +")
+        print("+                                                                                    +")
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
         data_arr = np.zeros((self.ch_range.length(), 5_000_000), dtype=np.float64)
 
