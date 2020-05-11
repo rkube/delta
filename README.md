@@ -58,7 +58,7 @@ Here is an example configuration file for the generator running on the KSTAR DTN
 }
 ```
 
-### Jongs reference implementation of the 2-node workflow
+### Reference implementation of the 2-node workflow
 This reference implmentation shows the feasability of streaming the data from KSTAR to NERSC with
 high velocity. To run this scenaris log in to the respective DTNS and execute:
 
@@ -94,17 +94,29 @@ CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
 
 Run this implemntation on cori compute nodes as
 ```
+module unload PrgEnv-cray PrgEnv-gnu PrgEnv-intel
+module load PrgEnv-gnu
 module unload craype-hugepages2M
-module unload darshan
-module switch PrgEnv-intel PrgEnv-gnu
+module load python3
 module use -a /global/cscratch1/sd/jyc/sw/modulefiles
 module load adios2/devel
-module load py-pyyaml 
-module load pymongo
+module load python_delta_comm
 
 export OMP_NUM_THREAD=N
 srun -n 6 -c N python processor_mpi.py --config configs/test_all.json
 ```
+
+Run the generator on the NERSC DTN as 
+```
+module use -a /global/cscratch1/sd/jyc/dtn/sw/spack/share/spack/modules/linux-centos7-ivybridge
+module load openmpi
+module load zeromq
+module load python py-numpy py-mpi4py py-h5py py-scipy py-matplotlib py-pyyaml
+module use -a /global/cscratch1/sd/jyc/dtn/sw/modulefiles
+module load adios2
+module load python_delta_comm
+```
+
 
 For the KNL nodes, best performance is with N=8/16 and 24 or 48 MPI ranks.
 
