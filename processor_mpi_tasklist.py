@@ -168,7 +168,7 @@ def main():
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     executor_fft = MPIPoolExecutor(max_workers=4, mpi_info={"host": "nid00104"})
-    executor = MPIPoolExecutor(max_workers=60, mpi_info={"hostfile": "mpi_hosts.txt"})
+    executor_anl = MPIPoolExecutor(max_workers=60, mpi_info={"hostfile": "mpi_hosts.txt"})
     adios2_varname = channel_range.from_str(cfg["transport"]["channel_range"][0])
 
     #with MPICommExecutor(MPI.COMM_WORLD) as executor:
@@ -193,7 +193,7 @@ def main():
 
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport"])
-    task_list = task_list_spectral(executor, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
+    task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
 
     dq = queue.Queue()
     msg = None
