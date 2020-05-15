@@ -51,7 +51,7 @@ class writer_base():
 
     def DefineAttributes(self, attrsname: str, attrs: dict):
         """Wrapper around DefineAttribute, takes in dictionary and writes each as an Attribute
-        NOTE: Currently no ADIOS cmd to use dict, pickle to stringif
+        NOTE: Currently no ADIOS cmd to use dict, pickle to string
 
         Input:
         ======

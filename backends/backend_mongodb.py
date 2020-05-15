@@ -40,12 +40,16 @@ class backend_mongodb(backend):
                                           password=password)
 
         db = self.client.get_database()
-        self.datadir = join(cfg_mongo["storage"]["datadir"], cfg_mongo["run_id"])
-
+        
+        
         # Analysis data is either stored in gridFS(slow!) or numpy.
-        assert cfg_mongo["storage"]["datastore"] in ["gridfs", "numpy"]
+        assert cfg_mongo["datastore"] in ["gridfs", "numpy"]
 
-        if cfg_mongo["storage"]["datastore"] == "numpy":
+        self.datadir = None
+        self.datastore = None
+        if cfg_mongo["datastore"] == "numpy":
+            self.datastore = "numpy"
+            self.datadir = join(cfg_mongo["datadir"], cfg_mongo["run_id"])
             # Initialize storage directory
             if (isdir(self.datadir) == False):
                 try:
@@ -55,7 +59,8 @@ class backend_mongodb(backend):
                     raise ValueError(f"Could not access path {self.datadir}")
             self.fs = None
 
-        elif cfg_mongo["storage"]["datastore"] == "gridfs":
+        elif cfg_mongo["datastore"] == "gridfs":
+            self.datastore = "gridfs"
             # Initialize gridFS
             self.fs = gridfs.GridFS(db)     
         
@@ -94,44 +99,44 @@ class backend_mongodb(backend):
         return result.inserted_id
 
 
-    def store_task(self, task, future=None, dummy=True):
-        """Stores results from analysis tasks in the database.
+    # def store_task(self, task, future=None, dummy=True):
+    #     """Stores results from analysis tasks in the database.
 
-        The results from analysis_task futures are evaluated in this method.
+    #     The results from analysis_task futures are evaluated in this method.
 
-        Parameters
-        ----------
-        task: analysis_task object. 
-        dummy: bool. If true, do not insert the item into the database
+    #     Parameters
+    #     ----------
+    #     task: analysis_task object. 
+    #     dummy: bool. If true, do not insert the item into the database
         
-        Returns
-        -------
-        None
-        """
+    #     Returns
+    #     -------
+    #     None
+    #     """
 
-        # Gather the results from all futures in the task
-        # This locks until all futures are evaluated.
-        result = []
-        for future in task.futures_list:
-            result.append(future.result())
-        result = np.array(result)
+    #     # Gather the results from all futures in the task
+    #     # This locks until all futures are evaluated.
+    #     result = []
+    #     for future in task.futures_list:
+    #         result.append(future.result())
+    #     result = np.array(result)
 
-        # Write results to the backend
-        storage_scheme = task.storage_scheme
-        # Add a time stamp to the scheme
-        storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #     # Write results to the backend
+    #     storage_scheme = task.storage_scheme
+    #     # Add a time stamp to the scheme
+    #     storage_scheme["time"] =  datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        if dummy:
-            storage_scheme["results"] = result
-            print(storage_scheme)
-        else:
-            storage_scheme["results"] = Binary(pickle.dumps(result))
-            self.collection.insert_one(storage_scheme)
+    #     if dummy:
+    #         storage_scheme["results"] = result
+    #         print(storage_scheme)
+    #     else:
+    #         storage_scheme["results"] = Binary(pickle.dumps(result))
+    #         self.collection.insert_one(storage_scheme)
 
-        return None
+    #     return None
 
 
-    def store_data(self, data, info_dict, cfg):
+    def store_data(self, data, info_dict):
         """Stores arbitrary data in mongodb
 
         Parameters
@@ -141,12 +146,12 @@ class backend_mongodb(backend):
         cfg: delta configuration object
         """
 
-        if cfg["storage"]["datastore"] == "gridfs":
+        if self.datastore == "gridfs":
             # Create a binary object and store it in gridfs
             fid = self.fs.put(Binary(pickle.dumps(data)))
             info_dict.update({"result_gridfs": fid})
         
-        elif cfg["storage"]["datastore"] == "numpy":
+        elif self.datastore == "numpy":
             # Create a unique file-name
             unq_fname = uuid.uuid1()
             unq_fname = unq_fname.__str__() + ".npz"

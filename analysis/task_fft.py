@@ -10,8 +10,6 @@ This class is not used for the mpi implementation and can be deleted.
 """
 
 import numpy as np
-#import dask.array as da
-#from dask.distributed import get_worker
 from scipy.signal import detrend, spectrogram, stft
 from math import floor
 
@@ -188,8 +186,6 @@ class task_fft_scipy():
         _, win = self.build_fft_window(self.ndata, self.nfft, self.window, self.overlap)
         self.win_factor = np.mean(win**2.0)
 
-        #print("Overlap = {0}, win_factor = {1}".format(self.overlap, self.win_factor))
-
         
     def build_fft_window(self, tnum, nfft, window, overlap):
         """Builds the window used in the STFTs. Taken from KSTAR/specs.py
@@ -240,7 +236,7 @@ class task_fft_scipy():
 
 
 
-    def do_fft(self, client, stream_data):
+    def do_fft(self, executor, stream_data):
         """Dispatch a STFT to the workers.
         For details on how the STFT relates to other spectrograms, see
         tests_div/scipy_compare_spectrograms.ipynb
@@ -256,7 +252,7 @@ class task_fft_scipy():
 
         Input:
         ======
-        dask_client:
+        executor: PEP-3148 style executor
         stream_data_future:
 
         Returns:
@@ -265,7 +261,7 @@ class task_fft_scipy():
         List of futures
         """
 
-        def stft_scipy(data_in, ch_idx):
+        def stft_scipy(data_in):
             """ Calculates short-time fourier transformations using scipy.signal.spectrogram
             Inputs
             ======
@@ -278,19 +274,16 @@ class task_fft_scipy():
                     ndarray, complex dim0: Fourier Coefficients. dim1: index of the n-th stft.
             """
 
-            res = stft(data_in[ch_idx, :], fs=self.fs, nperseg=self.nfft, window=self.window,
+            res = stft(data_in, axis=1, fs=self.fs, nperseg=self.nfft, window=self.window,
                        detrend=self.detrend, noverlap=self.noverlap, padded=False,
                        return_onesided=False, boundary=None)
 
             res = np.fft.fftshift(res, axes=1)
-            print("fft-shifting")
-
-
+            
             return res[2]
 
         # Distribute the stft function to the workers
-        futures = [client.submit(stft_scipy, stream_data, idx) for idx in range(192)]
-
+        futures = [executor.submit(stft_scipy, stream_data)]
         return(futures)
 
     def do_fft_local(self, stream_data):
@@ -301,7 +294,6 @@ class task_fft_scipy():
                    return_onesided=False, boundary=None)
 
         res = np.fft.fftshift(res[2], axes=1)
-
 
         return res
 

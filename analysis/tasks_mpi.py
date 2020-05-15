@@ -2,16 +2,18 @@
 
 import numpy as np
 import logging
+import timeit
 
 import more_itertools
 
 from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_crosscorr, kernel_bicoherence, kernel_skw
-
 from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
+from analysis.task_fft import task_fft_scipy
 
 import backends
 
+from scipy.signal import stft
 
 """
 Author: Ralph Kube
@@ -36,7 +38,7 @@ future_list.
 class task_spectral():
     """Serves as the super-class for analysis methods"""
 
-    def __init__(self, task_config, fft_config, ecei_config):
+    def __init__(self, task_config, fft_config, ecei_config, storage_config):
         """Initialize the object with a fixed channel list, a fixed name of the analysis to be performed
         and a fixed set of parameters for the analysis routine.
 
@@ -46,6 +48,12 @@ class task_spectral():
         fft_config: dict, gives parameters of the fourier-transformed data
         ecei_config: dict, information on ecei diagnostic
         """
+
+        self.task_config = task_config
+        self.ecei_config = ecei_config
+        self.storage_config = storage_config
+
+        self.logger = logging.getLogger("simple")
 
 
         # Stores the description of the task. This can be arbitrary
@@ -70,16 +78,23 @@ class task_spectral():
         else:
             raise NameError(f"Unknown analysis task {self.analysis}")
         
+
+        # Get the configuration from task_fft_scipy, but don't store the object.
+        fft_config["fsample"] = ecei_config["SampleRate"] * 1e3
+        self.my_fft = task_fft_scipy(10_000, fft_config, normalize=True, detrend=True)
+        self.fft_params = self.my_fft.get_fft_params()
+
+        if self.storage_config["backend"] == "numpy":
+            self.storage_backend = backends.backend_numpy(self.storage_config)
+        elif self.storage_config["backend"] == "mongo":
+            self.store_backend = backends.backend_mongodb(self.storage_config)
+        elif self.storage_config["backend"] == "null":
+            self.storage_backend = backends.backend_null(self.storage_config)
+
         # Parse the reference and cross channels.
         self.ref_channels = channel_range.from_str(task_config["ref_channels"])
         # These channels serve as the cross-data for the spectral diagnostics
         self.cmp_channels = channel_range.from_str(task_config["cmp_channels"])
-
-        self.task_config = task_config
-        self.fft_config = fft_config
-        self.ecei_config = ecei_config
-
-        #self.futures_list = []
 
         # Construct a list of unique channels
         # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
@@ -113,7 +128,7 @@ class task_spectral():
         return(all_chunks)
 
 
-    def calc_and_store(self, fft_data, ch_it, fft_config, cfg, info_dict):
+    def calc_and_store(self, stream_data, ch_it, info_dict):
         """Dispatches a kernel and stores results
 
         Parameters:
@@ -121,46 +136,27 @@ class task_spectral():
         fft_data - ndarray, complex: Contains the fourier-transformed data. 
                             dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)    
         ch_it - List of channels to iterate over
-        fft_config - Calculate properties of the used fft
-        cfg        - configuration object
         info_dict  - metadata for the fft_data object
         """
 
-
-        import sys
-
         try:
-
-            # Instantiate the backend. Do not do this in the object constructor
-            # but here in the function dispatched on the executor.
-            if cfg['storage']['backend'] == "numpy":
-                store_backend = backends.backend_numpy(cfg['storage'])
-            elif cfg['storage']['backend'] == "mongo":
-                store_backend = backends.backend_mongodb(cfg)    
-            elif cfg['storage']['backend'] == "null":
-                store_backend = backends.backend_null(cfg['storage'])
-
             # Calculate the cross phase
-            result = self.kernel(fft_data, ch_it, fft_config)
+            result = self.kernel(fft_data, ch_it, self.fft_params)
 
             #Store result in the DB
-            store_backend.store_data(result, info_dict, cfg)
+            self.store_backend.store_data(result, info_dict)
             logging.info(f"{self.analysis}: _submit tidx {info_dict['tidx']}, chunk {info_dict['channel_batch']}: Finished")
 
             # Zero out the result once it has been written
             result = None
 
         except:
-            logging.info("Unexpected error in coherence_store:", sys.exc_info()[0])
+            self.logger.info("Unexpected error in calc_and_store:", sys.exc_info()[0])
             raise 
 
         return None
 
-    def dummy(self, tidx):
-        print("__dummy__")
-
-    
-    def submit(self, executor, fft_data, tidx, cfg):
+    def submit(self, executor, data, tidx):
         """Submits a kernel to the executor
         
         Note: When we are submitting member functions on the executioner we are losing the
@@ -171,9 +167,21 @@ class task_spectral():
         info_dict_list = [{"analysis_name": self.analysis,
                            "tidx": tidx,
                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
-        _ = [executor.submit(self.calc_and_store, fft_data, ch_it, self.fft_config, cfg, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        
+        tic_fft = timeit.default_timer()
+        res = executor.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"],
+                              window=self.fft_params["window"], detrend=self.fft_params["detrend"], 
+                              noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        fft_data = res.result()
+        fft_data = np.fft.fftshift(fft_data[2], axes=1)
+        toc_fft = timeit.default_timer()
+        self.logger.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
+
+        _ = [executor.submit(self.calc_and_store, fft_data, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
 
         return None
+
+
 
 
 # End of file tasks_mpi.py

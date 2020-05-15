@@ -57,38 +57,49 @@ num_batches = data_pts // data_per_batch
 
 # Get a data_loader
 logger.info("Loading h5 data into memory")
-dl = loader_h5(path.join(datapath, "ECEI.018431.LFS.h5"), ch_rg, cfg["transport"]["chunk_size"])
-data_all = dl.get_batch()
-
+dl = loader_ecei(cfg)
+batch_gen = dl.batch_generator()
 
 logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport']['engine']}")
 
-writer = writer_gen(cfg)
-writer.DefineVariable(ch_rg.to_str(), data_all[0])
+writer = writer_gen(cfg["transport"])
+
+# Pass data layout to writer and reset generator
+for data in batch_gen:
+    break
+writer.DefineVariable(ch_rg.to_str(), data)
+batch_gen = dl.batch_generator()
+
 writer.Open()
 
+
+
 logger.info("Start sending on channel:")
-t0 = time.time()
-for i in range(nstep):
+tic = time.time()
+nstep = 0
+for data in batch_gen:
     if(rank == 0):
-        logger.info(f"Sending: {i:d} / {nstep:d}. data: dtype={data_all[i].dtype}, min = {data_all[i].min()}, max = {data_all[i].max()}")
+        logger.info(f"Sending time_chunk {nstep} / {dl.num_chunks}")
     writer.BeginStep()
-    # data_tmp = np.zeros_like(data_all[i])
-    # data_tmp[:] = data_all[i][:]
-    writer.put_data(data_all[i])
+    writer.put_data(data)
     writer.EndStep()
-t1 = time.time()
+    nstep += 1
+
+    if nstep >= 200:
+        break
+
+toc = time.time()
 writer.writer.Close()
 
-chunk_size = np.prod(data_all[0].shape)*data_all[0].itemsize/1024/1024
+chunk_size = np.prod(data.shape) * data.itemsize / 1024 / 1024
 logger.info("")
 logger.info("Summary:")
-logger.info(f"    chunk shape: {data_all[0].shape}")
+logger.info(f"    chunk shape: {data.shape}")
 logger.info(f"    chunk size (MB): {chunk_size:.03f}")
 logger.info(f"    total nstep: {nstep:d}")
-logger.info(f"    total data (MB): {(chunk_size*nstep):03f}")
-logger.info(f"    time (sec): {(t1-t0):.03f}")
-logger.info(f"    throughput (MB/sec): {(chunk_size*nstep)/(t1-t0):.03f}")
+logger.info(f"    total data (MB): {(chunk_size * nstep):03f}")
+logger.info(f"    time (sec): {(toc - tic):.03f}")
+logger.info(f"    throughput (MB/sec): {(chunk_size * nstep)/(toc - tic):.03f}")
 
 logger.info("Finished")
 
