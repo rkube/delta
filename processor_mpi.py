@@ -215,12 +215,12 @@ def main():
             # Create ADIOS reader object
             reader = reader_gen(cfg["transport"])
 
-            # Create the task list
-            task_list = []
-            for task_config in cfg["task_list"]:
-                #task_list.append(task_spectral(task_config, fft_params, cfg["ECEI_cfg"]))
-                task_list.append(task_spectral(task_config, cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"]))
-                store_backend.store_metadata(task_config, task_list[-1].get_dispatch_sequence())
+            # Create a list of individual spectral tasks
+            #task_list = []
+            #for task_config in cfg["task_list"]:
+            #    #task_list.append(task_spectral(task_config, fft_params, cfg["ECEI_cfg"]))
+            #    #task_list.append(task_spectral(task_config, cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"]))
+            #    #store_backend.store_metadata(task_config, task_list[-1].get_dispatch_sequence())
                 
             dq = queue.Queue()
             msg = None

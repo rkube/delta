@@ -52,7 +52,6 @@ class task_spectral():
         self.task_config = task_config
         self.ecei_config = ecei_config
         self.storage_config = storage_config
-
         self.logger = logging.getLogger("simple")
 
 
@@ -79,18 +78,6 @@ class task_spectral():
             raise NameError(f"Unknown analysis task {self.analysis}")
         
 
-        # Get the configuration from task_fft_scipy, but don't store the object.
-        fft_config["fsample"] = ecei_config["SampleRate"] * 1e3
-        self.my_fft = task_fft_scipy(10_000, fft_config, normalize=True, detrend=True)
-        self.fft_params = self.my_fft.get_fft_params()
-
-        if self.storage_config["backend"] == "numpy":
-            self.storage_backend = backends.backend_numpy(self.storage_config)
-        elif self.storage_config["backend"] == "mongo":
-            self.store_backend = backends.backend_mongodb(self.storage_config)
-        elif self.storage_config["backend"] == "null":
-            self.storage_backend = backends.backend_null(self.storage_config)
-
         # Parse the reference and cross channels.
         self.ref_channels = channel_range.from_str(task_config["ref_channels"])
         # These channels serve as the cross-data for the spectral diagnostics
@@ -110,6 +97,23 @@ class task_spectral():
         self.channel_chunk_size = task_config["channel_chunk_size"]
         # Total number of chunks, i.e. the number of futures appended to the list per call to calculate
         self.num_chunks = (len(self.unique_channels) + self.channel_chunk_size - 1) // self.channel_chunk_size
+
+        # Get the configuration from task_fft_scipy, but don't store the object.
+        fft_config["fsample"] = ecei_config["SampleRate"] * 1e3
+        self.my_fft = task_fft_scipy(self.channel_chunk_size, fft_config, normalize=True, detrend=True)
+        self.fft_params = self.my_fft.get_fft_params()
+
+        self.storage_backend = None
+        if self.storage_config["backend"] == "numpy":
+            self.storage_backend = backends.backend_numpy(self.storage_config)
+        elif self.storage_config["backend"] == "mongo":
+            self.store_backend = backends.backend_mongodb(self.storage_config)
+        elif self.storage_config["backend"] == "null":
+            self.storage_backend = backends.backend_null(self.storage_config)
+        else:
+            raise NameError(f"Unknown storage backend requested: {self.storage_config}")
+
+        self.storage_backend.store_metadata(self.task_config, self.get_dispatch_sequence())
 
 
     def get_dispatch_sequence(self, niter=None):
@@ -156,7 +160,7 @@ class task_spectral():
 
         return None
 
-    def submit(self, executor, data, tidx):
+    def submit(self, executor, fft_data, tidx):
         """Submits a kernel to the executor
         
         Note: When we are submitting member functions on the executioner we are losing the
@@ -167,19 +171,71 @@ class task_spectral():
         info_dict_list = [{"analysis_name": self.analysis,
                            "tidx": tidx,
                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
-        
-        tic_fft = timeit.default_timer()
-        res = executor.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"],
-                              window=self.fft_params["window"], detrend=self.fft_params["detrend"], 
-                              noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
-        fft_data = res.result()
-        fft_data = np.fft.fftshift(fft_data[2], axes=1)
-        toc_fft = timeit.default_timer()
-        self.logger.info(f"FFT took {(toc_fft - tic_fft):6.4f}s")
 
         _ = [executor.submit(self.calc_and_store, fft_data, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
 
         return None
+
+
+
+class task_list_spectral():
+    """Defines a group of analysis that, together with an FFT, are 
+    performed on a PEP-3148 exeecutor"""
+
+    def __init__(self, executor_anl, executor_fft, task_config_list, fft_config, ecei_config, storage_config):
+        """Initialize the object with a list of tasks to be performed. 
+        These tasks share a common channel list.
+
+
+        Inputs:
+        =======
+        executor_anl: PEP-3148 executor for running analysis
+        executor_fft: PEP-3148 executor to execute FFTs on.
+        task_list: dict, defines parameters of the analysis to be performed
+        fft_config: dict, gives parameters of the fourier-transformed data
+        ecei_config: dict, information on ecei diagnostic
+        storage_config: dict, information on storage backend.
+        """
+
+        self.executor_anl = executor_anl
+        self.executor_fft  = executor_fft
+        self.task_config_list = task_config_list
+        # Don't store fft_config but use fft_params from one of the tasks instead.
+        # Do this since we need the sampling frequency, which is calculated from ECEi data.
+        #self.fft_config = fft_config
+        self.ecei_config = ecei_config
+        self.storage_config = storage_config
+
+        self.logger = logging.getLogger("simple")
+
+        self.task_list = []
+        for task_cfg in self.task_config_list:
+            self.task_list.append(task_spectral(task_cfg, fft_config, self.ecei_config, self.storage_config))
+
+        self.fft_params = self.task_list[0].fft_params
+
+
+    def submit(self, data, tidx):
+        """Performs magic"""
+        
+        self.logger.info(f"task_list.submit is called. tidx={tidx}. data.shape= {data.shape}. fft_params={self.fft_params}")
+        tic_fft = timeit.default_timer()
+        res = self.executor_fft.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"],
+                                       window=self.fft_params["window"], detrend=self.fft_params["detrend"], 
+                                       noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        fft_data = res.result()
+        fft_data = np.fft.fftshift(fft_data[2], axes=1)
+        toc_fft = timeit.default_timer()
+        self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s")
+
+        for task in self.task_list:
+            task.submit(self.executor_anl, fft_data, tidx)
+
+
+
+
+
+
 
 
 

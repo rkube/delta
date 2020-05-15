@@ -126,7 +126,7 @@ def consume(Q, task_list):
 
     while True:
         try:
-            msg = Q.get(timeout=2.0)
+            msg = Q.get(timeout=20.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -168,7 +168,7 @@ def main():
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     executor_fft = MPIPoolExecutor(max_workers=4, mpi_info={"host": "nid00104"})
-    executor_anl = MPIPoolExecutor(max_workers=60, mpi_info={"hostfile": "mpi_hosts.txt"})
+    executor_anl = MPIPoolExecutor(max_workers=10, mpi_info={"hostfile": "mpi_hosts.txt"})
     adios2_varname = channel_range.from_str(cfg["transport"]["channel_range"][0])
 
     #with MPICommExecutor(MPI.COMM_WORLD) as executor:
@@ -189,7 +189,6 @@ def main():
         store_backend = backends.backend_null(cfg['storage'])
 
     store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
-
 
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport"])
@@ -222,7 +221,7 @@ def main():
             stream_data = reader.Get(adios2_varname, save=False)
             rx_list.append(reader.CurrentStep())
 
-            # Generate message id and publish is
+            # Generate message id and publish 
             msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
             dq.put_nowait(msg)
             logger.info(f"Published message {msg}")
@@ -232,10 +231,10 @@ def main():
             break
 
         # #Early stopping for debug
-        # if reader.CurrentStep() > 50:
-        #     logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
-        #     dq.put(AdiosMessage(tstep_idx=None, data=None))
-        #     break
+        if reader.CurrentStep() > 5:
+            logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
+            dq.put(AdiosMessage(tstep_idx=None, data=None))
+            break
 
         last_step = reader.CurrentStep()
 
@@ -249,7 +248,8 @@ def main():
     logger.info("Workers have joined")
 
     # Shotdown the executioner
-    executor.shutdown(wait=True)
+    executor_anl.shutdown(wait=True)
+    executor_fft.shutdown(wait=True)
 
     toc_main = timeit.default_timer()
     logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
