@@ -13,7 +13,11 @@ from analysis.task_fft import task_fft_scipy
 
 import backends
 
+from misc.mpifilehandle import MPIFileHandler
+
 from scipy.signal import stft
+
+from mpi4py import MPI
 
 """
 Author: Ralph Kube
@@ -132,7 +136,7 @@ class task_spectral():
         return(all_chunks)
 
 
-    def calc_and_store(self, stream_data, ch_it, info_dict):
+    def calc_and_store(self, fft_data, fft_params, ch_it, info_dict):
         """Dispatches a kernel and stores results
 
         Parameters:
@@ -143,20 +147,40 @@ class task_spectral():
         info_dict  - metadata for the fft_data object
         """
 
-        try:
-            # Calculate the cross phase
-            result = self.kernel(fft_data, ch_it, self.fft_params)
+        import datetime
+        from socket import gethostname
 
-            #Store result in the DB
-            self.store_backend.store_data(result, info_dict)
-            logging.info(f"{self.analysis}: _submit tidx {info_dict['tidx']}, chunk {info_dict['channel_batch']}: Finished")
+        #logger = logging.getLogger("simple")
+        comm = MPI.COMM_WORLD                                                           
 
-            # Zero out the result once it has been written
-            result = None
+        #Store result in the DB
+        #self.store_backend.store_data(result, info_dict)
+        
+        #logger.info(f" {info_dict['analysis_name']}: _submit tidx {info_dict['tidx']}, chunk {info_dict['channel_batch']}: Finished")
 
-        except:
-            self.logger.info("Unexpected error in calc_and_store:", sys.exc_info()[0])
-            raise 
+        tidx = info_dict['tidx']
+        an_name = info_dict["analysis_name"]
+        hostname = gethostname()#MPI.Get_processor_name()
+        
+        t1 = datetime.datetime.now()
+        result = self.kernel(fft_data, ch_it, fft_params)
+        t2 = datetime.datetime.now()
+        dt = t2 - t1
+
+        with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
+            df.write(f" rank {comm.rank:03d}/{comm.size:03d}:  tidx={tidx} {an_name} start {t1:%H:%M:%S}  end {t2:%H:%M:%S} on {hostname} \n")
+            df.flush()
+
+            
+            
+
+
+        # Zero out the result once it has been written
+        result = None
+
+        # except:
+        #     logger.info("Unexpected error in calc_and_store:", sys.exc_info()[0])
+        #     raise 
 
         return None
 
@@ -172,7 +196,8 @@ class task_spectral():
                            "tidx": tidx,
                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
-        _ = [executor.submit(self.calc_and_store, fft_data, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        _ = [executor.submit(self.calc_and_store, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        self.logger.info(f"tidx={tidx} submitted {self.analysis}")
 
         return None
 
@@ -218,12 +243,13 @@ class task_list_spectral():
     def submit(self, data, tidx):
         """Performs magic"""
         
-        self.logger.info(f"task_list.submit is called. tidx={tidx}. data.shape= {data.shape}. fft_params={self.fft_params}")
         tic_fft = timeit.default_timer()
-        res = self.executor_fft.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"],
-                                       window=self.fft_params["window"], detrend=self.fft_params["detrend"], 
-                                       noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        res = self.executor_fft.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
         fft_data = res.result()
+        # fft_data = stft(data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"],
+        #                 window=self.fft_params["window"], detrend=self.fft_params["detrend"], 
+        #                 noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+
         fft_data = np.fft.fftshift(fft_data[2], axes=1)
         toc_fft = timeit.default_timer()
         self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s")

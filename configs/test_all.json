@@ -6,22 +6,27 @@
     "chunk_size": 10000,
     "channel_range": ["L0101-2408"]
   },
+  "params_bad":
+  {
+    "IPAddress": "128.55.205.18", 
+    "DataTransport": "WAN",
+    "Timeout": "300",
+    "Port": "12400",
+    "OneToOneMode": "TRUE",
+    "AlwaysProvideLatestTimestep": "FALSE",
+    "OpenTimeoutSecs": "300"
+  },
   "transport":
   {
     "chunk_size": 10000,
-    "nstep": 500,
+    "nstep": 100,
     "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
     "engine": "SST",
     "channel_range": ["L0101-2408"],
     "params":
     {
-      "IPAddress": "128.55.205.18", 
       "DataTransport": "WAN",
-      "Timeout": "300",
-      "Port": "12400",
-      "OneToOneMode": "TRUE",
-      "AlwaysProvideLatestTimestep": "FALSE",
-      "OpenTimeoutSecs": "300"
+      "OpenTimeoutSecs": "60"
     }
   },
   "storage_mongo": 

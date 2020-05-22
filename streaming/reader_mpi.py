@@ -109,6 +109,7 @@ class reader_base():
         self.logger.info(f"Inquired variables: {var}")
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
+        self.logger.info(f"Got data")
 
         if save:
             np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)

@@ -72,8 +72,6 @@ batch_gen = dl.batch_generator()
 
 writer.Open()
 
-
-
 logger.info("Start sending on channel:")
 tic = time.time()
 nstep = 0

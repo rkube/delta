@@ -44,6 +44,8 @@ from streaming.reader_mpi import reader_gen
 from analysis.tasks_mpi import task_list_spectral
 from analysis.channels import channel_range
 
+from misc.mpifilehandle import MPIFileHandler
+
 
 @attr.s 
 class AdiosMessage:
@@ -126,7 +128,7 @@ def consume(Q, task_list):
 
     while True:
         try:
-            msg = Q.get(timeout=20.0)
+            msg = Q.get(timeout=10.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -135,7 +137,7 @@ def consume(Q, task_list):
             Q.task_done()
             break
 
-        logger.info(f"rank {rank}: tidx={msg.tstep_idx}")
+        logger.info(f"Rank {rank}: Consumed tidx={msg.tstep_idx}")
         task_list.submit(msg.data, msg.tstep_idx)
 
         Q.task_done()
@@ -167,8 +169,9 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor_fft = MPIPoolExecutor(max_workers=4, mpi_info={"host": "nid00104"})
-    executor_anl = MPIPoolExecutor(max_workers=10, mpi_info={"hostfile": "mpi_hosts.txt"})
+    executor_fft = MPIPoolExecutor(max_workers=4, mpi_info={"host": "nid00152"})
+    executor_anl = MPIPoolExecutor(max_workers=120, mpi_info={"hostfile": "nid00153"})
+
     adios2_varname = channel_range.from_str(cfg["transport"]["channel_range"][0])
 
     #with MPICommExecutor(MPI.COMM_WORLD) as executor:
@@ -200,7 +203,6 @@ def main():
     tic_main = timeit.default_timer()
     workers = []
     for _ in range(4):
-        #thr = ConsumeThread(dq, executor, task_list, cfg)
         worker = threading.Thread(target=consume, args=(dq, task_list))
         worker.start()
         workers.append(worker)
@@ -209,13 +211,11 @@ def main():
     # data stream. Put this right before entering the main loop
     logger.info(f"{rank} Waiting for generator")
     reader.Open()
-    last_step = 0
     logger.info(f"Starting main loop")
 
     rx_list = []
     while True:
         stepStatus = reader.BeginStep()
-        logger.info(f"currentStep = {reader.CurrentStep()}")
         if stepStatus:
             # Read data
             stream_data = reader.Get(adios2_varname, save=False)
@@ -224,19 +224,17 @@ def main():
             # Generate message id and publish 
             msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
             dq.put_nowait(msg)
-            logger.info(f"Published message {msg}")
+            logger.info(f"Published tidx {msg.tstep_idx}")
             reader.EndStep()
         else:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
         # #Early stopping for debug
-        if reader.CurrentStep() > 5:
-            logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
-            dq.put(AdiosMessage(tstep_idx=None, data=None))
-            break
-
-        last_step = reader.CurrentStep()
+        # if reader.CurrentStep() > 5:
+        #     logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
+        #     dq.put(AdiosMessage(tstep_idx=None, data=None))
+        #     break
 
     dq.join()
     logger.info("Queue joined")

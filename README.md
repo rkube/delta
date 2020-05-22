@@ -61,6 +61,7 @@ Run this implementation on cori:
 module unload PrgEnv-cray PrgEnv-gnu PrgEnv-intel
 module load PrgEnv-gnu
 module unload craype-hugepages2M
+module unload python
 module load python3
 module use -a /global/cscratch1/sd/jyc/sw/modulefiles
 module load adios2/devel
@@ -68,6 +69,9 @@ module load python_delta_comm
 
 export OMP_NUM_THREAD=N
 srun -n 6 -c N python processor_mpi.py --config configs/test_all.json
+
+Alternatively, run the 2-node scenario using the task_list processor which uses an extra fft executor:
+srun -n 6 -c N python -m mpi4py.futures processor_mpi_tasklist.py --config configs/test_all.json
 ```
 
 ## Flexible workflow (3-node scenario)
