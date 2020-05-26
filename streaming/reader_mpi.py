@@ -9,7 +9,7 @@ from os.path import join
 import numpy as np
 
 from analysis.channels import channel, channel_range
-from streaming.adios_helpers import gen_io_name, gen_channel_name_v2
+from streaming.adios_helpers import gen_io_name, gen_channel_name_v3
 
 """
 Author: Ralph Kube
@@ -39,7 +39,7 @@ class reader_base():
         self.reader = None
         # Generate a descriptive channel name
         self.chrg = channel_range.from_str(cfg["channel_range"][self.rank])
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
+        self.channel_name = gen_channel_name_v3(cfg["datapath"], self.shotnr, self.chrg.to_str())
         self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
 
 
@@ -106,7 +106,6 @@ class reader_base():
         # elif isinstance(channels, type(None)):
         self.logger.info(f"Reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
         var = self.IO.InquireVariable(ch_rg.to_str())
-        self.logger.info(f"Inquired variables: {var}")
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
         self.logger.info(f"Got data")
@@ -129,7 +128,6 @@ class reader_gen(reader_base):
         super().__init__(cfg, shotnr)
         self.IO.SetEngine(cfg["engine"])
         self.IO.SetParameters(cfg["params"])
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 
 # End of file 

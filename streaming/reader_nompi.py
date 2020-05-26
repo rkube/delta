@@ -8,7 +8,7 @@ from os.path import join
 import numpy as np
 
 from analysis.channels import channel, channel_range
-from streaming.adios_helpers import gen_io_name, gen_channel_name_v2
+from streaming.adios_helpers import gen_io_name, gen_channel_name_v3
 
 """
 Author: Ralph Kube
@@ -31,13 +31,13 @@ class reader_base():
 
         self.reader = None
         # Generate a descriptive channel name
-        if len(cfg["channel_range"]) > 0:
+        if len(cfg["channel_range"]) > 1:
             self.logger.error("reader_base is not using MPI. The following channel_ranges are ignored:")
             for crg in cfg["channel_range"][1:]:
                 self.logger.error(f"Ignoring channel range {crg}")
 
         self.chrg = channel_range.from_str(cfg["channel_range"][0])
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
+        self.channel_name = gen_channel_name_v3(cfg["datapath"], self.shotnr, self.chrg.to_str())
         self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
 
 
@@ -106,7 +106,7 @@ class reader_base():
         var = self.IO.InquireVariable(ch_rg.to_str())
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
-        self.logger.info(f"Got data: {time_chunk.shape}, mean = {time_chunk.mean()}")
+        self.logger.info(f"Got data")
 
         if save:
             np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
@@ -126,7 +126,6 @@ class reader_gen(reader_base):
         super().__init__(cfg, shotnr)
         self.IO.SetEngine(cfg["engine"])
         self.IO.SetParameters(cfg["params"])
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
         self.reader = None
 
 # End of file 

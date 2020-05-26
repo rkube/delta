@@ -24,4 +24,9 @@ def gen_channel_name_v2(shotnr: int, channel_rg: str):
     return f"{shotnr:05d}_ch{channel_rg:s}"
 
 
+def gen_channel_name_v3(prefix: str, shotnr: int, channel_rg: str):
+
+    return f"{prefix}/{shotnr:05d}_ch{channel_rg:s}"
+
+
 # End of file adios_helpers.py

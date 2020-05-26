@@ -15,7 +15,7 @@ import logging, logging.config
 from analysis.channels import channel_range
 from streaming.writers import writer_gen
 from streaming.adios_helpers import gen_channel_name_v2
-from sources.loader_ecei import loader_ecei
+from sources.loader_ecei_cached import loader_ecei
 
 """
 Distributes time-chunked ECEI data via ADIOS2.
@@ -39,14 +39,14 @@ logging.config.dictConfig(log_cfg)
 
 logger = logging.getLogger("simple")
 
-datapath = cfg["transport"]["datapath"]
-nstep = cfg["transport"]["nstep"]
+datapath = cfg["transport_kstar"]["datapath"]
+nstep = cfg["transport_kstar"]["nstep"]
 shotnr = cfg["shotnr"]
 
 # Enforce 1:1 mapping of channels and tasks
-assert(len(cfg["transport"]["channel_range"]) == size)
+assert(len(cfg["transport_kstar"]["channel_range"]) == size)
 # Channels this process is reading
-ch_rg = channel_range.from_str(cfg["transport"]["channel_range"][rank])
+ch_rg = channel_range.from_str(cfg["transport_kstar"]["channel_range"][rank])
 
 # Hard-code the total number of data points
 data_pts = int(5e6)
@@ -58,11 +58,12 @@ num_batches = data_pts // data_per_batch
 # Get a data_loader
 logger.info("Loading h5 data into memory")
 dl = loader_ecei(cfg)
+dl.cache()
 batch_gen = dl.batch_generator()
 
-logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport']['engine']}")
+logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport_kstar']['engine']}")
 
-writer = writer_gen(cfg["transport"])
+writer = writer_gen(cfg["transport_kstar"])
 
 # Pass data layout to writer and reset generator
 for data in batch_gen:
@@ -82,9 +83,6 @@ for data in batch_gen:
     writer.put_data(data)
     writer.EndStep()
     nstep += 1
-
-    if nstep >= 200:
-        break
 
 toc = time.time()
 writer.writer.Close()

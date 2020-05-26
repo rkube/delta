@@ -137,6 +137,9 @@ def consume(Q, task_list):
             Q.task_done()
             break
 
+        #if(msg.tidx == 1):
+        #    np.savez(f"test_data/io_array_tr_s{msg.tidx:04d}.npz", msg.data)
+
         logger.info(f"Rank {rank}: Consumed tidx={msg.tstep_idx}")
         task_list.submit(msg.data, msg.tstep_idx)
 
@@ -169,10 +172,10 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor_fft = MPIPoolExecutor(max_workers=4, mpi_info={"host": "nid00152"})
-    executor_anl = MPIPoolExecutor(max_workers=120, mpi_info={"hostfile": "nid00153"})
+    executor_fft = MPIPoolExecutor(max_workers=4)
+    executor_anl = MPIPoolExecutor(max_workers=120)
 
-    adios2_varname = channel_range.from_str(cfg["transport"]["channel_range"][0])
+    adios2_varname = channel_range.from_str(cfg["transport_nersc"]["channel_range"][0])
 
     #with MPICommExecutor(MPI.COMM_WORLD) as executor:
     #    if executor is not None:
@@ -194,7 +197,7 @@ def main():
     store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport"])
+    reader = reader_gen(cfg["transport_nersc"])
     task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
 
     dq = queue.Queue()

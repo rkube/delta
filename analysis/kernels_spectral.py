@@ -56,7 +56,7 @@ def kernel_crosspower(fft_data, ch_it, fft_config):
 
     res = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        res[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1) / fft_config["win_factor"]
+        res[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
     
     return(np.abs(res).real)
 
@@ -114,7 +114,6 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
         Y = fft_shifted[ch_pair.ch2.idx(), :, :]
         
         #_tmp = np.fft.ifft(X * Y.conj(), n=fft_params['nfft'], axis=0) * fft_params['nfft'] / fft_params['win_factor']
-
 
         _tmp = np.fft.ifft(X * Y.conj(), axis=0).mean(axis=1) / fft_params['win_factor']
         res[idx, :] = np.fft.fftshift(_tmp.real)

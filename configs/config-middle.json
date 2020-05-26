@@ -1,0 +1,25 @@
+{
+  "Comment": "This is a configuration for the middle-man.",
+  "transport_rx":
+  {
+    "comment": "Receiver part of the middle-man. Read using BP4 for the time being.",
+    "chunk_size": 10000,
+    "nstep": 5,
+    "datapath": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
+    "engine": "BP4",
+    "channel_range": ["L0101-2408"],
+    "params":
+    {
+      "This section": "IsEmpty"
+    }
+  },
+  "transport_tx":
+  {
+    "engine": "SST",
+    "channel_range": ["L0101-2408"],
+    "params":
+    {
+      "RegistrationMethod": "File"
+    }
+  }
+}

@@ -29,14 +29,18 @@ class AdiosMessage:
 def forward(Q, cfg):
     """To be executed by a local thread. Pops items from the queue and forwards them."""
     logger = logging.getLogger("simple")
-    writer = writer_gen(cfg["transport_tx"])
-    dummy_data = np.zeros( (192, cfg["transport_rx"]["chunk_size"]), dtype=np.float64)
-    writer.DefineVariable(cfg["transport_tx"]["channel_range"][0], dummy_data)
+    writer = writer_gen(cfg["transport_nersc"])
+    dummy_data = np.zeros( (192, cfg["transport_nersc"]["chunk_size"]), dtype=np.float64)
+    writer.DefineVariable(cfg["transport_nersc"]["channel_range"][0], dummy_data)
     writer.Open()
     logger.info("Starting reader process")
 
     while True:
-        msg = Q.get()
+        try:
+            msg = Q.get(timeout=30.0)
+        except queue.Empty:
+            logger.info("Empty queue after waiting until time-out. Exiting")
+
         if msg.tstep_idx == None:
             Q.task_done()
             logger.info("Received hangup signal")
@@ -66,7 +70,7 @@ def main():
     # of the config file. Therefore some keys are duplicated, such as channel_range. Make sure that these
     # items are the same in both sections
 
-    assert(cfg["transport_rx"]["channel_range"] == cfg["transport_tx"]["channel_range"])
+    assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
 
     with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
@@ -74,7 +78,7 @@ def main():
     logger = logging.getLogger('simple')
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport_rx"])
+    reader = reader_gen(cfg["transport_kstar"])
     reader.Open()
 
     dq = queue.Queue()
@@ -90,8 +94,8 @@ def main():
         if stepStatus:
             # Read data
             logger.info(f"stepStatus == True")
-            stream_data = reader.Get(channel_range.from_str(cfg["transport_rx"]["channel_range"][0]), 
-                                     save=True)
+            stream_data = reader.Get(channel_range.from_str(cfg["transport_kstar"]["channel_range"][0]), 
+                                     save=False)
 
             # Generate message id and publish is
             msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
@@ -104,11 +108,6 @@ def main():
             break
 
         last_step = reader.CurrentStep()
-
-        if last_step > 10:
-            logger.info(f"Exiting after 1s0 steps")
-            dq.put_nowait(AdiosMessage(tstep_idx=None, data=None))
-            break
 
     logger.info("Exiting main loop")
     worker.join()

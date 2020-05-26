@@ -9,7 +9,7 @@ from contextlib import contextmanager
 
 import logging
 
-from streaming.adios_helpers import gen_channel_name_v2, gen_io_name
+from streaming.adios_helpers import gen_channel_name_v3, gen_io_name
 from analysis.channels import channel_range
 
 class writer_base():
@@ -31,7 +31,7 @@ class writer_base():
 
         # Generate a descriptive channel name
         self.chrg = channel_range.from_str(cfg["channel_range"][self.rank])
-        self.channel_name = gen_channel_name_v2(self.shotnr, self.chrg.to_str())
+        self.channel_name = gen_channel_name_v3(cfg["datapath"], self.shotnr, self.chrg.to_str())
         self.logger.info(f"writer_base: channel_name =  {self.channel_name}")
 
 

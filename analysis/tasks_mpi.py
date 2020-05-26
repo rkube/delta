@@ -168,12 +168,8 @@ class task_spectral():
         dt = t2 - t1
 
         with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
-            df.write(f" rank {comm.rank:03d}/{comm.size:03d}:  tidx={tidx} {an_name} start {t1:%H:%M:%S}  end {t2:%H:%M:%S} on {hostname} \n")
+            df.write(f" rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + "\n")
             df.flush()
-
-            
-            
-
 
         # Zero out the result once it has been written
         result = None
@@ -253,6 +249,9 @@ class task_list_spectral():
         fft_data = np.fft.fftshift(fft_data[2], axes=1)
         toc_fft = timeit.default_timer()
         self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s")
+
+        if tidx == 1:
+            np.savez(f"test_data/fft_array_s{tidx:04d}.npz", fft_data = fft_data)
 
         for task in self.task_list:
             task.submit(self.executor_anl, fft_data, tidx)
