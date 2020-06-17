@@ -1,8 +1,11 @@
 # coding: UTF-8 -*-
 
+from mpi4py import MPI
+
 import numpy as np
 import logging
-import timeit
+import time
+import datetime
 
 import more_itertools
 
@@ -13,11 +16,7 @@ from analysis.task_fft import task_fft_scipy
 
 import backends
 
-from misc.mpifilehandle import MPIFileHandler
-
 from scipy.signal import stft
-
-from mpi4py import MPI
 
 """
 Author: Ralph Kube
@@ -36,6 +35,70 @@ The executor client is called with the tasks analysis method, the data chunk
 and a channel range. The results of this calculation are accessible through its
 future_list.
 """
+
+
+def calc(kernel, fft_data, fft_params, ch_it, info_dict):
+    """Dispatches a kernel 
+
+    Parameters:
+    -----------
+    fft_data - ndarray, complex: Contains the fourier-transformed data. 
+                        dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)    
+    ch_it - List of channels to iterate over
+    info_dict  - metadata for the fft_data object
+    """
+    from mpi4py import MPI
+    import datetime
+
+    comm = MPI.COMM_WORLD
+    tidx = info_dict['tidx']
+    an_name = info_dict["analysis_name"]
+    t1 = datetime.datetime.now()
+
+    result = kernel(fft_data, ch_it, fft_params)
+    t2 = datetime.datetime.now()
+    dt = t2 - t1
+    with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
+        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + "\n")
+        df.flush()
+
+    return result
+
+
+def calc_and_store(kernel, storage_backend, fft_data, fft_params, ch_it, info_dict):
+    """Dispatches a kernel 
+
+    Parameters:
+    -----------
+    fft_data - ndarray, complex: Contains the fourier-transformed data. 
+                        dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)    
+    ch_it - List of channels to iterate over
+    info_dict  - metadata for the fft_data object
+    """
+    from mpi4py import MPI
+    import datetime
+
+    comm = MPI.COMM_WORLD
+    tidx = info_dict['tidx']
+    an_name = info_dict["analysis_name"]
+    t1 = datetime.datetime.now()
+
+    result = kernel(fft_data, ch_it, fft_params)
+    t2 = datetime.datetime.now()
+    dt_calc = t2 - t1
+
+    t1 = datetime.datetime.now()
+    storage_backend.store_data(result, info_dict)
+    t2 = datetime.datetime.now()
+    dt_io = t2 - t1
+
+    with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
+        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + f" Storage: {dt_io}" + "\n")
+        # df.write("Hello")
+        df.flush()
+
+    return result
+
 
 
 
@@ -111,7 +174,7 @@ class task_spectral():
         if self.storage_config["backend"] == "numpy":
             self.storage_backend = backends.backend_numpy(self.storage_config)
         elif self.storage_config["backend"] == "mongo":
-            self.store_backend = backends.backend_mongodb(self.storage_config)
+            self.storage_backend = backends.backend_mongodb(self.storage_config)
         elif self.storage_config["backend"] == "null":
             self.storage_backend = backends.backend_null(self.storage_config)
         else:
@@ -136,64 +199,37 @@ class task_spectral():
         return(all_chunks)
 
 
-    def calc_and_store(self, fft_data, fft_params, ch_it, info_dict):
-        """Dispatches a kernel and stores results
-
-        Parameters:
-        -----------
-        fft_data - ndarray, complex: Contains the fourier-transformed data. 
-                            dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)    
-        ch_it - List of channels to iterate over
-        info_dict  - metadata for the fft_data object
-        """
-
-        import datetime
-        from socket import gethostname
-
-        #logger = logging.getLogger("simple")
-        comm = MPI.COMM_WORLD                                                           
-
-        #Store result in the DB
-        #self.store_backend.store_data(result, info_dict)
-        
-        #logger.info(f" {info_dict['analysis_name']}: _submit tidx {info_dict['tidx']}, chunk {info_dict['channel_batch']}: Finished")
-
-        tidx = info_dict['tidx']
-        an_name = info_dict["analysis_name"]
-        hostname = gethostname()#MPI.Get_processor_name()
-        
-        t1 = datetime.datetime.now()
-        result = self.kernel(fft_data, ch_it, fft_params)
-        t2 = datetime.datetime.now()
-        dt = t2 - t1
-
-        with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
-            df.write(f" rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + "\n")
-            df.flush()
-
-        # Zero out the result once it has been written
-        result = None
-
-        # except:
-        #     logger.info("Unexpected error in calc_and_store:", sys.exc_info()[0])
-        #     raise 
-
-        return None
-
     def submit(self, executor, fft_data, tidx):
         """Submits a kernel to the executor
         
-        Note: When we are submitting member functions on the executioner we are losing the
+        Note: When submitting member functions on the executioner we are losing the
         ability to store future lists.
 
         This implementation lacks self.futures_list and the results of e.submit are discarded.
         """
+        self.logger.info(f"Entering submit.")
+
         info_dict_list = [{"analysis_name": self.analysis,
                            "tidx": tidx,
                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
-        _ = [executor.submit(self.calc_and_store, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
-        self.logger.info(f"tidx={tidx} submitted {self.analysis}")
+        # #res_list = [executor.submit(self.calc_and_store, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        _ = [executor.submit(calc_and_store, self.kernel, self.storage_backend, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        self.logger.info(f"tidx={tidx} submitted {self.analysis} as {self.num_chunks} tasks")
+
+
+        #for fut in fut_list:
+        #    print(f"Execptions: {fut.exception(timeout=5.0)}")
+
+        # for fut, info_dict in zip(fut_list, info_dict_list):
+        #     result = fut.result()
+        #     tic_io = time.perf_counter()
+        #     self.storage_backend.store_data(result, info_dict)
+        #     toc_io = time.perf_counter()
+        #     dt_io = toc_io - tic_io
+
+        #     size_in_MB = np.prod(result.shape) * result.dtype.itemsize / 1024 / 1024
+        #     self.logger.info(f"Storing result for tidx={tidx} {self.analysis}: {size_in_MB:6.4f}MB took {dt_io:4.2f}s")
 
         return None
 
@@ -220,6 +256,7 @@ class task_list_spectral():
 
         self.executor_anl = executor_anl
         self.executor_fft  = executor_fft
+        #self.executor = executor
         self.task_config_list = task_config_list
         # Don't store fft_config but use fft_params from one of the tasks instead.
         # Do this since we need the sampling frequency, which is calculated from ECEi data.
@@ -239,15 +276,13 @@ class task_list_spectral():
     def submit(self, data, tidx):
         """Performs magic"""
         
-        tic_fft = timeit.default_timer()
+        tic_fft = time.perf_counter()
         res = self.executor_fft.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        #res = self.executor.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
         fft_data = res.result()
-        # fft_data = stft(data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"],
-        #                 window=self.fft_params["window"], detrend=self.fft_params["detrend"], 
-        #                 noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
 
         fft_data = np.fft.fftshift(fft_data[2], axes=1)
-        toc_fft = timeit.default_timer()
+        toc_fft = time.perf_counter()
         self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
         if tidx == 1:
@@ -255,14 +290,6 @@ class task_list_spectral():
 
         for task in self.task_list:
             task.submit(self.executor_anl, fft_data, tidx)
-
-
-
-
-
-
-
-
-
+        #    #task.submit(self.executor, fft_data, tidx)
 
 # End of file tasks_mpi.py

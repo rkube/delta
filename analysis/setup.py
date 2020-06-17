@@ -8,12 +8,11 @@ import numpy
 extensions = [
     Extension("kernels_spectral_cy", 
               sources=["kernels_spectral_cy.pyx"],
-              libraries=["kernels"],
-              library_dirs=["lib"],
+              #libraries=["kernels"],
+              #library_dirs=["lib"],
               include_dirs=[numpy.get_include(), "lib"],
-              #extra_compile_args=["-qopenmp", "-xHost"], ## for intel
               extra_compile_args=["-fopenmp", ], ## for GCC. Recommended with Python
-              extra_link_args=[]),
+              extra_link_args=["-fopenmp"]),
 ]
 
 setup(name="kernels_spectral_cy", 

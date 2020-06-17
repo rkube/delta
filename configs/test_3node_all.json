@@ -7,46 +7,34 @@
       "num_chunks": 500,
       "channel_range": ["L0101-2408"]
     },
-    "params_bad":
-    {
-      "IPAddress": "128.55.205.18", 
-      "DataTransport": "WAN",
-      "Timeout": "300",
-      "Port": "12400",
-      "OneToOneMode": "TRUE",
-      "AlwaysProvideLatestTimestep": "FALSE",
-      "OpenTimeoutSecs": "300"
-    },
     "transport_kstar":
     {
       "chunk_size": 10000,
       "nstep": 500,
-      "datapath": "/global/cscratch1/sd/rkube/delta/tmp_kstar",
+      "datapath": "tmp_kstar",
       "channel_range": ["L0101-2408"],
-      "engine": "BP4",
+      "engine": "DataMan",
       "params":
       {
-        "DataTransport": "WAN",
-        "OpenTimeoutSecs": "60",
-        "IPAddress": "128.55.205.19",
-        "Timeout": "60",
-        "Port": "50555"
+        "IPAddress": "203.230.120.125",
+        "Timeout": "30",
+        "Port": "50555",
+        "TransportMode": "fast"
       }
     },
     "transport_nersc":
     {
       "chunk_size": 10000,
       "nstep": 500,
-      "datapath": "/global/cscratch1/sd/rkube/delta/tmp_nersc",
+      "datapath": "tmp_nersc",
       "channel_range": ["L0101-2408"],
-      "engine": "BP4",
+      "engine": "DataMan",
       "params":
       {
-        "DataTransport": "WAN",
-        "OpenTimeoutSecs": "60",
-        "IPAddress": "128.55.205.19",
-        "Timeout": "60",
-        "Port": "50555"
+        "IPAddress": "128.55.205.18",
+        "Timeout": "30",
+        "Port": "50001",
+        "TransportMode": "fast"
       }
     },
     "storage_mongo": 

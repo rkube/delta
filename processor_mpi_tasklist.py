@@ -6,24 +6,22 @@ This processor implements the one-to-one model using mpi
 main loop is based on:
 * https://www.roguelynn.com/words/asyncio-true-concurrency/
 * Jong's threaded queue code
-* Dask codes
 
 
 To run on an interactive node
-srun -n 4 python -m mpi4py.futures processor_mpi.py  --config configs/test_crossphase.json
+srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
 
 """
 
 import os
 from mpi4py import MPI
-from mpi4py.futures import MPIPoolExecutor, MPICommExecutor
+from mpi4py.futures import MPIPoolExecutor
 
 import logging
 import logging.config
 import random
 import string
 import queue
-#import concurrent.futures
 import threading
 
 import numpy as np
@@ -43,8 +41,6 @@ from streaming.reader_mpi import reader_gen
 #from analysis.task_fft import task_fft_scipy
 from analysis.tasks_mpi import task_list_spectral
 from analysis.channels import channel_range
-
-from misc.mpifilehandle import MPIFileHandler
 
 
 @attr.s 
@@ -128,7 +124,7 @@ def consume(Q, task_list):
 
     while True:
         try:
-            msg = Q.get(timeout=10.0)
+            msg = Q.get(timeout=5.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -148,6 +144,10 @@ def consume(Q, task_list):
 
 
 def main():
+    comm  = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/config_null.json')
@@ -165,24 +165,22 @@ def main():
     with open("configs/logger.yaml", "r") as f:  
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
+    logger = logging.getLogger('simple')
 
-    comm  = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor_fft = MPIPoolExecutor(max_workers=4)
-    executor_anl = MPIPoolExecutor(max_workers=120)
+    executor_fft = MPIPoolExecutor(max_workers=16)
+    executor_anl = MPIPoolExecutor(max_workers=16)
+    #executor = MPIPoolExecutor(max_workers=120)
 
     adios2_varname = channel_range.from_str(cfg["transport_nersc"]["channel_range"][0])
 
     #with MPICommExecutor(MPI.COMM_WORLD) as executor:
     #    if executor is not None:
-
-    logger = logging.getLogger('simple')
+    
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    cfg["run_id"] = "ABC125"
+    cfg["run_id"] = "ABC126"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -193,15 +191,19 @@ def main():
         store_backend = backends.backend_mongodb(cfg["storage"])
     elif cfg['storage']['backend'] == "null":
         store_backend = backends.backend_null(cfg['storage'])
+    else:
+        raise NameError(f"Unknown storage backend requested: {cfg['storage']['backend']}")
 
     store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
+    logger.info(f"Stored one")
 
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport_nersc"])
     task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
+    #task_list = task_list_spectral(executor, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
 
     dq = queue.Queue()
-    msg = None
+    msg = None#
 
     tic_main = timeit.default_timer()
     workers = []
@@ -233,11 +235,8 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        # #Early stopping for debug
-        # if reader.CurrentStep() > 5:
-        #     logger.info(f"Exiting: CurrentStep={reader.CurrentStep()}, StepStatus={stepStatus}")
-        #     dq.put(AdiosMessage(tstep_idx=None, data=None))
-        #     break
+        if reader.CurrentStep() > 5:
+            break
 
     dq.join()
     logger.info("Queue joined")
@@ -251,11 +250,11 @@ def main():
     # Shotdown the executioner
     executor_anl.shutdown(wait=True)
     executor_fft.shutdown(wait=True)
+    #executor.shutdown(wait=True)
 
     toc_main = timeit.default_timer()
     logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
-    logger.info(f"Processed time_chunks {rx_list}")
-    # End MPICommExecutor section
+    logger.info(f"Processed {len(rx_list)} time_chunks: {rx_list}")
 
 if __name__ == "__main__":
     main()

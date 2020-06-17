@@ -1,0 +1,62 @@
+{"datapath":  "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/",
+ "shotnr": 18431,
+ "storage_no": 
+ {
+   "backend": "numpy", 
+   "basedir": "/global/homes/r/rkube/repos/delta/test_data/run2/"
+  },
+ "storage_no2": 
+ {
+  "backend": "mongo",
+  "datastore": "numpy",
+  "datadir": "/global/cscratch1/sd/rkube/delta"
+ },
+ "storage": 
+ {
+   "backend": "null"
+  },
+ "storage_no3": 
+ {
+   "backend": "postgre", 
+   "hostname": "nerscdb03.nersc.gov",
+   "username": "delta_admin",
+   "password": "dsjwj242sss"
+  },
+ "ECEI_cfg": {"TriggerTime": [-0.12, 61.2, 60],
+              "t_norm": [-0.119, -0.109],
+              "SampleRate": 500,
+              "TFcurrent": 23000.0,
+              "Mode": "O",
+              "LoFreq": 81,
+              "LensFocus": 80,
+              "LensZoom": 340},
+ "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
+ "task_list": [{
+                "task_description" : "cross_phase", 
+                "analysis": "cross_phase",
+                "channel_chunk_size": 2048, 
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              },
+              {
+                "task_description" : "cross_power",
+                "analysis": "cross_power",
+                "channel_chunk_size": 2048,
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              },
+              {
+                "task_description" : "coherence",
+                "analysis": "coherence",
+                "channel_chunk_size": 2048,
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              },
+              {
+                "task_description" : "cross_correlation",
+                "analysis": "cross_correlation",
+                "channel_chunk_size": 2048,
+                "ref_channels" : "L0101-2408",
+                "cmp_channels" : "L0101-2408"
+              }]  
+}

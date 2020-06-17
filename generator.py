@@ -8,13 +8,14 @@ import adios2
 import json
 import yaml
 import argparse
+
+import timeit
 import time
 
 import logging, logging.config
 
 from analysis.channels import channel_range
 from streaming.writers import writer_gen
-from streaming.adios_helpers import gen_channel_name_v2
 from sources.loader_ecei_cached import loader_ecei
 
 """
@@ -34,26 +35,25 @@ with open(args.config, "r") as df:
 
 with open('configs/logger.yaml', 'r') as f:
     log_cfg = yaml.safe_load(f.read())
-
 logging.config.dictConfig(log_cfg)
 
-logger = logging.getLogger("simple")
+logger = logging.getLogger("generator")
 
-datapath = cfg["transport_kstar"]["datapath"]
-nstep = cfg["transport_kstar"]["nstep"]
+datapath = cfg["transport_nersc"]["datapath"]
+nstep = cfg["transport_nersc"]["nstep"]
 shotnr = cfg["shotnr"]
 
 # Enforce 1:1 mapping of channels and tasks
-assert(len(cfg["transport_kstar"]["channel_range"]) == size)
+assert(len(cfg["transport_nersc"]["channel_range"]) == size)
 # Channels this process is reading
-ch_rg = channel_range.from_str(cfg["transport_kstar"]["channel_range"][rank])
+ch_rg = channel_range.from_str(cfg["transport_nersc"]["channel_range"][rank])
 
 # Hard-code the total number of data points
-data_pts = int(5e6)
+#data_pts = int(5e6)
 # Hard-code number of data points per data packet
-data_per_batch = int(1e1)
+#data_per_batch = int(1e1)
 # Calculate the number of required data batches we send over the channel
-num_batches = data_pts // data_per_batch
+#num_batches = data_pts // data_per_batch
 
 # Get a data_loader
 logger.info("Loading h5 data into memory")
@@ -61,9 +61,9 @@ dl = loader_ecei(cfg)
 dl.cache()
 batch_gen = dl.batch_generator()
 
-logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport_kstar']['engine']}")
+logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport_nersc']['engine']}")
 
-writer = writer_gen(cfg["transport_kstar"])
+writer = writer_gen(cfg["transport_nersc"])
 
 # Pass data layout to writer and reset generator
 for data in batch_gen:
@@ -74,7 +74,7 @@ batch_gen = dl.batch_generator()
 writer.Open()
 
 logger.info("Start sending on channel:")
-tic = time.time()
+tic = timeit.default_timer()
 nstep = 0
 for data in batch_gen:
     if(rank == 0):
@@ -83,8 +83,9 @@ for data in batch_gen:
     writer.put_data(data)
     writer.EndStep()
     nstep += 1
+    time.sleep(0.1)
 
-toc = time.time()
+toc = timeit.default_timer()
 writer.writer.Close()
 
 chunk_size = np.prod(data.shape) * data.itemsize / 1024 / 1024

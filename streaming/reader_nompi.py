@@ -102,11 +102,10 @@ class reader_base():
 
 
         # elif isinstance(channels, type(None)):
-        self.logger.info(f"Reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
+        self.logger.debug(f"Reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
         var = self.IO.InquireVariable(ch_rg.to_str())
         time_chunk = np.zeros(var.Shape(), dtype=np.float64)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
-        self.logger.info(f"Got data")
 
         if save:
             np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)

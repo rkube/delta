@@ -14,4 +14,4 @@ test_data/
 **/build/
 mongo_secret
 postgre_secret
-
+tests_performance/*

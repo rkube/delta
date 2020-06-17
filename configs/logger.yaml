@@ -4,6 +4,11 @@ formatters:
     format: '%(levelname)s - %(asctime)s - %(message)s'
   extended:
     format: "%(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s "
+  ext_middle:
+    format: "middleman: %(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s "
+  ext_generator:
+    format: "generator: %(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s "
+  
 
 handlers:
   console:
@@ -18,12 +23,34 @@ handlers:
     formatter: extended
     filename: delta.log
 
+  file_middle:
+    class: logging.FileHandler
+    level: INFO
+    formatter: ext_middle
+    filename: delta.log
 
+  file_generator:
+    class: logging.FileHandler
+    level: INFO
+    formatter: ext_generator
+    filename: delta.log
+  
 loggers:
   simple:
     level: INFO
     handlers: [console, file_handler]
     propagate: no
+
+  middleman:
+    level: INFO
+    handlers: [console, file_middle]
+    propagate: no
+
+  generator:
+    level: INFO
+    handlers: [console, file_generator]
+    propagate: no
+
 
   DB:
     level: DEBUG

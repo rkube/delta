@@ -15,18 +15,14 @@ class backend_null(backend):
         super().__init__()
         self.logger = logging.getLogger("simple")
 
-    def store(self, chunk_data, chunk_info):
-        """Stores nothing"""
-        self.logger.info("storage finished:", chunk_info)
-
-        return None
 
     def store_one(self, item):
         pass
 
     def store_data(self, data, info_dict):
-        self.logger.info("storage finished:", chunk_info)
-        pass
+        self.logger.info("storage finished:", info_dict)
+        return None
+
 
     def store_metadata(self, cfg, dispatch_seq):
         """Stores nothing"""
