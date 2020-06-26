@@ -25,7 +25,7 @@
   "storage": 
   {
     "backend": "mongo",
-    "datastore": "gridfs",
+    "datastore": "adios2",
     "datadir": "/global/cscratch1/sd/rkube/delta"
   },
   "storage_null": 

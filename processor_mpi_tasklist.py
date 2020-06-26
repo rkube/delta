@@ -167,7 +167,6 @@ def main():
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('simple')
 
-
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     executor_fft = MPIPoolExecutor(max_workers=16)
@@ -176,11 +175,9 @@ def main():
 
     adios2_varname = channel_range.from_str(cfg["transport_nersc"]["channel_range"][0])
 
-    #with MPICommExecutor(MPI.COMM_WORLD) as executor:
-    #    if executor is not None:
     
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    cfg["run_id"] = "ABC126"
+    cfg["run_id"] = "ABC128"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -235,7 +232,7 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 5:
+        if reader.CurrentStep() > 100:
             break
 
     dq.join()

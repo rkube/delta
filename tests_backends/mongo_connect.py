@@ -17,7 +17,7 @@ client = MongoClient("mongodb://mongodb07.nersc.gov/delta-fusion",
 db = client.get_database()
 print("Connected to database {0:s}".format(db.name))
 
-collection = db.test_analysis
+collection = db.test_analysis_ABC126
 
 # Print everything in this collection
 print("Items in collection test_analysis:")

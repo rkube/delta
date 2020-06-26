@@ -1,7 +1,9 @@
 #Coding: UTF-8 -*-
 
+from mpi4py import MPI
 import datetime
 import numpy as np
+import adios2
 import pickle
 import string
 import random
@@ -10,6 +12,7 @@ import json
 import uuid
 import time
 import traceback
+
 
 import pymongo 
 import gridfs
@@ -33,7 +36,7 @@ class mongo_connection():
             self.conn_info["conn_str"] = lines[2].strip()
 
         # Parse location for binary data storage
-        assert cfg_mongo["datastore"] in ["gridfs", "numpy"]
+        assert cfg_mongo["datastore"] in ["gridfs", "numpy", "adios2"]
         self.datastore = cfg_mongo["datastore"]
 
         # Get name of the run
@@ -45,22 +48,7 @@ class mongo_connection():
         self.client = pymongo.MongoClient(self.conn_info["conn_str"], username=self.conn_info["username"],
                                           password=self.conn_info["password"])
 
-        db = self.client.get_database()
-        # if self.datastore == "numpy":
-        #     self.datadir = join(cfg_mongo["datadir"], cfg_mongo["run_id"])
-        #     # Initialize storage directory
-        #     if (isdir(self.datadir) == False):
-        #         try:
-        #             mkdir(self.datadir)
-        #         except:
-        #             self.logger.error(f"Could not access path {self.datadir}")
-        #             raise ValueError(f"Could not access path {self.datadir}")
-        #     self.fs = None
-
-        # elif cfg_mongo["datastore"] == "gridfs":
-        #     self.datastore = "gridfs"
-        #     # Initialize gridFS
-        #     self.fs = gridfs.GridFS(db)     
+        db = self.client.get_database() 
         try:
             collection = db.get_collection(self.coll_str)
         except:
@@ -125,6 +113,29 @@ class mongo_storage_gridfs():
         return True
 
 
+class mongo_storage_adios2():
+    """Abstraction for gridfs storage using context manager used by backend_mongodb"""
+    def __init__(self, cfg_mongo):
+        self.datadir = join(cfg_mongo["datadir"], cfg_mongo["run_id"])
+        if (isdir(self.datadir) == False):
+            try:
+                mkdir(self.datadir)
+            except:
+                self.logger.error(f"Could not access path {self.datadir}")
+                raise ValueError(f"Could not access path {self.datadir}")
+
+    def __enter__(self):
+        fname = join(self.datadir, uuid.uuid1().__str__() + ".bp")
+        return fname
+
+    def __exit__(self, exc_type, exc_value, tb):
+        if exc_type is not None:
+            traceback.print_exception(exc_type, exc_value, tb)
+            return True
+
+        return True        
+
+
 class backend_mongodb(backend):
     """
     Author: Ralph Kube
@@ -143,54 +154,9 @@ class backend_mongodb(backend):
         self.logger = logging.getLogger("DB")
         self.cfg_mongo = cfg_mongo
 
-        # Parse connection info
-        # self.conn_info = {}
-        # with open("mongo_secret", "r") as secret:
-        #     lines = secret.readlines()
-        #     self.conn_info["username"] = lines[0].strip()
-        #     self.conn_info["password"] = lines[1].strip()
-        #     self.conn_info["conn_str"] = lines[2].strip()
-
         # Parse location for binary data storage
-        assert cfg_mongo["datastore"] in ["gridfs", "numpy"]
+        assert cfg_mongo["datastore"] in ["gridfs", "numpy", "adios2"]
         self.datastore = cfg_mongo["datastore"]
-
-        # Get name of the run
-        # assert(len(cfg_mongo["run_id"]) == 6)
-        # self.coll_str = "test_analysis_" + cfg_mongo["run_id"]
-        
-        # self.client = pymongo.MongoClient(connection_str, 
-        #                                   username=username,
-        #                                   password=password)
-
-        # db = self.client.get_database()
-        
-        # # Analysis data is either stored in gridFS(slow!) or numpy.
-        
-        # self.datadir = None
-        # self.datastore = None
-        # if cfg_mongo["datastore"] == "numpy":
-        #     self.datastore = "numpy"
-        #     self.datadir = join(cfg_mongo["datadir"], cfg_mongo["run_id"])
-        #     # Initialize storage directory
-        #     if (isdir(self.datadir) == False):
-        #         try:
-        #             mkdir(self.datadir)
-        #         except:
-        #             self.logger.error(f"Could not access path {self.datadir}")
-        #             raise ValueError(f"Could not access path {self.datadir}")
-        #     self.fs = None
-
-        # elif cfg_mongo["datastore"] == "gridfs":
-        #     self.datastore = "gridfs"
-        #     # Initialize gridFS
-        #     self.fs = gridfs.GridFS(db)     
-        
-        # coll_str = "test_analysis_" + cfg_mongo["run_id"]
-        # try:
-        #     self.collection = db.get_collection(coll_str)
-        # except:
-        #     self.logger.error(f"Could not access collection {coll_str}")
 
     def store_metadata(self, cfg, dispatch_seq):
         """Stores metadata that allows to identify channel pairs with the stored data.
@@ -230,20 +196,49 @@ class backend_mongodb(backend):
         cfg: delta configuration object
         """
 
+        size_in_MB = np.prod(data.shape) * data.dtype.itemsize / 1024 / 1024
 
         with mongo_connection(self.cfg_mongo) as mongo:
             client, coll = mongo
             if self.datastore == "gridfs":
                 with mongo_storage_gridfs(client.get_database()) as fs:
-                    #tic_io = time.perf_counter()
+                    tic_io = time.perf_counter()
                     fid = fs.put(Binary(pickle.dumps(data)))
-                    #toc_io = time.perf_counter()
+                    toc_io = time.perf_counter()
                     info_dict.update({"result_gridfs": fid})
 
             elif self.datastore == "numpy":
                 with mongo_storage_numpy(self.cfg_mongo) as fname:
+                    tic_io = time.perf_counter()
                     np.savez(fname, data=data)
+                    toc_io = time.perf_counter()
                     info_dict.update({"unique_filename": fname})
+
+            elif self.datastore == "adios2":
+                # Use adios2's context manager
+                datadir = join(self.cfg_mongo["datadir"], self.cfg_mongo["run_id"])
+                if (isdir(datadir) == False):
+                    try:
+                        mkdir(datadir)
+                    except:
+                        self.logger.error(f"Could not access path {datadir}")
+                        raise ValueError(f"Could not access path {datadir}")
+
+                fname = join(datadir, uuid.uuid1().__str__() + ".bp")
+                info_dict.update({"unique_filename": fname})
+
+                # with open(fname, "w") as df:
+                    # tic_io = time.perf_counter()
+                    # df.write(info_dict["analysis_name"])
+                with adios2.open(fname, "w") as fh:
+                    tic_io = time.perf_counter()
+                    fh.write(info_dict["analysis_name"], data, data.shape, [0] * data.ndim, data.shape)
+                    toc_io = time.perf_counter()
+                    
+
+            # Calculate performance metric
+            MB_per_sec = size_in_MB / (toc_io - tic_io)
+            info_dict.update({"Performance": MB_per_sec})
 
             info_dict.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")})
             info_dict.update({"description": "analysis results"})
@@ -252,27 +247,6 @@ class backend_mongodb(backend):
                 inserted_id = coll.insert_one(info_dict)
             except:
                 self.logger.error("Unexpected error:", sys.exc_info()[0])
-
-
-            # if self.datastore == "gridfs":
-            #     # Create a binary object and store it in gridfs
-            #     fid = self.fs.put(Binary(pickle.dumps(data)))
-            #     #tic_io = time.perf_counter()
-            #     info_dict.update({"result_gridfs": fid})
-            #     #toc_io = time.perf_counter()
-            
-            # elif self.datastore == "numpy":
-            #     # Create a unique file-name
-            #     unq_fname = uuid.uuid1()
-            #     unq_fname = unq_fname.__str__() + ".npz"
-            #     #tic_io = time.perf_counter()
-            #     np.savez(join(self.datadir, unq_fname), data=data)
-            #     #toc_io = time.perf_counter()
-            #     info_dict.update({"unique_filename": unq_fname})
-
-            # #dt_io = toc_io - tic_io
-            # except:
-            #     logger.error("Unexpected error:", sys.exc_info()[0])
 
             return None
 
