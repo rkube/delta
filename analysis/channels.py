@@ -107,7 +107,7 @@ class channel():
         ch_v: int, Vertical channel number, between 1 and 8
         """
 
-        assert(dev in ['L', 'H', 'G', 'HT', 'GR', 'HR'])
+        assert(dev in ['L', 'H', 'G', "GT", 'HT', 'GR', 'HR'])
         # 24 horizontal channels
         assert((ch_v > 0) & (ch_v  < 25))
         # 8 vertical channels

@@ -202,8 +202,9 @@ class backend_mongodb(backend):
             client, coll = mongo
             if self.datastore == "gridfs":
                 with mongo_storage_gridfs(client.get_database()) as fs:
+                    tmp = Binary(pickle.dumps(data))
                     tic_io = time.perf_counter()
-                    fid = fs.put(Binary(pickle.dumps(data)))
+                    fid = fs.put(tmp)
                     toc_io = time.perf_counter()
                     info_dict.update({"result_gridfs": fid})
 
