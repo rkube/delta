@@ -226,14 +226,13 @@ class ecei_view():
     """
 
     def __init__(self, datafilename, tb, dev, t_offset=(-0.099, -0.089), t_crop=(1.0, 1.1), num_v=24, num_h=8):
-        self.tb_raw = tb
 
         # Number of vertical and horizontal channels
         self.num_v = 24
         self.num_h = 8
         # Infer number of samples in the cropped interval
-        idx_offset = [self.tb_raw.time_to_idx(t) for t in t_offset]
-        idx_crop = [self.tb_raw.time_to_idx(t) for t in t_crop]
+        idx_offset = [tb.time_to_idx(t) for t in t_offset]
+        idx_crop = [tb.time_to_idx(t) for t in t_crop]
         self.num_samples = idx_crop[1] - idx_crop[0]
 
         # Use float32 since data is generated from 16bit integers
@@ -272,6 +271,10 @@ class ecei_view():
 
         print(f"Loading data took {(toc - tic):4.2f}s")
 
+        self.tb = timebase(t_crop[0], t_crop[1], tb.f_sample)
+
+        self.mark_bad_channels(verbose=True)
+
 
     def mark_bad_channels(self, verbose=False):
         """Mark bad channels. These are channels with either
@@ -305,19 +308,6 @@ class ecei_view():
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
                 print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
-
-
-        #     # check bottom saturation
-        #     if self.offstd[c] < 0.001:
-        #         self.good_channels[c] = 0
-        #         print('SAT offset data  channel {:s}, offstd = {:g}%, offlevel = {:g} V'.format(self.clist[c], self.offstd[c], self.offlev[c]))
-
-        #     # check top saturation.               
-        #     if self.sigstd[c] < 0.001:
-        #         self.good_channels[c] = 0
-        #         print('SAT signal data  channel {:s}, offstd = {:g}%, siglevel = {:g} V'.format(self.clist[c], self.sigstd[c], self.siglev[c]))
-
-
 
 
 # End of file ecei_channel.py
