@@ -1,7 +1,7 @@
 #Encoding: UTF-8 -*-
 
 """
-Author: Minjun Choi (original), Ralph Kube
+Author: Minjun Choi (original), Ralph Kube (refactored)
 
 Contains helper function for working with the ECEI diagnostic.
 These are just the member functions from kstarecei.py, copied here
@@ -14,7 +14,7 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
         ch: channel
         LensZoom: float
         LensFocus: float
-        Rinit: ???
+        Rinit: radial position of the channel, in meter
         new_H: If true, use new values for H-dev, shot > 12957
 
         Returns:
@@ -177,8 +177,6 @@ def beam_path(ch, LensFocus, LensZoom, rpos):
     zpos = za[0][ch.ch_v - 1] * 1e-3  # zpos [m]
     apos = za[1][ch.ch_v - 1]  # angle [rad] positive means the (z+) up-directed (divering from array to plasma)
 
-    print(f"   LensFocus={LensFocus} LensZoom={LensZoom} rpos={rpos:5.3f} abcd={abcd}")
-
     return zpos, apos
 
 def channel_position(ch, ecei_cfg):
@@ -212,13 +210,9 @@ def channel_position(ch, ecei_cfg):
         ecei_cfg["Mode"] = 'X'
         hn = 2
     
-    print(f"channel_position: ch_v={ch.ch_v}, ch_h={ch.ch_h}")
-
     rpos = hn * e * mu0 * ttn * TFcurrent /\
                 (4. * np.pi * np.pi * me * ((ch.ch_h - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
-    
     zpos, apos = beam_path(ch, LensFocus, LensZoom, rpos)
-    print(f"       rpos={rpos:5.3f}, zpos={zpos:5.3f}, apos={apos:5.3f}")
     return (rpos, zpos, apos)
 
 

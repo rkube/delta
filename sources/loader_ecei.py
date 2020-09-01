@@ -109,7 +109,6 @@ class loader_ecei():
                     self.offset_std = time_chunk[:, tnorm_idx].std(axis=1)
                     self.got_normalization = True
 
-
             yield time_chunk
 
 

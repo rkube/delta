@@ -175,7 +175,6 @@ def main():
 
     adios2_varname = channel_range.from_str(cfg["transport_nersc"]["channel_range"][0])
 
-    
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
     cfg["run_id"] = "ABC128"
     cfg["storage"]["run_id"] = cfg["run_id"]

@@ -274,7 +274,13 @@ class task_list_spectral():
 
 
     def submit(self, data, tidx):
-        """Performs magic"""
+        """Launches the analysis pipeline with a data chunk.
+
+        Parameters:
+        ===========
+        data: ndarray, float
+        tidx: int
+        """
         
         tic_fft = time.perf_counter()
         res = self.executor_fft.submit(stft, data, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
