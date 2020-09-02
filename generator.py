@@ -80,10 +80,13 @@ for data in batch_gen:
     if(rank == 0):
         logger.info(f"Sending time_chunk {nstep} / {dl.num_chunks}")
     writer.BeginStep()
-    writer.put_data(data)
+    writer.put_data(data, {"tidx": nstep})
     writer.EndStep()
     nstep += 1
     time.sleep(0.1)
+
+    if nstep > 10:
+        break
 
 toc = timeit.default_timer()
 writer.writer.Close()

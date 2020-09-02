@@ -5,14 +5,12 @@ import h5py
 import numpy as np
 
 from analysis.channels import channel_range
+from analysis.ecei_channel import timebase
 
 class loader_ecei():
     """Loads KSTAR ECEi data time-chunk wise for a specified channel range from an HDF5 file"""
-
-
     def __init__(self, cfg):
         """
-
         Old: filename: str, ch_range: channel_range, chunk_size:int):
         Inputs:
         =======

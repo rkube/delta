@@ -3,9 +3,67 @@
 import numpy as np
 import warnings
 import h5py
-from numpy.compat.py3k import os_fspath
+from numpy.core.arrayprint import dtype_is_implied
+#from numpy.compat.py3k import os_fspath
 from channels import channel
 import time
+
+class timebase_streaming():
+    """Defines a timebase for a data chunk in the stream"""
+
+    def __init__(self, t_start: float, t_end: float, f_sample: float, samples_per_chunk: int, chunk_idx: int):
+        """
+        Defines a timebase for a data chunk in the stream
+
+        Parameters:
+        -----------
+        t_start............: float, Start time of the data stream, in seconds
+        t_end..............: float, End time of the data stream, in seconds
+        f_sample...........: float, Sampling frequency, in Hz 
+        samples_per_chunk..: int, Number of samples per chunk
+        chunk_idx..........: int, Index of the chunk that this timebase is used used
+        """
+        assert(t_start < t_end)
+        assert(f_sample > 0)
+        assert(chunk_idx >= 0)
+        assert(chunk_idx < (t_end - t_start) * f_sample // samples_per_chunk)
+
+        self.t_start = t_start
+        self.t_end = t_end
+        self.f_sample = f_sample
+        self.dt = 1. / self.f_sample
+        
+        # Total samples in the entire stream
+        self.total_num_samples = int((self.t_end - self.t_start) / self.dt)
+        self.chunk_idx = chunk_idx
+        # How many samples are in a chunk
+        self.samples_per_chunk = samples_per_chunk
+
+    def time_to_idx(self, time: float):
+        """Generates an index suitable to index the current data chunk for
+        the time
+
+        Parameters:
+        -----------
+        time.......: float, Absolute time we wish to get an index for
+        """
+        assert(time >= self.t_start)
+        assert(time <= self.t_end)
+
+        # Generate the index the time would have in the entire time-series
+        tidx_absolute = round((time - self.t_start) / self.dt)
+        if tidx_absolute // self.samples_per_chunk != self.chunk_idx:
+            return None
+        tidx_rel = tidx_absolute % self.samples_per_chunk
+
+        return tidx_rel
+
+
+    def gen_full_timebase(self):
+        """Generates an array of times associated with the samples in the current chunk"""
+
+        return np.arange(self.chunk_idx * self.samples_per_chunk, 
+                         (self.chunk_idx + 1) * self.samples_per_chunk) * self.dt + self.t_start
 
 
 class timebase():
@@ -52,9 +110,45 @@ class timebase():
         Returns an array with the full timebase
 
         """
-
         return np.arange(self.t_start, self.t_end, self.dt)
 
+
+
+class normalize_mean():
+    """Performs normalization"""
+
+    def __init__(self, offlev, offstd):
+        """Stores offset and standard deviation of normalization time series.
+        Parameters:
+        -----------
+        offlev....: ndarray, channel-wise offset level
+        offstd....: ndarray, channel-wise offset standard deviation
+        """
+        self.offlev = offlev
+        self.offstd = offstd
+
+        self.siglev = None
+        self.sigstd = None
+
+    def __call__(self, data):
+        """Normalizes data
+        
+        Parameters:
+        -----------
+        data......: array. Last dimension are time series
+        """
+
+        # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
+        assert(self.offlev.shape == data.shape)
+        assert(self.offstd.shape == data.shape)
+
+        data_norm = data - self.offlev
+        self.siglev = np.median(data_norm, axis=-1, keepdims=True)
+        self.sigstd = data_norm.std(axis=-1, keepdims=True)
+
+        data_norm = data_norm / data_norm.mean(axis=-1, keepdims=True) - 1.0
+
+        return data_norm
 
 
 class ecei_channel():
@@ -228,11 +322,12 @@ class ecei_view():
     def __init__(self, datafilename, tb, dev, t_offset=(-0.099, -0.089), t_crop=(1.0, 1.1), num_v=24, num_h=8):
 
         # Number of vertical and horizontal channels
-        self.num_v = 24
-        self.num_h = 8
+        self.num_v = num_v
+        self.num_h = num_h
         # Infer number of samples in the cropped interval
         idx_offset = [tb.time_to_idx(t) for t in t_offset]
-        idx_crop = [tb.time_to_idx(t) for t in t_crop]
+        if idx_crop is not None:
+            idx_crop = [tb.time_to_idx(t) for t in t_crop]
         self.num_samples = idx_crop[1] - idx_crop[0]
 
         # Use float32 since data is generated from 16bit integers
@@ -281,7 +376,6 @@ class ecei_view():
         * Low signal level: std(offset) / siglev > 0.3
         * Saturated signal data(bottom saturation): std(offset) < 0.001
         * Saturated offset data(top saturation): std(signal) < 0.001
-
         """
 
         # Check for low signal level
@@ -308,6 +402,32 @@ class ecei_view():
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
                 print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
+
+
+class ecei_chunk():
+    """Class that represents a time-chunk of ECEI data"""
+
+    def __init__(self, data, tb):
+        """
+        Creates an ecei_chunk from a give dataset 
+
+        Parameters:
+        -----------
+        data......: ndarray, float: Raw data from HDF5 for the ECEI voltages
+        tb........: timebase_streaming: Timebase
+        """
+        self.num_v = 24
+        self.num_h = 8
+
+        assert(data.ndim == 3)
+        assert(data.shape[0] == self.num_v)
+        assert(data.shape[1] == self.num_h)
+
+        self.ecei_data = data
+        self.tb = tb
+
+
+
 
 
 # End of file ecei_channel.py

@@ -7,15 +7,8 @@ import matplotlib.pyplot as plt
 
 from ecei_channel import ecei_view
 
-class ecei_interpolator():
-    def __init__(self):
-        pass
 
-    def __call__(self, frame):
-        return frame
-
-
-class radial_interpolator(ecei_interpolator):
+class radial_interpolator():
     """
     Defines radial interpolation, based on values of channels close-by.
     """
@@ -26,7 +19,6 @@ class radial_interpolator(ecei_interpolator):
         """
         self.rpos_arr = rpos_arr
         self.zpos_arr = zpos_arr
-
 
 
     def __call__(self, frame, mask=None, cutoff=0.03):
@@ -82,7 +74,6 @@ class plot_ecei_timeslice():
         self.zpos_arr = zpos_arr
         self.rpos_arr = rpos_arr
         self.cmap = cmap
-
         self.clevs = None
 
 
@@ -110,10 +101,10 @@ class plot_ecei_timeslice():
         ### Uses that interpolated values are in between old max and min.
         all_max = ecei_view.ecei_data[:, :, :][~ecei_view.bad_data].max()
         all_min = ecei_view.ecei_data[:, :, :][~ecei_view.bad_data].min()
-
         self.clevs = np.linspace(all_min, all_max, nlevs)
 
-        
+        return None
+
 
     def create_plot(self, ecei_view, time):
         tidx = ecei_view.tb.time_to_idx(time)

@@ -35,18 +35,19 @@ class writer_base():
         self.logger.info(f"writer_base: channel_name =  {self.channel_name}")
 
 
-    def DefineVariable(self, data_name:str, data_array:np.ndarray):
+    def DefineVariable(self, var_name:str, data_array:np.ndarray):
         """Wrapper around DefineVariable
 
         Input:
         ======
-        data_name: Name of data
+        var_name: Variable name assigned to the data
         data_array: array with same shape and data type that will be sent in 
                              all subsequent steps
         """
 
         self.shape = data_array.shape
-        self.variable =  self.IO.DefineVariable(data_name, data_array, 
+        self.var_name = var_name
+        self.variable =  self.IO.DefineVariable(var_name, data_array, 
                                                 data_array.shape, # shape
                                                 list(np.zeros_like(data_array.shape, dtype=int)),  # start 
                                                 data_array.shape, # count
@@ -82,11 +83,12 @@ class writer_base():
         """wrapper for writer.EndStep()"""
         return self.writer.EndStep()
 
-    def put_data(self, data:np.ndarray):
+    def put_data(self, data:np.ndarray, attrs: dict):
         """Opens a new stream and send data through it
         Input:
         ======
         data: ndarray. Data to send.
+        attrs: dictionary: Additional meta-data
         """
 
         assert(data.shape == self.shape)
@@ -96,6 +98,8 @@ class writer_base():
             if not data.flags.contiguous:
                 data = np.array(data, copy=True)
             self.writer.Put(self.variable, data, adios2.Mode.Sync)
+            for key, val in attrs.items():
+                self.writer.write_attribute(key, val, variable_name=self.var_name)
 
         return None
 

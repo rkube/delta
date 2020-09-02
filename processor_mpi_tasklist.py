@@ -136,6 +136,8 @@ def consume(Q, task_list):
         #if(msg.tidx == 1):
         #    np.savez(f"test_data/io_array_tr_s{msg.tidx:04d}.npz", msg.data)
 
+        # Try to create an ecei_view from the data packet
+
         logger.info(f"Rank {rank}: Consumed tidx={msg.tstep_idx}")
         task_list.submit(msg.data, msg.tstep_idx)
 
