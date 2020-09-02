@@ -3,9 +3,7 @@
 import numpy as np
 import warnings
 import h5py
-from numpy.core.arrayprint import dtype_is_implied
-#from numpy.compat.py3k import os_fspath
-from channels import channel
+from analysis.channels import channel
 import time
 
 class timebase_streaming():
@@ -139,16 +137,20 @@ class normalize_mean():
         """
 
         # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
-        assert(self.offlev.shape == data.shape)
-        assert(self.offstd.shape == data.shape)
+        print(self.offlev.shape, self.offstd.shape, data.shape)
 
-        data_norm = data - self.offlev
-        self.siglev = np.median(data_norm, axis=-1, keepdims=True)
-        self.sigstd = data_norm.std(axis=-1, keepdims=True)
+        assert(self.offlev.shape[:-1] == data.shape[:-1])
+        assert(self.offstd.shape[:-1] == data.shape[:-1])
+        assert(self.offlev.ndim == data.ndim)
+        assert(self.offstd.ndim == data.ndim)
 
-        data_norm = data_norm / data_norm.mean(axis=-1, keepdims=True) - 1.0
+        data[:] = data - self.offlev
+        self.siglev = np.median(data, axis=-1, keepdims=True)
+        self.sigstd = data.std(axis=-1, keepdims=True)
 
-        return data_norm
+        data[:] = data / data.mean(axis=-1, keepdims=True) - 1.0
+
+        return None
 
 
 class ecei_channel():
@@ -419,12 +421,22 @@ class ecei_chunk():
         self.num_v = 24
         self.num_h = 8
 
-        assert(data.ndim == 3)
-        assert(data.shape[0] == self.num_v)
-        assert(data.shape[1] == self.num_h)
+        # Data should have more than 1 dimension, last dimension is time
+        assert(data.ndim > 1)
+        # Data can be 2 or 3 dimensional
+        assert(np.prod(data.shape[:-1]) == self.num_h * self.num_v)
+
+        # We should ensure that the data is contiguous so that we can remove this from
+        # writers.py, method put_data
+        #             if not data_class.data.flags.contiguous:
+        #        data = np.array(data_class.data(), copy=True)
 
         self.ecei_data = data
         self.tb = tb
+
+    def data(self):
+        """Common interface to data"""
+        return self.ecei_data
 
 
 

@@ -35,22 +35,21 @@ class writer_base():
         self.logger.info(f"writer_base: channel_name =  {self.channel_name}")
 
 
-    def DefineVariable(self, var_name:str, data_array:np.ndarray):
+    def DefineVariable(self, var_name:str, data_class):
         """Wrapper around DefineVariable
 
         Input:
         ======
         var_name: Variable name assigned to the data
-        data_array: array with same shape and data type that will be sent in 
-                             all subsequent steps
+        data_class: An object that defines the data we stream. Data is accessed by data() method
         """
 
-        self.shape = data_array.shape
+        self.shape = data_class.data().shape
         self.var_name = var_name
-        self.variable =  self.IO.DefineVariable(var_name, data_array, 
-                                                data_array.shape, # shape
-                                                list(np.zeros_like(data_array.shape, dtype=int)),  # start 
-                                                data_array.shape, # count
+        self.variable =  self.IO.DefineVariable(var_name, data_class.data(), 
+                                                data_class.data().shape, # shape
+                                                list(np.zeros_like(data_class.data().shape, dtype=int)),  # start 
+                                                data_class.data().shape, # count
                                                 adios2.ConstantDims)
         return(self.variable)
 
@@ -83,7 +82,7 @@ class writer_base():
         """wrapper for writer.EndStep()"""
         return self.writer.EndStep()
 
-    def put_data(self, data:np.ndarray, attrs: dict):
+    def put_data(self, data_class, attrs: dict):
         """Opens a new stream and send data through it
         Input:
         ======
@@ -91,15 +90,17 @@ class writer_base():
         attrs: dictionary: Additional meta-data
         """
 
-        assert(data.shape == self.shape)
+        assert(data_class.data().shape == self.shape)
 
         if self.writer is not None:
-            self.logger.info(f"Putting data: name = {self.variable.Name()}, shape = {data.shape}")
-            if not data.flags.contiguous:
-                data = np.array(data, copy=True)
-            self.writer.Put(self.variable, data, adios2.Mode.Sync)
-            for key, val in attrs.items():
-                self.writer.write_attribute(key, val, variable_name=self.var_name)
+            
+            if not data_class.data().flags.contiguous:
+                data = np.array(data_class.data(), copy=True)
+                self.writer.Put(self.variable, data, adios2.Mode.Sync)
+            else:
+                self.writer.Put(self.variable, data_class.data(), adios2.Mode.Sync)
+            #for key, val in attrs.items():
+            #    self.writer.write_attribute(key, val, variable_name=self.var_name)
 
         return None
 
