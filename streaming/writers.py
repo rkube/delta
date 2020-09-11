@@ -41,7 +41,7 @@ class writer_base():
         Input:
         ======
         var_name: Variable name assigned to the data
-        data_class: An object that defines the data we stream. Data is accessed by data() method
+        data_class: An object that defines the data we stream. Data is accessed by the data() method
         """
 
         self.shape = data_class.data().shape

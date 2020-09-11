@@ -66,9 +66,9 @@ logger.info(f"Creating writer_gen: shotnr={shotnr}, engine={cfg['transport_nersc
 writer = writer_gen(cfg["transport_nersc"])
 
 # Pass data layout to writer and reset generator
-for data in batch_gen:
+for chunk in batch_gen:
     break
-writer.DefineVariable(ch_rg.to_str(), data)
+writer.DefineVariable(ch_rg.to_str(), chunk)
 batch_gen = dl.batch_generator()
 
 writer.Open()
@@ -76,11 +76,15 @@ writer.Open()
 logger.info("Start sending on channel:")
 tic = timeit.default_timer()
 nstep = 0
-for data in batch_gen:
-    if(rank == 0):
+for chunk in batch_gen:
+    if rank == 0:
+        logger.info(f"Filtering time_chunk {nstep} / {dl.num_chunks}")
+
+    
+    if rank == 0:
         logger.info(f"Sending time_chunk {nstep} / {dl.num_chunks}")
     writer.BeginStep()
-    writer.put_data(data, {"tidx": nstep})
+    writer.put_data(chunk, {"tidx": nstep})
     writer.EndStep()
     nstep += 1
     time.sleep(0.1)
@@ -91,10 +95,10 @@ for data in batch_gen:
 toc = timeit.default_timer()
 writer.writer.Close()
 
-chunk_size = np.prod(data.shape) * data.itemsize / 1024 / 1024
+chunk_size = np.prod(chunk.data().shape) * chunk.data().itemsize / 1024 / 1024
 logger.info("")
 logger.info("Summary:")
-logger.info(f"    chunk shape: {data.shape}")
+logger.info(f"    chunk shape: {chunk.data().shape}")
 logger.info(f"    chunk size (MB): {chunk_size:.03f}")
 logger.info(f"    total nstep: {nstep:d}")
 logger.info(f"    total data (MB): {(chunk_size * nstep):03f}")

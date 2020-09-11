@@ -137,7 +137,6 @@ class normalize_mean():
         """
 
         # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
-        print(self.offlev.shape, self.offstd.shape, data.shape)
 
         assert(self.offlev.shape[:-1] == data.shape[:-1])
         assert(self.offstd.shape[:-1] == data.shape[:-1])
@@ -172,7 +171,7 @@ class ecei_channel():
 
         # Make sure that the timebase is appropriate for the data
         assert(np.max(data.shape) == tb.num_samples)
-        self.data = data * 1e-4
+        self.ecei_data = data * 1e-4
         self.tb_raw = tb
         self.channel = channel
 
@@ -188,18 +187,18 @@ class ecei_channel():
                 self.is_cropped = True
 
             # Subtract signal offset after signal has been cropped
-            self.data = (self.data - self.offlev) 
+            self.ecei_data = (self.ecei_data - self.offlev) 
 
         else:
             if t_crop is not None:
                 self.crop_data(t_crop)
                 self.is_cropped = True
 
-        self.siglev = np.median(self.data)
-        self.sigstd = self.data.std()
+        self.siglev = np.median(self.ecei_data)
+        self.sigstd = self.ecei_data.std()
 
         # After signal is shifted and cropped we normalize the signal
-        self.data = self.data / self.data.mean() - 1.0
+        self.ecei_data = self.ecei_data / self.ecei_data.mean() - 1.0
 
         print("all good")
 
@@ -215,7 +214,7 @@ class ecei_channel():
             # Calculate normalization constants. See fluctana.py, line 118ff
             idx_norm = [self.tb_raw.time_to_idx(t) for t in t_offset]
 
-            offset_interval = self.data[idx_norm[0]:idx_norm[1]]
+            offset_interval = self.ecei_data[idx_norm[0]:idx_norm[1]]
             print(f"Calculating offsets at {idx_norm[0]:d}:{idx_norm[1]:d}")
             self.offlev = np.median(offset_interval)
             self.offstd = offset_interval.std()
@@ -226,8 +225,8 @@ class ecei_channel():
         """
 
         assert(self.is_normalized == False)
-        self.siglev = np.median(self.data)
-        self.sigstd = self.data.std()
+        self.siglev = np.median(self.ecei_data)
+        self.sigstd = self.ecei_data.std()
 
     
     def crop_data(self, t_crop):
@@ -240,8 +239,8 @@ class ecei_channel():
         if self.is_cropped == False:
             idx_crop = [self.tb_raw.time_to_idx(t) for t in t_crop]
             print("Cropping data using ", idx_crop)
-            self.data = self.data[idx_crop[0]:idx_crop[1]]
-            print(f"data[0] = {self.data[0]}, data[-1] = {self.data[-1]}")
+            self.ecei_data = self.ecei_data[idx_crop[0]:idx_crop[1]]
+            print(f"data[0] = {self.ecei_data[0]}, data[-1] = {self.ecei_data[-1]}")
 
 
     def position(self):
@@ -303,6 +302,11 @@ class ecei_channel():
             return False
 
         return True
+
+
+    def data(self):
+        """Common interface to data"""
+        return self.ecei_data
 
 
 class ecei_view():
@@ -437,6 +441,30 @@ class ecei_chunk():
     def data(self):
         """Common interface to data"""
         return self.ecei_data
+
+
+    def filter(self, filter_obj):
+        """Filters data using the passed filter_obj. Returns an ecei_chunk object.
+
+        Parameters:
+        -----------
+        filter_obj: callable, filters data
+
+
+        Usage:
+        ------
+
+        current_chunk = ecei_chunk(data_chunk, tb_chunk)
+        filter_obj = wavelet_filter(filter_config)
+
+        # This call replaces the ecei_data with the filtered data in-place
+        current_chunk.filter(filter_obj)
+
+
+        """
+
+        filter_obj(self.ecei_data, inplace=True)
+        return self
 
 
 

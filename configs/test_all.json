@@ -25,7 +25,7 @@
   "storage": 
   {
     "backend": "mongo",
-    "datastore": "adios2",
+    "datastore": "gridfs",
     "datadir": "/global/cscratch1/sd/rkube/delta"
   },
   "storage_null": 
@@ -41,6 +41,14 @@
                "LoFreq": 81,
                "LensFocus": 80,
                "LensZoom": 340},
+ "filters_source": {
+   "denoise_wavelet": {"wavelet": "db5",
+                       "method": "BayesShrink",
+                       "wavelet_levels": 5,
+                       "method": "soft",
+                       "rescale_sigma": False}
+ },
+ "filters_dest": {}, 
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{
                 "task_description" : "cross_correlation", 
