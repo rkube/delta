@@ -17,7 +17,7 @@ def main():
         cfg = json.load(df)
         df.close()
 
-    reader = reader_bpfile(cfg["shotnr"], cfg["ECEI_cfg"])
+    reader = reader_bpfile(cfg["shotnr"], cfg["diagnostic"]["parameters"])
     reader.Open(cfg["datapath"])
 
     while True:

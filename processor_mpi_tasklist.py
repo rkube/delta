@@ -34,7 +34,7 @@ import yaml
 import argparse
 import adios2
 
-import backends
+#import storage
 
 from streaming.reader_mpi import reader_gen
 
@@ -182,22 +182,22 @@ def main():
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
-    # Instantiate a storage backend and store the run configuration and task configuration
-    if cfg['storage']['backend'] == "numpy":
-        store_backend = backends.backend_numpy(cfg['storage'])
-    elif cfg['storage']['backend'] == "mongo":
-        store_backend = backends.backend_mongodb(cfg["storage"])
-    elif cfg['storage']['backend'] == "null":
-        store_backend = backends.backend_null(cfg['storage'])
-    else:
-        raise NameError(f"Unknown storage backend requested: {cfg['storage']['backend']}")
+    # # Instantiate a storage backend and store the run configuration and task configuration
+    # if cfg['storage']['backend'] == "numpy":
+    #     store_backend = storage.backend_numpy(cfg['storage'])
+    # elif cfg['storage']['backend'] == "mongo":
+    #     store_backend = storage.backend_mongodb(cfg["storage"])
+    # elif cfg['storage']['backend'] == "null":
+    #     store_backend = storage.backend_null(cfg['storage'])
+    # else:
+    #     raise NameError(f"Unknown storage backend requested: {cfg['storage']['backend']}")
 
-    store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
-    logger.info(f"Stored one")
+    # store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
+    # logger.info(f"Stored one")
 
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport_nersc"])
-    task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
+    task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["diagnostic"]["parameters"], cfg["storage"])
     #task_list = task_list_spectral(executor, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
 
     dq = queue.Queue()
@@ -233,7 +233,7 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 100:
+        if reader.CurrentStep() > 1:
             break
 
     dq.join()

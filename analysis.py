@@ -7,8 +7,6 @@ import argparse
 
 from analysis.spectral import power_spectrum
 
-## jyc: temporarily disabled. Will use later
-#from backends.mongodb import mongo_backend
 
 import concurrent.futures
 import time

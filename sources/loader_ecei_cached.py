@@ -24,11 +24,11 @@ class loader_ecei():
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
         self.filename = cfg["source"]["source_file"]
         self.chunk_size = cfg["source"]["chunk_size"]
-        self.ecei_cfg = cfg["ECEI_cfg"]
+        self.ecei_cfg = cfg["diagnostic"]["parameters"]
         self.num_chunks = cfg["source"]["num_chunks"]
         self.current_chunk = 0
 
-        self.tnorm = cfg["ECEI_cfg"]["t_norm"]
+        self.tnorm = cfg["diagnostic"]["parameters"]["t_norm"]
 
         self.got_normalization = False
 

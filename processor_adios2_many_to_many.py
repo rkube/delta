@@ -23,7 +23,7 @@ import argparse
 from processors.readers_many_to_many import reader_many_to_many_dataman, reader_many_to_many_bpfile
 from analysis.spectral import power_spectrum
 
-from backends.mongodb import mongo_backend
+from storage.mongodb import mongo_backend
 
 
 print("******* THIS IS AN OUTDATED VERSION. Run processor_mpi.py **********")

@@ -19,7 +19,7 @@ from kstarecei import KstarEcei
 # Load a config file to get the ecei config
 with open("../configs/test_skw.json", "r") as df: 
     cfg = json.load(df)
-ecei_cfg = cfg["ECEI_cfg"]
+ecei_cfg = cfg["diagnostic"]["parameters"]
 # Define a test channel
 ch1 = channel('L', 17, 7)
 print("Channel ", ch1)

@@ -36,7 +36,7 @@ import yaml
 import argparse
 import adios2
 
-import backends
+import storage
 
 from streaming.reader_mpi import reader_gen
 

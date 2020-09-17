@@ -4,12 +4,10 @@ from mpi4py import MPI
 from os import path
 import numpy as np
 
-import adios2
 import json
 import yaml
 import argparse
 
-import timeit
 import time
 
 import logging, logging.config
@@ -43,8 +41,10 @@ with open('configs/logger.yaml', 'r') as f:
 logging.config.dictConfig(log_cfg)
 logger = logging.getLogger("generator")
 
+logger.info(f"Starting up...")
+
 # Instantiate a dataloader
-dataloader  = get_loader(cfg)
+dataloader = get_loader(cfg)
 
 logger.info(f"Creating writer_gen: engine={cfg['transport_nersc']['engine']}")
 

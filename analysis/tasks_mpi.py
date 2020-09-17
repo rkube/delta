@@ -14,7 +14,7 @@ from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_cro
 from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
 from analysis.task_fft import task_fft_scipy
 
-import backends
+import storage
 
 from scipy.signal import stft
 

@@ -9,15 +9,16 @@ from data_models.kstar_ecei import gen_channel_name
 
 
 def get_loader(cfg):
-    if cfg["datatype"] == "kstarecei":
+    if cfg["diagnostic"]["name"] == "kstarecei":
         return _loader_ecei(cfg)
+    elif cfg["diagnostic"]["name"] == "nstxgpi":
+        return None
     else:
         raise ValueError(cfg["datatype"])
 
 
 class _loader_ecei():
     """Loads KSTAR ECEi data time-chunk wise for a specified channel range from an HDF5 file"""
-
 
     def __init__(self, cfg, cache=True):
         """
@@ -31,31 +32,31 @@ class _loader_ecei():
 
         self.ch_range = channel_range.from_str(cfg["source"]["channel_range"][0])
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
-        self.filename = cfg["source"]["source_file"]
+        self.filename = cfg["diagnostic"]["datasource"]["source_file"]
         # Number of samples in a chunk
-        self.chunk_size = cfg["source"]["chunk_size"]
-        #self.ecei_cfg = cfg["ECEI_cfg"]
+        self.chunk_size = cfg["diagnostic"]["datasource"]["chunk_size"]
+        #self.ecei_cfg = cfg["diagnosic"]["parameters""]
         # Total number of chunks
-        self.num_chunks = cfg["source"]["num_chunks"]
+        self.num_chunks = cfg["diagnostic"]["datasource"]["num_chunks"]
         self.current_chunk = 0
         
-        if cfg["source"]["datatype"] == "int":
+        if cfg["diagnostic"]["datasource"]["datatype"] == "int":
             self.dtype = np.int32
-        elif cfg["source"]["datatype"] == "float":
+        elif cfg["diagnostic"]["datasource"]["datatype"] == "float":
             self.dtype = np.float64
 
-        self.stream_name = gen_channel_name("KSTAR_ECEI", cfg['shotnr'], self.ch_range.to_str())
+        self.stream_name = gen_channel_name("KSTAR_ECEI", cfg["diagnostic"]["shotnr"], self.ch_range.to_str())
 
         # Generate start/stop time for timebase
-        self.f_sample = cfg["ECEI_cfg"]["SampleRate"] * 1e3
+        self.f_sample = cfg["diagnostic"]["parameters"]["SampleRate"] * 1e3
         self.dt = 1. / self.f_sample
-        self.t_start = cfg["ECEI_cfg"]["TriggerTime"][0]
-        self.t_end = min(cfg["ECEI_cfg"]["TriggerTime"][1], self.t_start + 5_000_000 * self.dt)
+        self.t_start = cfg["diagnostic"]["parameters"]["TriggerTime"][0]
+        self.t_end = min(cfg["diagnostic"]["parameters"]["TriggerTime"][1], self.t_start + 5_000_000 * self.dt)
 
         # Callable that performs normalization. This is instantiated once data from
         # the time interval t_norm is read in batch_generator
         self.normalize = None
-        self.t_norm = cfg["ECEI_cfg"]["t_norm"]
+        self.t_norm = cfg["diagnostic"]["parameters"]["t_norm"]
 
         self.logger = logging.getLogger('simple')
 

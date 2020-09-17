@@ -1,7 +1,7 @@
 # Encoding: UTF-8 -*-
 
 import logging
-from .backend import backend
+from .storage import backend
 
 class backend_null(backend):
     """

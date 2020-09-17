@@ -4,9 +4,8 @@ from os.path import join
 import numpy as np
 import logging
 import json
-#from backends.backend import backend
 
-from .backend import backend, serialize_dispatch_seq
+from .storage import backend, serialize_dispatch_seq
 
 
 class backend_numpy(backend):

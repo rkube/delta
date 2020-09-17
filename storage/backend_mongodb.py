@@ -20,7 +20,7 @@ from bson.binary import Binary
 from os import mkdir
 from os.path import isdir, join
 
-from .backend import backend, serialize_dispatch_seq
+from .storage import backend, serialize_dispatch_seq
 
 class mongo_connection():
     """Abstraction for mongo_connection using context manager"""
