@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib as mpl 
 import matplotlib.pyplot as plt
 
-from ecei_channel import ecei_view
+from data_models.kstar_ecei import ecei_view
 
 
 class radial_interpolator():

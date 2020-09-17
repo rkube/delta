@@ -1,13 +1,11 @@
 {
   "shotnr": 18431,
-  "datatype": "kstarecei",
   "source":
   {
     "source_file": "/global/homes/r/rkube/repos/delta/ECEI.018431.LFS.h5",
     "chunk_size": 10000,
     "num_chunks": 500,
-    "channel_range": ["L0101-2408"],
-    "datatype": "float"
+    "channel_range": ["L0101-2408"]
   },
   "transport_nersc":
   {
@@ -43,15 +41,17 @@
                "LoFreq": 81,
                "LensFocus": 80,
                "LensZoom": 340},
- "filters_source": {
-   "denoise_wavelet": {"wavelet": "db5",
-                       "method": "BayesShrink",
-                       "wavelet_levels": 5,
-                       "method": "soft",
-                       "rescale_sigma": false}
- },
- "filters_dest": {}, 
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
+ "filters": {"type": "wavelet", 
+             "params": 
+             {
+                "wavelet": "db5",
+                "method": "VisuShrink",
+                "wavelet_levels": 5,
+                "mode": "soft",
+                "rescale_sigma": false
+             }
+},
  "task_list": [{
                 "task_description" : "cross_correlation", 
                 "analysis": "cross_correlation",
