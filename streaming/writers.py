@@ -67,7 +67,7 @@ class writer_base():
 
     def Open(self):
         """Opens a new channel. """
-        
+
         if self.writer is None:
             self.writer = self.IO.Open(self.stream_name, adios2.Mode.Write)
 
@@ -107,7 +107,7 @@ class writer_base():
 
         return None
 
-    
+
     def transfer_stats(self):
         """Returns statistics from the transfer"""
 
@@ -127,7 +127,7 @@ class writer_base():
 
 class writer_gen(writer_base):
     def __init__(self, cfg, stream_name):
-        """Instantiates a writer. Control Adios method and params through 
+        """Instantiates a writer. Control Adios method and params through
         transport section cfg
 
         Parameters:
@@ -135,7 +135,7 @@ class writer_gen(writer_base):
         cfg..........: delta config dict. This corresponds to the transport section.
         stream_name..: string, name for the adios data stream
         """
- 
+
         super().__init__(cfg, stream_name)
         self.IO.SetEngine(cfg["engine"])
         self.IO.SetParameters(cfg["params"])

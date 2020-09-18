@@ -8,8 +8,8 @@ from os.path import join
 
 import numpy as np
 
-from analysis.channels import channel, channel_range
-from streaming.adios_helpers import gen_io_name, gen_channel_name_v3
+#from analysis.channels import channel, channel_range
+from streaming.adios_helpers import gen_io_name
 
 """
 Author: Ralph Kube
@@ -17,7 +17,7 @@ Author: Ralph Kube
 
 
 class reader_base():
-    def __init__(self, cfg: dict, shotnr: int=18431):
+    def __init__(self, cfg: dict, stream_name):
         """Generates a reader for KSTAR ECEI data.
 
         Parameters:
@@ -32,26 +32,23 @@ class reader_base():
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
         self.logger = logging.getLogger("simple")
 
-        self.shotnr = shotnr
-        self.IO = self.adios.DeclareIO(gen_io_name(self.shotnr))
+        self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
 
         self.reader = None
-        # Generate a descriptive channel name
-        self.chrg = channel_range.from_str(cfg["channel_range"][self.rank])
-        self.channel_name = gen_channel_name_v3(cfg["datapath"], self.shotnr, self.chrg.to_str())
-        self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
+        self.stream_name = stream_name
+        self.logger.info(f"reader_base:  =  {self.stream_name}")
 
 
     def Open(self):
         """Opens a new channel"""
 
-        self.logger.info(f"Waiting to receive channel name {self.channel_name}")
+        self.logger.info(f"Waiting to receive channel name {self.stream_name}")
         if self.reader is None:
-            self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
+            self.reader = self.IO.Open(self.stream_name, adios2.Mode.Read)
         else:
             pass
-        self.logger.info(f"Opened channel {self.channel_name}")
+        self.logger.info(f"Opened channel {self.stream_name}")
 
         return None
 
@@ -88,14 +85,14 @@ class reader_base():
         return json.loads(attrs.DataString()[0])
 
 
-    
-    def Get(self, ch_rg: channel_range, save: bool=False):
+
+    def Get(self, varname: str, save: bool=False):
         """Get data from varname at current step. This is diagnostic-independent code.
 
         Inputs:
         =======
-        ch_rg: channel_range that describes which channels to inquire. This is used to generate
-               a variable name which is inquired from the stream
+        varname..: variable name to inquire from adios stream
+        save.....: bool, saves data to numpy if true. Default: False
 
         Returns:
         ========
@@ -104,14 +101,21 @@ class reader_base():
 
 
         # elif isinstance(channels, type(None)):
-        self.logger.info(f"Reading varname {ch_rg.to_str()}. Step no. {self.CurrentStep():d}")
-        var = self.IO.InquireVariable(ch_rg.to_str())
-        time_chunk = np.zeros(var.Shape(), dtype=np.float64)
+        self.logger.info(f"Reading varname {varname}. Step no. {self.CurrentStep():d}")
+        var = self.IO.InquireVariable(varname)
+        #self.logger.info(f"Received {varname}, shape={var.Shape()}, ", type(var.Type()))
+        if var.Type() == 'double':
+            new_dtype=np.float64
+        elif var.Type() == 'float':
+            new_dtype=np.float32
+        else:
+            raise ValueError(var.Type())
+        time_chunk = np.zeros(var.Shape(), dtype=new_dtype)
         self.reader.Get(var, time_chunk, adios2.Mode.Sync)
         self.logger.info(f"Got data")
 
         # Read attributes
-        attrs = self.reader.available_attributes
+        #attrs = self.reader.available_attributes
 
         if save:
             np.savez(f"test_data/time_chunk_tr_s{self.CurrentStep():04d}.npz", time_chunk=time_chunk)
@@ -120,7 +124,7 @@ class reader_base():
 
 
 class reader_gen(reader_base):
-    def __init__(self, cfg: dict, shotnr: int=18431):
+    def __init__(self, cfg: dict, stream_name: str):
         """Instantiates a reader.
            Control Adios method and params through cfg
 
@@ -128,9 +132,9 @@ class reader_gen(reader_base):
         -----------
         cfg : delta config dict
         """
-        super().__init__(cfg, shotnr)
+        super().__init__(cfg, stream_name)
         self.IO.SetEngine(cfg["engine"])
         self.IO.SetParameters(cfg["params"])
         self.reader = None
 
-# End of file 
+# End of file

@@ -1,11 +1,11 @@
 {
-  "diagnostic": 
+  "diagnostic":
   {
     "name": "kstarecei",
     "shotnr": 18431,
     "datasource":
     {
-      "source_file": "/global/homes/r/rkube/repos/delta/ECEI.018431.LFS.h5",
+      "source_file": "/scratch/gpfs/rkube/KSTAR/018431/ECEI.018431.LFS.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["L0101-2408"],
@@ -36,13 +36,13 @@
       "TransportMode": "fast"
     }
   },
-  "storage_mongo": 
+  "storage_mongo":
   {
     "backend": "mongo",
     "datastore": "gridfs",
     "datadir": "/global/cscratch1/sd/rkube/delta"
   },
-  "storage": 
+  "storage":
   {
     "backend": "null"
   },
@@ -55,31 +55,31 @@
  },
  "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{
-                "task_description" : "cross_correlation", 
+                "task_description" : "cross_correlation",
                 "analysis": "cross_correlation",
-                "channel_chunk_size": 32768, 
+                "channel_chunk_size": 32768,
                 "ref_channels" : "L0101-2408",
                 "cmp_channels" : "L0101-2408"
               },
               {
-                "task_description" : "cross_power", 
+                "task_description" : "cross_power",
                 "analysis": "cross_power",
-                "channel_chunk_size": 32768, 
+                "channel_chunk_size": 32768,
                 "ref_channels" : "L0101-2408",
                 "cmp_channels" : "L0101-2408"
               },
               {
-                "task_description" : "cross_phase", 
+                "task_description" : "cross_phase",
                 "analysis": "cross_phase",
-                "channel_chunk_size": 32768, 
+                "channel_chunk_size": 32768,
                 "ref_channels" : "L0101-2408",
                 "cmp_channels" : "L0101-2408"
               },
               {
-                "task_description" : "coherence", 
+                "task_description" : "coherence",
                 "analysis": "coherence",
-                "channel_chunk_size": 32768, 
+                "channel_chunk_size": 32768,
                 "ref_channels" : "L0101-2408",
                 "cmp_channels" : "L0101-2408"
-              }]  
+              }]
 }

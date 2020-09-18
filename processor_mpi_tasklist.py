@@ -13,6 +13,8 @@ srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/t
 
 """
 
+import sys
+sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
 import os
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor
@@ -20,44 +22,27 @@ from mpi4py.futures import MPIPoolExecutor
 import logging
 import logging.config
 import random
-import string
 import queue
 import threading
+import time
+import string
+import json, yaml
+import argparse
 
 import numpy as np
-import attr
-import timeit
-import datetime
 
-import json
-import yaml
-import argparse
-import adios2
 
-#import storage
 
 from streaming.reader_mpi import reader_gen
-
-#from analysis.task_fft import task_fft_scipy
-from analysis.tasks_mpi import task_list_spectral
-from analysis.channels import channel_range
-
-
-@attr.s 
-class AdiosMessage:
-    """Storage class used to transfer data from Kstar(Dataman) to local PoolExecutor"""
-    tstep_idx = attr.ib(repr=True)
-    data      = attr.ib(repr=False)
-
-cfg = {}
+from data_models.helpers import gen_channel_name, gen_var_name, data_model_generator
 
 
 # class ConsumeThread(threading.Thread):
 #     def __init__(self, Q, executor, task_list, cfg):
 #         """ constructor, setting initial variables """
 #         self.Q = Q
-#         self.executor = executor 
-#         self.task_list = task_list 
+#         self.executor = executor
+#         self.task_list = task_list
 #         self.logger = logging.getLogger("simple")
 
 #         self.logger.info("Constructing thread")
@@ -68,11 +53,11 @@ cfg = {}
 
 #         self._interrupt = threading.Event()
 #         threading.Thread.__init__(self)
-        
+
 
 #     def interrupt(self):
 #         self._interrupt.set()
-        
+
 #     def run(self):
 #         #logger = logging.getLogger('simple')
 #         global cfg
@@ -102,7 +87,7 @@ cfg = {}
 #             toc_fft = timeit.default_timer()
 #             logger.info(f"tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
 
-#             # Step 2) Distribute tasks to the executor 
+#             # Step 2) Distribute tasks to the executor
 #             for task in self.task_list:
 #                 task.submit(self.executor, fft_data, msg.tstep_idx, self.cfg)
 
@@ -129,17 +114,16 @@ def consume(Q, task_list):
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
         # If we get our special break message, we exit
-        if msg.tstep_idx == None:
-            Q.task_done()
-            break
+        #if msg.tstep_idx == None:
+        #    Q.task_done()
+        #    break
 
         #if(msg.tidx == 1):
         #    np.savez(f"test_data/io_array_tr_s{msg.tidx:04d}.npz", msg.data)
 
-        # Try to create an ecei_view from the data packet
-
-        logger.info(f"Rank {rank}: Consumed tidx={msg.tstep_idx}")
-        task_list.submit(msg.data, msg.tstep_idx)
+        # TODO: Should there be a general method to a time index from a data chunk?
+        logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}")
+        #task_list.submit(msg.data, msg.tstep_idx)
 
         Q.task_done()
     logger.info("Task done")
@@ -161,10 +145,10 @@ def main():
     with open(args.config, "r") as df:
         cfg = json.load(df)
         df.close()
-    
-    # Load logger configuration from file: 
+
+    # Load logger configuration from file:
     # http://zetcode.com/python/logging/
-    with open("configs/logger.yaml", "r") as f:  
+    with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('simple')
@@ -175,7 +159,7 @@ def main():
     executor_anl = MPIPoolExecutor(max_workers=16)
     #executor = MPIPoolExecutor(max_workers=120)
 
-    adios2_varname = channel_range.from_str(cfg["transport_nersc"]["channel_range"][0])
+    stream_varname = gen_var_name(cfg)[rank]
 
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
     cfg["run_id"] = "ABC128"
@@ -196,14 +180,18 @@ def main():
     # logger.info(f"Stored one")
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport_nersc"])
-    task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["diagnostic"]["parameters"], cfg["storage"])
-    #task_list = task_list_spectral(executor, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
+    reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg))
+
+    #task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["diagnostic"]["parameters"], cfg["storage"])
+    ####task_list = task_list_spectral(executor, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
+
+    task_list = None
 
     dq = queue.Queue()
     msg = None#
+    data_model_gen = data_model_generator(cfg["diagnostic"])
 
-    tic_main = timeit.default_timer()
+    tic_main = time.perf_counter()
     workers = []
     for _ in range(4):
         worker = threading.Thread(target=consume, args=(dq, task_list))
@@ -221,19 +209,20 @@ def main():
         stepStatus = reader.BeginStep()
         if stepStatus:
             # Read data
-            stream_data = reader.Get(adios2_varname, save=False)
+            stream_data = reader.Get(stream_varname, save=False)
             rx_list.append(reader.CurrentStep())
 
-            # Generate message id and publish 
-            msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
+            # Create a datamodel instance from the raw data and push into the queue
+            msg = data_model_gen.new_chunk(stream_data, reader.CurrentStep())
             dq.put_nowait(msg)
-            logger.info(f"Published tidx {msg.tstep_idx}")
+            logger.info(f"Published tidx {reader.CurrentStep()}")
             reader.EndStep()
         else:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 1:
+        if reader.CurrentStep() > 7:
+            logger.info(f"End of the line. Exiting")
             break
 
     dq.join()
@@ -250,7 +239,7 @@ def main():
     executor_fft.shutdown(wait=True)
     #executor.shutdown(wait=True)
 
-    toc_main = timeit.default_timer()
+    toc_main = time.perf_counter()
     logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
     logger.info(f"Processed {len(rx_list)} time_chunks: {rx_list}")
 

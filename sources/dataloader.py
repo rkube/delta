@@ -5,7 +5,7 @@ import h5py
 import logging
 
 from data_models.kstar_ecei import timebase_streaming, ecei_chunk, normalize_mean, channel_range
-from data_models.kstar_ecei import gen_channel_name
+from data_models.helpers import gen_channel_name
 
 
 def get_loader(cfg):
@@ -30,7 +30,7 @@ class _loader_ecei():
 
         """
 
-        self.ch_range = channel_range.from_str(cfg["source"]["channel_range"][0])
+        self.ch_range = channel_range.from_str(cfg["diagnostic"]["datasource"]["channel_range"][0])
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
         self.filename = cfg["diagnostic"]["datasource"]["source_file"]
         # Number of samples in a chunk
@@ -39,13 +39,13 @@ class _loader_ecei():
         # Total number of chunks
         self.num_chunks = cfg["diagnostic"]["datasource"]["num_chunks"]
         self.current_chunk = 0
-        
+
         if cfg["diagnostic"]["datasource"]["datatype"] == "int":
             self.dtype = np.int32
         elif cfg["diagnostic"]["datasource"]["datatype"] == "float":
             self.dtype = np.float64
 
-        self.stream_name = gen_channel_name("KSTAR_ECEI", cfg["diagnostic"]["shotnr"], self.ch_range.to_str())
+        #self.stream_name = gen_channel_name("KSTAR_ECEI", cfg["diagnostic"]["shotnr"], self.ch_range.to_str())
 
         # Generate start/stop time for timebase
         self.f_sample = cfg["diagnostic"]["parameters"]["SampleRate"] * 1e3
@@ -79,19 +79,15 @@ class _loader_ecei():
         # Cache the data in memory
         with h5py.File(self.filename, "r",) as df:
             for ch in self.ch_range:
-                chname_h5 = f"/ECEI/ECEI_{ch}/Voltage" 
+                chname_h5 = f"/ECEI/ECEI_{ch}/Voltage"
                 self.cache[ch.idx(), :] = df[chname_h5][:self.chunk_size * self.num_chunks].astype(self.dtype)
         self.cache = self.cache * 1e-4
 
-    
+
     def get_chunk_shape(self):
         """Returns the size of chunks"""
         return (self.ch_range.length(), self.chunk_size)
 
-    def get_channel_name(self):
-        """Generates a channel name"""
-
-        return self.ch_range.to_str()
 
     def get_chunk_size_bytes(self):
         """Returns the size of a chunk, in bytes"""
@@ -100,16 +96,16 @@ class _loader_ecei():
     def batch_generator(self):
         """Loads the next time-chunk from the data file.
         This implementation works as a generator.
-        
-        The ECEI data is usually normalized to a fixed offset, calculated using data 
+
+        The ECEI data is usually normalized to a fixed offset, calculated using data
         at the beginning of the stream.
 
         The time interval where the data we normalize to is taken from is given in ECEI_config, t_norm.
         As long as this data is not seen by the reader, raw data is returned.
-        
+
         Once the data we normalize to is seen, the normalization values are calculated.
         After that, the data from the current and all subsequent chunks is normalized.
-    
+
         The flag self.is_data_normalized is set to false if raw data is returned.
         It is set to true if normalized data is returned.
 
@@ -130,9 +126,9 @@ class _loader_ecei():
         for current_chunk in range(self.num_chunks):
             # Generate a time-base for the current chunk
             tb_chunk = timebase_streaming(self.t_start, self.t_end, self.f_sample, self.chunk_size, current_chunk)
-            
+
             # Load current time-chunk from HDF5 file
-            # IF we are running cached, use the data from cache. 
+            # IF we are running cached, use the data from cache.
             if self.is_cached:
                 _chunk_data = self.cache[:, current_chunk * self.chunk_size:(current_chunk + 1) * self.chunk_size]
 
@@ -140,7 +136,7 @@ class _loader_ecei():
             else:
                 with h5py.File(self.filename, "r",) as df:
                     for ch in self.ch_range:
-                        chname_h5 = f"/ECEI/ECEI_{ch}/Voltage" 
+                        chname_h5 = f"/ECEI/ECEI_{ch}/Voltage"
                         _chunk_data[ch.idx(), :] = df[chname_h5][current_chunk * self.chunk_size:(current_chunk + 1) * self.chunk_size]
                 _chunk_data = _chunk_data * 1e-4
 

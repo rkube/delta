@@ -1,6 +1,9 @@
 # -*- coding: UTF-8 -*-
 
 from mpi4py import MPI
+import sys
+
+sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
 from os import path
 import numpy as np
 
@@ -12,9 +15,10 @@ import time
 
 import logging, logging.config
 
-#from analysis.channels import channel_range
 from streaming.writers import writer_gen
 from sources.dataloader import get_loader
+from data_models.helpers import gen_channel_name, gen_var_name
+
 
 """
 Distributes time-chunked ECEI data via ADIOS2.
@@ -45,13 +49,13 @@ logger.info(f"Starting up...")
 
 # Instantiate a dataloader
 dataloader = get_loader(cfg)
-
 logger.info(f"Creating writer_gen: engine={cfg['transport_nersc']['engine']}")
 
-writer = writer_gen(cfg["transport_nersc"], dataloader.stream_name)
-
+writer = writer_gen(cfg["transport_nersc"], gen_channel_name(cfg))
+logger.info(f"Streaming channel name = {gen_channel_name(cfg)}")
 # Give the writer hints on what kind of data to transfer
-writer.DefineVariable(dataloader.get_channel_name(), 
+
+writer.DefineVariable(gen_var_name(cfg)[rank],
                       dataloader.get_chunk_shape(),
                       dataloader.dtype)
 writer.Open()
