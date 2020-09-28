@@ -4,17 +4,20 @@ import numpy as np
 import h5py
 import logging
 
-from data_models.kstar_ecei import timebase_streaming, ecei_chunk, normalize_mean, channel_range
-from data_models.helpers import gen_channel_name
+from data_models.kstar_ecei import timebase_streaming, ecei_chunk, channel_range_from_str
+from data_models.helpers import gen_channel_name, normalize_mean
 
 
 def get_loader(cfg):
     if cfg["diagnostic"]["name"] == "kstarecei":
         return _loader_ecei(cfg)
     elif cfg["diagnostic"]["name"] == "nstxgpi":
-        return None
+        return _loader_gpi(cfg)
     else:
         raise ValueError(cfg["datatype"])
+
+class _loader_gpi():
+    pass
 
 
 class _loader_ecei():
@@ -30,7 +33,7 @@ class _loader_ecei():
 
         """
 
-        self.ch_range = channel_range.from_str(cfg["diagnostic"]["datasource"]["channel_range"][0])
+        self.ch_range = channel_range_from_str(cfg["diagnostic"]["datasource"]["channel_range"][0])
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
         self.filename = cfg["diagnostic"]["datasource"]["source_file"]
         # Number of samples in a chunk
@@ -79,8 +82,8 @@ class _loader_ecei():
         # Cache the data in memory
         with h5py.File(self.filename, "r",) as df:
             for ch in self.ch_range:
-                chname_h5 = f"/ECEI/ECEI_{ch}/Voltage"
-                self.cache[ch.idx(), :] = df[chname_h5][:self.chunk_size * self.num_chunks].astype(self.dtype)
+                chname_h5 = f"/ECEI/ECEI_L{ch.ch_v:02d}{ch.ch_h:02d}/Voltage"
+                self.cache[ch.get_idx(), :] = df[chname_h5][:self.chunk_size * self.num_chunks].astype(self.dtype)
         self.cache = self.cache * 1e-4
 
 
@@ -137,7 +140,7 @@ class _loader_ecei():
                 with h5py.File(self.filename, "r",) as df:
                     for ch in self.ch_range:
                         chname_h5 = f"/ECEI/ECEI_{ch}/Voltage"
-                        _chunk_data[ch.idx(), :] = df[chname_h5][current_chunk * self.chunk_size:(current_chunk + 1) * self.chunk_size]
+                        _chunk_data[ch.get_idx(), :] = df[chname_h5][current_chunk * self.chunk_size:(current_chunk + 1) * self.chunk_size]
                 _chunk_data = _chunk_data * 1e-4
 
             current_chunk = ecei_chunk(_chunk_data, tb_chunk)

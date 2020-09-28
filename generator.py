@@ -51,8 +51,8 @@ logger.info(f"Starting up...")
 dataloader = get_loader(cfg)
 logger.info(f"Creating writer_gen: engine={cfg['transport_nersc']['engine']}")
 
-writer = writer_gen(cfg["transport_nersc"], gen_channel_name(cfg))
-logger.info(f"Streaming channel name = {gen_channel_name(cfg)}")
+writer = writer_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
+logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
 # Give the writer hints on what kind of data to transfer
 
 writer.DefineVariable(gen_var_name(cfg)[rank],
@@ -73,9 +73,9 @@ for nstep, chunk in enumerate(batch_gen):
     writer.put_data(chunk, {"tidx": nstep})
     writer.EndStep()
     time.sleep(0.1)
-
-    if nstep > 10:
-        break
+    # 
+    # if nstep > 100:
+    #     break
 
 writer.writer.Close()
 logger.info(writer.transfer_stats())

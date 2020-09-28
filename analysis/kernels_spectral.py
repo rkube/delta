@@ -18,21 +18,21 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
     """Kernel that calculates the cross-phase between two channels.
     Input:
     ======
-    fft_data: ndarray, complex: Contains the fourier-transformed data. 
+    fft_data: ndarray, complex: Contains the fourier-transformed data.
                 dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
     ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
 
     Returns:
     ========
     Axy: float, the cross phase
-    """    
+    """
     #c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
     #c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
     #Pxy = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2)
 
     Pxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        Pxy[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1)
+        Pxy[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1)
 
     return(np.arctan2(Pxy.imag, Pxy.real).real)
 
@@ -40,8 +40,8 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
 def kernel_crosspower(fft_data, ch_it, fft_config):
     """Kernel that calculates the cross-power between two channels.
     Input:
-    ======    
-    fft_data: ndarray, float: Contains the fourier-transformed data. 
+    ======
+    fft_data: ndarray, float: Contains the fourier-transformed data.
                 dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
     ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
 
@@ -56,16 +56,16 @@ def kernel_crosspower(fft_data, ch_it, fft_config):
 
     res = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        res[idx, :] = (fft_data[ch_pair.ch1.idx(), :, :] * fft_data[ch_pair.ch2.idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
-    
+        res[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
+
     return(np.abs(res).real)
 
 
 def kernel_coherence(fft_data, ch_it, fft_config):
     """Kernel that calculates the coherence between two channels.
     Input:
-    ======    
-    fft_data: ndarray, float: Contains the fourier-transformed data. 
+    ======
+    fft_data: ndarray, float: Contains the fourier-transformed data.
                 dim0: channel, dim1: Fourier Coefficients. dim2: STFT (bins in fluctana code)
     ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
 
@@ -74,12 +74,12 @@ def kernel_coherence(fft_data, ch_it, fft_config):
     ========
     coherence, float.
     """
-    
+
     Gxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
 
     for idx, ch_pair in enumerate(ch_it):
-        X = fft_data[ch_pair.ch1.idx(), :, :]
-        Y = fft_data[ch_pair.ch2.idx(), :, :]
+        X = fft_data[ch_pair.ch1.get_idx(), :, :]
+        Y = fft_data[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
         Gxy[idx, :] = ((X * Y.conj()) / np.sqrt(Pxx * Pyy)).mean(axis=1)
@@ -95,36 +95,46 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
 
     Input:
     ======
-    fft_data: ndarray, float: Contains the fourier-transformed data. 
+    fft_data: ndarray, float: Contains the fourier-transformed data.
                 dim0: channel. dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
     ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
     fft_params: dict, parameters of the fourier-transformed data
-    
+
 
     Returns:
     ========
     cross-correlation, float array
     """
-    
+
+
+    import time
+
     res = np.zeros([len(ch_it), fft_data.shape[1]])
     fft_shifted = np.fft.fftshift(fft_data, axes=1)
 
+    tic_list = []
+    toc_list = []
     for idx, ch_pair in enumerate(ch_it):
-        X = fft_shifted[ch_pair.ch1.idx(), :, :]
-        Y = fft_shifted[ch_pair.ch2.idx(), :, :]
-        
-        #_tmp = np.fft.ifft(X * Y.conj(), n=fft_params['nfft'], axis=0) * fft_params['nfft'] / fft_params['win_factor']
+        tic_list.append(time.perf_counter())
 
+        X = fft_shifted[ch_pair.ch1.get_idx(), :, :]
+        Y = fft_shifted[ch_pair.ch2.get_idx(), :, :]
         _tmp = np.fft.ifft(X * Y.conj(), axis=0).mean(axis=1) / fft_params['win_factor']
+        toc_list.append(time.perf_counter())
+
+    dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
+    with open("numpy_timings.txt", "a") as df:
+        df.write("\n".join(dts) + "\n")
+
         res[idx, :] = np.fft.fftshift(_tmp.real)
-    
+
     return(res)
 
 
-def kernel_bicoherence(fft_data, ch_it, fft_params): 
+def kernel_bicoherence(fft_data, ch_it, fft_params):
     """Kernel that calculates the bi-coherence between two channels.
     Input:
-    ======    
+    ======
     fft_data: dask_array, float: Contains the fourier-transformed data. dim0: channel, dim1: Fourier Coefficients
     ch0: int, index for first channel
     ch1: int, index for second channel
@@ -137,7 +147,7 @@ def kernel_bicoherence(fft_data, ch_it, fft_params):
     res_list = []
 
     for ch_pair in ch_it:
-        ch1_idx, ch2_idx = ch_pair.ch1.idx(), ch_pair.ch2.idx()
+        ch1_idx, ch2_idx = ch_pair.ch1.get_idx(), ch_pair.ch2.get_idx()
 
         # Transpose to make array layout compatible with code from specs.py
         XX = np.fft.fftshift(fft_data[ch1_idx, :, :], axes=0).T
@@ -191,7 +201,7 @@ def kernel_bicoherence(fft_data, ch_it, fft_params):
     return (res_list)
 
 
-def kernel_skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01): 
+def kernel_skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
     """
     Calculates the conditional spectrum S(k,w).
 
@@ -216,7 +226,7 @@ def kernel_skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
 
         ch1 = ch_pair.ch1
         ch2 = ch_pair.ch2
-        ch1_idx, ch2_idx = ch1.idx(), ch2.idx()
+        ch1_idx, ch2_idx = ch1.get_idx(), ch2.get_idx()
 
 
         nfft = int(fft_params["nfft"])
@@ -264,7 +274,7 @@ def kernel_skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
             Pyy[b,:] = Y*np.matrix.conjugate(Y) / win_factor
             Pxy = X*np.matrix.conjugate(Y)
             Kxy[b,:] = np.arctan2(Pxy.imag, Pxy.real).real / (dist * 100) # [cm^-1]
-                                                            
+
             # calculate SKw
             for w in range(nfft):
                 idx = (Kxy[b,w] - kstep * 0.5 < kax) * (kax < Kxy[b,w] + kstep * 0.5)

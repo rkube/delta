@@ -27,6 +27,9 @@ import json
 import time
 
 
+from data_models.channels_2d import channel_2d, channel_range
+
+
 
 class timebase_streaming():
     """Defines a timebase for a data chunk in the stream"""
@@ -133,202 +136,45 @@ class timebase():
         return np.arange(self.t_start, self.t_end, self.dt)
 
 
-
-class normalize_mean():
-    """Performs normalization"""
-
-    def __init__(self, offlev, offstd):
-        """Stores offset and standard deviation of normalization time series.
-        Parameters:
-        -----------
-        offlev....: ndarray, channel-wise offset level
-        offstd....: ndarray, channel-wise offset standard deviation
+def channel_range_from_str(range_str):
         """
-        self.offlev = offlev
-        self.offstd = offstd
-
-        self.siglev = None
-        self.sigstd = None
-
-    def __call__(self, data):
-        """Normalizes data
+        Generates a channel_range from a range, specified as
+        'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
 
         Parameters:
         -----------
-        data......: array. Last dimension are time series
+        range_str..: str,
+                     Specifices KSTAR ECEI channel range
+
+        Returns:
+        --------
+        channel_range: channel_range,
+                       Channel range corresponding to range_str
         """
 
-        # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
+        import re
 
-        assert(self.offlev.shape[:-1] == data.shape[:-1])
-        assert(self.offstd.shape[:-1] == data.shape[:-1])
-        assert(self.offlev.ndim == data.ndim)
-        assert(self.offstd.ndim == data.ndim)
+        m = re.search('[A-Z]{1,2}', range_str)
+        try:
+            dev = m.group(0)
+        except:
+            raise AttributeError("Could not parse channel string {0:s}".format(range_str))
 
-        data[:] = data - self.offlev
-        self.siglev = np.median(data, axis=-1, keepdims=True)
-        self.sigstd = data.std(axis=-1, keepdims=True)
+        m = re.findall('[0-9]{4}', range_str)
 
-        data[:] = data / data.mean(axis=-1, keepdims=True) - 1.0
+        ch_i = int(m[0])
+        ch_hi = ch_i % 100
+        ch_vi = int(ch_i // 100)
+        ch_i = channel_2d(ch_vi, ch_hi, 24, 8, 'horizontal')
 
-        return None
-
-
-class ecei_channel():
-    """Defines data as an ECEI channel"""
-
-    def __init__(self, data, tb, channel, t_offset=None, t_crop=None):
-        """
-        Parameters:
-        -----------
-        data: ndarray, float - Raw Voltages from the ECEI diagnostic
-        tb: timebase - Timebase object for the raw voltages
-        channel: channel object - Describes the channel
-        t_offset: tuple (t_n0, t_n1) - Tuple that defines the time interval where a signal reference value is calculated. If None,
-                                     raw values will be used.
-        t_crop: tuple (t_c0, t_c1) - Defines the time interval where the data is cropped to. If None, data will not
-                                     be cropped
-
-        """
-
-        # Make sure that the timebase is appropriate for the data
-        assert(np.max(data.shape) == tb.num_samples)
-        self.ecei_data = data * 1e-4
-        self.tb_raw = tb
-        self.channel = channel
-
-        self.is_cropped = False
-        self.is_normalized = False
-
-        if t_offset is not None:
-            # Calculate the signal offset
-            self.calculate_offsets(t_offset)
-
-            if t_crop is not None:
-                self.crop_data(t_crop)
-                self.is_cropped = True
-
-            # Subtract signal offset after signal has been cropped
-            self.ecei_data = (self.ecei_data - self.offlev)
-
-        else:
-            if t_crop is not None:
-                self.crop_data(t_crop)
-                self.is_cropped = True
-
-        self.siglev = np.median(self.ecei_data)
-        self.sigstd = self.ecei_data.std()
-
-        # After signal is shifted and cropped we normalize the signal
-        self.ecei_data = self.ecei_data / self.ecei_data.mean() - 1.0
-
-        print("all good")
+        ch_f = int(m[1])
+        ch_hf = ch_f % 100
+        ch_vf = int(ch_f // 100)
+        ch_f = channel_2d(ch_vf, ch_hf, 24, 8, 'horizontal')
 
 
-    def calculate_offsets(self, t_offset):
-        """Calculate mean and standard deviation from un-normalized channel data
-        Parameters:
-        -----------
-        t_norm: t_n0, t_n1) - Tuple that defines the time interval where the data is normalized to
-        """
+        return channel_range(ch_i, ch_f)
 
-        if self.is_normalized == False:
-            # Calculate normalization constants. See fluctana.py, line 118ff
-            idx_norm = [self.tb_raw.time_to_idx(t) for t in t_offset]
-
-            offset_interval = self.ecei_data[idx_norm[0]:idx_norm[1]]
-            print(f"Calculating offsets at {idx_norm[0]:d}:{idx_norm[1]:d}")
-            self.offlev = np.median(offset_interval)
-            self.offstd = offset_interval.std()
-
-
-    def calculate_sigstats(self):
-        """Calculate signal statistics. Before normalization.
-        """
-
-        assert(self.is_normalized == False)
-        self.siglev = np.median(self.ecei_data)
-        self.sigstd = self.ecei_data.std()
-
-
-    def crop_data(self, t_crop):
-        """Crops the data to the interval defined by t_crop.
-
-        Input:
-        ======
-        t_crop: Tuple (t0, t1), where t0 and t1 correspond to the timebase passed into __init__
-        """
-        if self.is_cropped == False:
-            idx_crop = [self.tb_raw.time_to_idx(t) for t in t_crop]
-            print("Cropping data using ", idx_crop)
-            self.ecei_data = self.ecei_data[idx_crop[0]:idx_crop[1]]
-            print(f"data[0] = {self.ecei_data[0]}, data[-1] = {self.ecei_data[-1]}")
-
-
-    def position(self):
-        # Returns the R,Z position of the channel
-        pass
-
-    def channel_name(self):
-        # Returns the channel name
-        pass
-
-    def get_timebase(self):
-        """Generates and returns a timebase object for the channel data"""
-
-        pass
-
-    def check_signal_level(self):
-        """
-        Returns True if the signal level is acceptable
-        Returns False if the signal level is bad
-        """
-
-        # Signal level is defined as the median, see fluctana.py line
-
-        if self.siglev > 0.01:
-            ref = 100. * self.offstd / self.siglev
-        else:
-            ref = 100.
-
-        if ref > 30.0:
-            warnings.warn(f"LOW signal level channel {self.channel:s}, ref = {ref:4.1f}, siglevel = {self.siglev:4.1f} V")
-            return False
-
-        return True
-
-
-    def check_bottom_sat(self):
-        """
-        Check bottom saturation.
-        Good saturation: Return True if bottom saturation is above 0.001
-        Bad saturation: Return False if bottom saturation is below 0.001
-        """
-
-        if self.offstd < 0.0001:
-            warning.warn(f"SAT offstd data channel {self.channel:s}, offstd = {self.offstd:g}%, offlevel = {self.offlev:g} V")
-            return False
-
-        return True
-
-
-    def check_top_sat(self):
-        """
-        Check top saturation.
-        Good saturation: Return True if top saturation is above 0.001
-        Bad saturation: Return False if top saturation is below 0.001
-        """
-
-        if self.sigstd < 0.001:
-            warning.warn(f"SAT sigstd data channel {self.channel:s}, sigstd = {self.sigstd:g}%, offlevel = {self.offlev:g} V")
-            return False
-
-        return True
-
-
-    def data(self):
-        """Common interface to data"""
-        return self.ecei_data
 
 
 class ecei_view():
@@ -435,20 +281,24 @@ class ecei_view():
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data"""
 
-    def __init__(self, data, tb):
+    def __init__(self, data, tb, num_v=24, num_h=8):
         """
         Creates an ecei_chunk from a give dataset
 
         Parameters:
         -----------
-        data......: ndarray, float: Raw data from HDF5 for the ECEI voltages
-        tb........: timebase_streaming: Timebase
+        data.........: ndarray, float:
+                       Raw data for the ECEI voltages
+        tb...........: timebase_streaming: Timebase
+                       timebase for ECEI voltages
+        num_v, num_h.: int,
+                      Number of vertical and horizontal channels
         """
-        self.num_v = 24
-        self.num_h = 8
 
         # Data should have more than 1 dimension, last dimension is time
         assert(data.ndim > 1)
+        #
+        self.num_v, self.num_h = num_v, num_h
         # Data can be 2 or 3 dimensional
         assert(np.prod(data.shape[:-1]) == self.num_h * self.num_v)
 
@@ -490,77 +340,9 @@ class ecei_chunk():
 
 
 
-def ch_num_to_vh(ch_num):
-    """Returns a tuple (ch_v, ch_h) for a channel number.
-    Note that these are 1-based numbers.
-
-    Parameters
-    ----------
-    ch_num: int, channel nu,ber.
-
-    Returns:
-    --------
-    (ch_v, ch_h): int, Vertical and horizontal channel numbers.
-
-    Vertical channel number is between 1 and 24. Horizontal channel number is
-    between 1 and 8.
-
-    >>> ch_num_to_vh(17)
-    (3, 1)
-    """
-    assert((ch_num >= 1) & (ch_num < 193))
-    # Calculate using zero-base
-    ch_num -= 1
-    ch_v = ch_num // 8
-    ch_h = ch_num - ch_v * 8
-    return(ch_v + 1, ch_h + 1)
 
 
-def ch_vh_to_num(ch_v, ch_h, debug=True):
-    """Returns the linear channel index 1..192 for a ch_v, ch_h.
-
-    Parameters:
-    -----------
-    ch_v, ch_h: int, vertical and horizontal chanel numbers
-    debug: bool, if True, include assert tests for ch_h and ch_h.
-
-    Returns:
-    --------
-    ch_num: int, linear channel index
-
-    >>> ch_vh_to_num(12, 4)
-    100
-    """
-
-    # We usually want to check that we are within the bounds.
-    # But sometimes it is helpful to avoid this.
-    if debug:
-        assert((ch_v > 0) & (ch_v < 25))
-        assert((ch_h > 0) & (ch_h < 9))
-
-    return((ch_v - 1) * 8 + ch_h)
-
-
-def unique_everseen(iterable, key=None):
-    """List unique elements, preserving order. Remember all elements ever seen.
-    Taken from https://docs.python.org/3/library/itertools.html#itertools-recipes"""
-
-    seen = set()
-    seen_add = seen.add
-    if key is None:
-        for element in itertools.filterfalse(seen.__contains__, iterable):
-            seen_add(element)
-            yield element
-    else:
-        for element in iterable:
-            k = key(element)
-            if k not in seen:
-                seen_add(k)
-                yield element
-
-
-
-class channel():
+class ecei_channel_2d(channel_2d):
     """Represents an ECEI channel.
     The ECEI array has 24 horizontal channels and 8 vertical channels.
 
@@ -579,16 +361,8 @@ class channel():
         """
         #
         assert(dev in ['L', 'H', 'G', "GT", 'HT', 'GR', 'HR'])
-        # 24 horizontal channels
-        assert((ch_v > 0) & (ch_v  < 25))
-        # 8 vertical channels
-        assert((ch_h > 0) & (ch_h < 9))
-        self.ch_v, self_ch_h, self.dev = ch_v, ch_h, dev
-
-
-    @property
-    def ch_num(self):
-        return ch_vh_to_num(self.ch_v, self.ch_h)
+        self.dev = dev
+        super().__init__(ch_v, ch_h, 24, 8)
 
 
     @classmethod
@@ -629,16 +403,6 @@ class channel():
         return(ch_str)
 
 
-    def __eq__(self, other):
-        """Define equality for two channels when all three, dev, ch_h, and ch_v are equal to one another."""
-        return (self.dev, self.ch_v, self.ch_h) == (other.dev, other.ch_v, other.ch_h)
-
-
-    def idx(self):
-        """Returns the linear, ZERO-BASED, index corresponding to ch_h and ch_v"""
-        return ch_vh_to_num(self.ch_v, self.ch_h) - 1
-
-
     def to_json(self):
         """Returns the class in JSON notation.
            This method avoids serialization error when using non-standard int types,
@@ -658,201 +422,305 @@ class channel():
 
 
 
-class channel_pair:
-    """Custom defined channel pair.
-    This is just a tuple with an overloaded equality operator. It's also hashable
-    so one can use it in conjunction with sets
 
-    >>> ch1 = channel('L', 13, 7)
-    >>> ch2 = channel('L', 12, 7)
-    >>> ch_pair = channel_pair(ch1, c2)
-
-    >>> channel_pair(ch1, ch2) == channel_pair(ch2, c1)
-    True
-
-    The hash is that of a tuple consisting of the ordered channel indices of ch1 and ch2.
-    """
-
-    def __init__(self, ch1, ch2):
-        self.ch1 = ch1
-        self.ch2 = ch2
-
-
-    def __eq__(self, other):
-        return( ((self.ch1 == other.ch1) and (self.ch2 == other.ch2)) or
-            ((self.ch1 == other.ch2) and (self.ch2 == other.ch1)))
-
-
-    def __str__(self):
-        """Returns a standardized string"""
-
-        ch_str = f"{self.__class__.__name__}: (ch1={self.ch1}, ch2={self.ch2})"
-        return(ch_str)
-
-
-    def __iter__(self):
-        yield from [self.ch1, self.ch2]
-
-    def __hash__(self):
-        """Implement hash so that we can use sets."""
-        #print("({0:s} x {1:s}) hash={2:d}".format(self.ch1.__str__(), self.ch2.__str__(),\
-        #    hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx())))))
-
-        return hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx())))
-
-    def to_json(self):
-        return('{"ch1": ' + self.ch1.to_json() + ', "ch2": ' + self.ch2.to_json() + '}')
-
-
-    @classmethod
-    def from_json(cls, str):
-        j = json.loads(str)
-        ch1 = channel.from_json(json.dumps(j["ch1"]))
-        ch2 = channel.from_json(json.dumps(j["ch2"]))
-        cpair = cls(ch1, ch2)
-        return cpair
-
-
-class channel_range:
-    """Defines iteration over classes. The iteration can be either linear or rectangular:
-
-    For linear iteration, we map ch_h and ch_v to a linear index:
-    index = (8 * (ch_v - 1)) + ch_h - 1, see ch_hv_to_num.
-    The iteration proceeds linear from the index of a start_channel to the index of an end_channel:
-    >>> ch_start = channel('L', 1, 7)
-    >>> ch_end = channel('L', 2,)
-
-    """
-
-
-    def __init__(self, ch_start, ch_end, mode="rectangle"):
-        """Defines iteration over channels.
-        Input:
-        ======
-        ch_start: channel, Start channel
-        ch_end: channel, End channel
-        mode: string, either 'linear' or 'rectangle'.
-
-        If 'linear', the iterator moves linearly through the channel numbers from ch_start to ch_end.
-        If 'rectangle', the iterator moves from ch_start.h to ch_end.h and from ch_start.v to ch_end.v
-
-        yields channel object at the current position.
-        """
-
-        assert(ch_start.dev == ch_end.dev)
-
-        self.ch_start = ch_start
-        self.ch_end = ch_end
-
-        self.dev = ch_start.dev
-        self.ch_vi, self.ch_hi = ch_start.ch_v, ch_start.ch_h
-        self.ch_vf, self.ch_hf = ch_end.ch_v, ch_end.ch_h
-
-        self.ch_v = self.ch_vi
-        self.ch_h = self.ch_hi
-
-        assert(mode in ["linear", "rectangle"])
-        self.mode = mode
-
-
-    def __iter__(self):
-        self.ch_v = self.ch_vi
-        self.ch_h = self.ch_hi
-
-        return(self)
-
-    def __next__(self):
-
-        # Test if we are on the last iteration
-        if self.mode == "linear":
-            # Remember to set debug=False so that we don't raise out-of-bounds errors
-            # when generating the linear indices
-            if(ch_vh_to_num(self.ch_v, self.ch_h, debug=False) > ch_vh_to_num(self.ch_vf, self.ch_hf, debug=False)):
-                raise StopIteration
-
-        elif self.mode == "rectangle":
-            if((self.ch_v > self.ch_vf) | (self.ch_h > self.ch_hf)):
-                raise StopIteration
-
-        # IF we are not out of bounds, make a copy of the current v and h
-        ch_v = self.ch_v
-        ch_h = self.ch_h
-
-        # Increase the horizontal channel and reset vertical channel number.
-        # When iterating linearly, set v to 1
-        if self.mode == "linear":
-            if(self.ch_h == 8):
-                self.ch_h = 1
-                self.ch_v += 1
-            else:
-                self.ch_h += 1
-
-        elif self.mode == "rectangle":
-            if(self.ch_h == self.ch_hf):
-                self.ch_h = self.ch_hi
-                self.ch_v += 1
-            else:
-                self.ch_h += 1
-
-        # Return a channel with the previous ch_h
-        return channel(self.dev, ch_v, ch_h)
-
-
-    @classmethod
-    def from_str(cls, range_str, mode="rectangle"):
-        """
-        Generates a channel_range from a range, specified as
-        'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
-        """
-
-        import re
-
-        m = re.search('[A-Z]{1,2}', range_str)
-        try:
-            dev = m.group(0)
-        except:
-            raise AttributeError("Could not parse channel string {0:s}".format(range_str))
-
-        m = re.findall('[0-9]{4}', range_str)
-
-        ch_i = int(m[0])
-        ch_hi = ch_i % 100
-        ch_vi = int(ch_i // 100)
-        ch_i = channel(dev, ch_vi, ch_hi)
-
-        ch_f = int(m[1])
-        ch_hf = ch_f % 100
-        ch_vf = int(ch_f // 100)
-        ch_f = channel(dev, ch_vf, ch_hf)
-
-        return channel_range(ch_i, ch_f, mode)
-
-    def length(self):
-        """Calculates the number of channels in the list."""
-
-        chnum_f = ch_vh_to_num(self.ch_vf, self.ch_hf)
-        chnum_i = ch_vh_to_num(self.ch_vi, self.ch_hi)
-
-        return(chnum_f - chnum_i + 1)
+# class ecei_channel():
+#     """Defines data as an ECEI channel"""
+#
+#     def __init__(self, data, tb, channel, t_offset=None, t_crop=None):
+#         """
+#         Parameters:
+#         -----------
+#         data: ndarray, float - Raw Voltages from the ECEI diagnostic
+#         tb: timebase - Timebase object for the raw voltages
+#         channel: channel object - Describes the channel
+#         t_offset: tuple (t_n0, t_n1) - Tuple that defines the time interval where a signal reference value is calculated. If None,
+#                                      raw values will be used.
+#         t_crop: tuple (t_c0, t_c1) - Defines the time interval where the data is cropped to. If None, data will not
+#                                      be cropped
+#
+#         """
+#
+#         # Make sure that the timebase is appropriate for the data
+#         assert(np.max(data.shape) == tb.num_samples)
+#         self.ecei_data = data * 1e-4
+#         self.tb_raw = tb
+#         self.channel = channel
+#
+#         self.is_cropped = False
+#         self.is_normalized = False
+#
+#         if t_offset is not None:
+#             # Calculate the signal offset
+#             self.calculate_offsets(t_offset)
+#
+#             if t_crop is not None:
+#                 self.crop_data(t_crop)
+#                 self.is_cropped = True
+#
+#             # Subtract signal offset after signal has been cropped
+#             self.ecei_data = (self.ecei_data - self.offlev)
+#
+#         else:
+#             if t_crop is not None:
+#                 self.crop_data(t_crop)
+#                 self.is_cropped = True
+#
+#         self.siglev = np.median(self.ecei_data)
+#         self.sigstd = self.ecei_data.std()
+#
+#         # After signal is shifted and cropped we normalize the signal
+#         self.ecei_data = self.ecei_data / self.ecei_data.mean() - 1.0
+#
+#         print("all good")
+#
+#
+#     def calculate_offsets(self, t_offset):
+#         """Calculate mean and standard deviation from un-normalized channel data
+#         Parameters:
+#         -----------
+#         t_norm: t_n0, t_n1) - Tuple that defines the time interval where the data is normalized to
+#         """
+#
+#         if self.is_normalized == False:
+#             # Calculate normalization constants. See fluctana.py, line 118ff
+#             idx_norm = [self.tb_raw.time_to_idx(t) for t in t_offset]
+#
+#             offset_interval = self.ecei_data[idx_norm[0]:idx_norm[1]]
+#             print(f"Calculating offsets at {idx_norm[0]:d}:{idx_norm[1]:d}")
+#             self.offlev = np.median(offset_interval)
+#             self.offstd = offset_interval.std()
+#
+#
+#     def calculate_sigstats(self):
+#         """Calculate signal statistics. Before normalization.
+#         """
+#
+#         assert(self.is_normalized == False)
+#         self.siglev = np.median(self.ecei_data)
+#         self.sigstd = self.ecei_data.std()
+#
+#
+#     def crop_data(self, t_crop):
+#         """Crops the data to the interval defined by t_crop.
+#
+#         Input:
+#         ======
+#         t_crop: Tuple (t0, t1), where t0 and t1 correspond to the timebase passed into __init__
+#         """
+#         if self.is_cropped == False:
+#             idx_crop = [self.tb_raw.time_to_idx(t) for t in t_crop]
+#             print("Cropping data using ", idx_crop)
+#             self.ecei_data = self.ecei_data[idx_crop[0]:idx_crop[1]]
+#             print(f"data[0] = {self.ecei_data[0]}, data[-1] = {self.ecei_data[-1]}")
+#
+#
+#     def position(self):
+#         # Returns the R,Z position of the channel
+#         pass
+#
+#     def channel_name(self):
+#         # Returns the channel name
+#         pass
+#
+#     def get_timebase(self):
+#         """Generates and returns a timebase object for the channel data"""
+#
+#         pass
+#
+#     def check_signal_level(self):
+#         """
+#         Returns True if the signal level is acceptable
+#         Returns False if the signal level is bad
+#         """
+#
+#         # Signal level is defined as the median, see fluctana.py line
+#
+#         if self.siglev > 0.01:
+#             ref = 100. * self.offstd / self.siglev
+#         else:
+#             ref = 100.
+#
+#         if ref > 30.0:
+#             warnings.warn(f"LOW signal level channel {self.channel:s}, ref = {ref:4.1f}, siglevel = {self.siglev:4.1f} V")
+#             return False
+#
+#         return True
+#
+#
+#     def check_bottom_sat(self):
+#         """
+#         Check bottom saturation.
+#         Good saturation: Return True if bottom saturation is above 0.001
+#         Bad saturation: Return False if bottom saturation is below 0.001
+#         """
+#
+#         if self.offstd < 0.0001:
+#             warning.warn(f"SAT offstd data channel {self.channel:s}, offstd = {self.offstd:g}%, offlevel = {self.offlev:g} V")
+#             return False
+#
+#         return True
+#
+#
+#     def check_top_sat(self):
+#         """
+#         Check top saturation.
+#         Good saturation: Return True if top saturation is above 0.001
+#         Bad saturation: Return False if top saturation is below 0.001
+#         """
+#
+#         if self.sigstd < 0.001:
+#             warning.warn(f"SAT sigstd data channel {self.channel:s}, sigstd = {self.sigstd:g}%, offlevel = {self.offlev:g} V")
+#             return False
+#
+#         return True
+#
+#
+#     def data(self):
+#         """Common interface to data"""
+#         return self.ecei_data
 
 
-    def __str__(self):
-        """Returns a standardized string"""
 
-        ch_str = f"{self.__class__.__name__}: start: {self.ch_start}, end: {self.ch_end}, mode: {self.mode}"
-        return(ch_str)
-
-
-    def to_str(self):
-        """Formats the channel list as f.ex. GT1207-2201"""
-
-        #ch_str = "{0:s}{1:02d}{2:02d}-{3:02d}{4:02d}".format(self.dev, self.ch_hi, self.ch_vi, self.ch_hf, self.ch_vf)
-        ch_str = f"{self.dev:s}{self.ch_vi:02d}{self.ch_hi:02d}-{self.ch_vf:02d}{self.ch_hf:02d}"
-        return(ch_str)
-
-    def to_json(self):
-        return('{"ch_start": ' + ch_start.to_json() + ', "ch_end": ' + ch_end.to_json() + '}')
-
+# class channel_range:
+#     """Defines iteration over classes. The iteration can be either linear or rectangular:
+#
+#     For linear iteration, we map ch_h and ch_v to a linear index:
+#     index = (8 * (ch_v - 1)) + ch_h - 1, see ch_hv_to_num.
+#     The iteration proceeds linear from the index of a start_channel to the index of an end_channel:
+#     >>> ch_start = channel('L', 1, 7)
+#     >>> ch_end = channel('L', 2,)
+#
+#     """
+#
+#
+#     def __init__(self, ch_start, ch_end, mode="rectangle"):
+#         """Defines iteration over channels.
+#         Input:
+#         ======
+#         ch_start: channel, Start channel
+#         ch_end: channel, End channel
+#         mode: string, either 'linear' or 'rectangle'.
+#
+#         If 'linear', the iterator moves linearly through the channel numbers from ch_start to ch_end.
+#         If 'rectangle', the iterator moves from ch_start.h to ch_end.h and from ch_start.v to ch_end.v
+#
+#         yields channel object at the current position.
+#         """
+#
+#         assert(ch_start.dev == ch_end.dev)
+#
+#         self.ch_start = ch_start
+#         self.ch_end = ch_end
+#
+#         self.dev = ch_start.dev
+#         self.ch_vi, self.ch_hi = ch_start.ch_v, ch_start.ch_h
+#         self.ch_vf, self.ch_hf = ch_end.ch_v, ch_end.ch_h
+#
+#         self.ch_v = self.ch_vi
+#         self.ch_h = self.ch_hi
+#
+#         assert(mode in ["linear", "rectangle"])
+#         self.mode = mode
+#
+#
+#     def __iter__(self):
+#         self.ch_v = self.ch_vi
+#         self.ch_h = self.ch_hi
+#
+#         return(self)
+#
+#     def __next__(self):
+#
+#         # Test if we are on the last iteration
+#         if self.mode == "linear":
+#             # Remember to set debug=False so that we don't raise out-of-bounds errors
+#             # when generating the linear indices
+#             if(ch_vh_to_num(self.ch_v, self.ch_h, debug=False) > ch_vh_to_num(self.ch_vf, self.ch_hf, debug=False)):
+#                 raise StopIteration
+#
+#         elif self.mode == "rectangle":
+#             if((self.ch_v > self.ch_vf) | (self.ch_h > self.ch_hf)):
+#                 raise StopIteration
+#
+#         # IF we are not out of bounds, make a copy of the current v and h
+#         ch_v = self.ch_v
+#         ch_h = self.ch_h
+#
+#         # Increase the horizontal channel and reset vertical channel number.
+#         # When iterating linearly, set v to 1
+#         if self.mode == "linear":
+#             if(self.ch_h == 8):
+#                 self.ch_h = 1
+#                 self.ch_v += 1
+#             else:
+#                 self.ch_h += 1
+#
+#         elif self.mode == "rectangle":
+#             if(self.ch_h == self.ch_hf):
+#                 self.ch_h = self.ch_hi
+#                 self.ch_v += 1
+#             else:
+#                 self.ch_h += 1
+#
+#         # Return a channel with the previous ch_h
+#         return channel(self.dev, ch_v, ch_h)
+#
+#
+#     @classmethod
+#     def from_str(cls, range_str, mode="rectangle"):
+#         """
+#         Generates a channel_range from a range, specified as
+#         'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
+#         """
+#
+#         import re
+#
+#         m = re.search('[A-Z]{1,2}', range_str)
+#         try:
+#             dev = m.group(0)
+#         except:
+#             raise AttributeError("Could not parse channel string {0:s}".format(range_str))
+#
+#         m = re.findall('[0-9]{4}', range_str)
+#
+#         ch_i = int(m[0])
+#         ch_hi = ch_i % 100
+#         ch_vi = int(ch_i // 100)
+#         ch_i = channel(dev, ch_vi, ch_hi)
+#
+#         ch_f = int(m[1])
+#         ch_hf = ch_f % 100
+#         ch_vf = int(ch_f // 100)
+#         ch_f = channel(dev, ch_vf, ch_hf)
+#
+#         return channel_range(ch_i, ch_f, mode)
+#
+#     def length(self):
+#         """Calculates the number of channels in the list."""
+#
+#         chnum_f = ch_vh_to_num(self.ch_vf, self.ch_hf)
+#         chnum_i = ch_vh_to_num(self.ch_vi, self.ch_hi)
+#
+#         return(chnum_f - chnum_i + 1)
+#
+#
+#     def __str__(self):
+#         """Returns a standardized string"""
+#
+#         ch_str = f"{self.__class__.__name__}: start: {self.ch_start}, end: {self.ch_end}, mode: {self.mode}"
+#         return(ch_str)
+#
+#
+#     def to_str(self):
+#         """Formats the channel list as f.ex. GT1207-2201"""
+#
+#         #ch_str = "{0:s}{1:02d}{2:02d}-{3:02d}{4:02d}".format(self.dev, self.ch_hi, self.ch_vi, self.ch_hf, self.ch_vf)
+#         ch_str = f"{self.dev:s}{self.ch_vi:02d}{self.ch_hi:02d}-{self.ch_vf:02d}{self.ch_hf:02d}"
+#         return(ch_str)
+#
+#     def to_json(self):
+#         return('{"ch_start": ' + ch_start.to_json() + ', "ch_end": ' + ch_end.to_json() + '}')
+#
 
 def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
     """

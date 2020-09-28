@@ -31,8 +31,7 @@ import argparse
 
 import numpy as np
 
-
-
+from analysis.tasks_mpi import task_list_spectral
 from streaming.reader_mpi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name, data_model_generator
 
@@ -109,7 +108,7 @@ def consume(Q, task_list):
 
     while True:
         try:
-            msg = Q.get(timeout=5.0)
+            msg = Q.get(timeout=60.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -122,8 +121,8 @@ def consume(Q, task_list):
         #    np.savez(f"test_data/io_array_tr_s{msg.tidx:04d}.npz", msg.data)
 
         # TODO: Should there be a general method to a time index from a data chunk?
-        logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}")
-        #task_list.submit(msg.data, msg.tstep_idx)
+        logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}. Got data type {type(msg)}")
+        task_list.submit(msg, msg.tb.chunk_idx)
 
         Q.task_done()
     logger.info("Task done")
@@ -155,9 +154,8 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor_fft = MPIPoolExecutor(max_workers=16)
-    executor_anl = MPIPoolExecutor(max_workers=16)
-    #executor = MPIPoolExecutor(max_workers=120)
+    executor_fft = MPIPoolExecutor(max_workers=4)
+    executor_anl = MPIPoolExecutor(max_workers=24)
 
     stream_varname = gen_var_name(cfg)[rank]
 
@@ -180,12 +178,10 @@ def main():
     # logger.info(f"Stored one")
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg))
+    reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
-    #task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["diagnostic"]["parameters"], cfg["storage"])
+    task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["diagnostic"], cfg["storage"])
     ####task_list = task_list_spectral(executor, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
-
-    task_list = None
 
     dq = queue.Queue()
     msg = None#
@@ -221,7 +217,7 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 7:
+        if reader.CurrentStep() > 100:
             logger.info(f"End of the line. Exiting")
             break
 

@@ -3,12 +3,12 @@
 """Helper functions common to all data models"""
 
 
-# def gen_channel_name(prefix: str, shotnr: int, channel_rg: str):
-#     """Generates a channel name for KSTAR ECEI data"""
-#     return f"{prefix}/{shotnr:05d}_ch{channel_rg:s}"
-
 import numpy as np
+from itertools import filterfalse
+
 import data_models.kstar_ecei
+from data_models.channels_2d import channel_2d, channel_range
+
 
 class data_model_generator():
     """Returns the data model for a given configuration"""
@@ -59,22 +59,37 @@ class data_model_generator():
             raise NameError(f"Data model name not understood: {self.cfg['diagnostic']['name']}")
 
 
-
-
-def gen_channel_name(cfg: dict) -> str:
+def gen_channel_name(cfg_diagnostic: dict) -> str:
     """Generates a name for the ADIOS channel from the diagnostic configuration"""
 
-    if cfg["diagnostic"]["name"] == "kstarecei":
+    if cfg_diagnostic["name"] == "kstarecei":
         experiment = "KSTAR"
         diagnostic = "ECEI"
-        shotnr = int(cfg["diagnostic"]["shotnr"])
-        channel_rg = cfg["diagnostic"]["datasource"]["channel_range"][0]
+        shotnr = int(cfg_diagnostic["shotnr"])
+        channel_rg = cfg_diagnostic["datasource"]["channel_range"][0]
 
         channel_name = f"{experiment}_{shotnr:05d}_{diagnostic}_{channel_rg}"
         return channel_name
 
     else:
         raise ValueError
+
+
+def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
+    """Generates channel ranges for the diagnostics"""
+
+    print(cfg_diagnostic)
+    if cfg_diagnostic["name"] == "kstarecei":
+        ch1 = channel_2d(chrg[0], chrg[1], 24, 8, order='horizontal')
+        ch2 = channel_2d(chrg[2], chrg[3], 24, 8, order='horizontal')
+        return channel_range(ch1, ch2)
+
+    elif cfg_diagnostic["name"] == "nstxgpi":
+        return None
+
+    else:
+        raise ValueError
+
 
 
 def gen_var_name(cfg: dict) -> str:
@@ -87,5 +102,62 @@ def gen_var_name(cfg: dict) -> str:
         raise ValueError
 
 
+def unique_everseen(iterable, key=None):
+    """List unique elements, preserving order. Remember all elements ever seen.
+    Taken from https://docs.python.org/3/library/itertools.html#itertools-recipes"""
+
+    seen = set()
+    seen_add = seen.add
+    if key is None:
+        for element in filterfalse(seen.__contains__, iterable):
+            seen_add(element)
+            yield element
+    else:
+        for element in iterable:
+            k = key(element)
+            if k not in seen:
+                seen_add(k)
+                yield element
+
+
+class normalize_mean():
+    """Performs normalization"""
+
+    def __init__(self, offlev, offstd):
+        """Stores offset and standard deviation of normalization time series.
+        Parameters:
+        -----------
+        offlev....: ndarray, channel-wise offset level
+        offstd....: ndarray, channel-wise offset standard deviation
+        """
+        self.offlev = offlev
+        self.offstd = offstd
+
+        self.siglev = None
+        self.sigstd = None
+
+    def __call__(self, data):
+        """Normalizes data
+
+        Parameters:
+        -----------
+        data......: array.
+                    dim0...-2: spatial data. dim -1: Time
+        """
+
+        # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
+
+        assert(self.offlev.shape[:-1] == data.shape[:-1])
+        assert(self.offstd.shape[:-1] == data.shape[:-1])
+        assert(self.offlev.ndim == data.ndim)
+        assert(self.offstd.ndim == data.ndim)
+
+        data[:] = data - self.offlev
+        self.siglev = np.median(data, axis=-1, keepdims=True)
+        self.sigstd = data.std(axis=-1, keepdims=True)
+
+        data[:] = data / data.mean(axis=-1, keepdims=True) - 1.0
+
+        return None
 
 # End of file helpers.py

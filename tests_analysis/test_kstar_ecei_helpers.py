@@ -17,7 +17,7 @@ sys.path.append("/global/homes/r/rkube/repos/fluctana_rmc")
 from kstarecei import KstarEcei
 
 # Load a config file to get the ecei config
-with open("../configs/test_skw.json", "r") as df: 
+with open("../configs/test_skw.json", "r") as df:
     cfg = json.load(df)
 ecei_cfg = cfg["diagnostic"]["parameters"]
 # Define a test channel

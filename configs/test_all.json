@@ -58,28 +58,28 @@
                 "task_description" : "cross_correlation",
                 "analysis": "cross_correlation",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : [1, 1, 24, 8],
+                "cmp_channels" : [1, 1, 24, 8]
               },
               {
                 "task_description" : "cross_power",
                 "analysis": "cross_power",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : [1, 1, 24, 8],
+                "cmp_channels" : [1, 1, 24, 8]
               },
               {
                 "task_description" : "cross_phase",
                 "analysis": "cross_phase",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : [1, 1, 24, 8],
+                "cmp_channels" : [1, 1, 24, 8]
               },
               {
                 "task_description" : "coherence",
                 "analysis": "coherence",
                 "channel_chunk_size": 32768,
-                "ref_channels" : "L0101-2408",
-                "cmp_channels" : "L0101-2408"
+                "ref_channels" : [1, 1, 24, 8],
+                "cmp_channels" : [1, 1, 24, 8]
               }]
 }
