@@ -53,13 +53,47 @@ def kernel_crosspower_cu(fft_data, ch_it, fft_config):
     --------
     cross_power, float.
     """
+
+    fft_data_cu = cp.asarray(fft_data)
+
     res = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        res[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
+        res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
 
     res = cp.asnumpy(res)
 
     return(np.abs(res).real)
+
+
+def kernel_coherence(fft_data, ch_it, fft_config):
+    """Kernel that calculates the coherence between two channels.
+    Input:
+    ======
+    fft_data: ndarray, float: Contains the fourier-transformed data.
+                dim0: channel, dim1: Fourier Coefficients. dim2: STFT (bins in fluctana code)
+    ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
+
+
+    Returns:
+    ========
+    coherence, float.
+    """
+
+    fft_data_cu = cp.asarray(fft_data)
+
+    Gxy_cu = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+
+    for idx, ch_pair in enumerate(ch_it):
+        X = fft_data_cu[ch_pair.ch1.get_idx(), :, :]
+        Y = fft_data_cu[ch_pair.ch2.get_idx(), :, :]
+        Pxx = X * X.conj()
+        Pyy = Y * Y.conj()
+        Gxy_cu[idx, :] = ((X * Y.conj()) / np.sqrt(Pxx * Pyy)).mean(axis=1)
+
+    Gxy_cu = np.abs(Gxy_cu)
+    Gxy = cp.asnumpy(Gxy.real)
+
+    return(Gxy)
 
 
 def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
@@ -93,7 +127,7 @@ def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
     plan = fft.get_fft_plan(fft_shifted_gpu[0, :, :], axes=0)
     with plan:
         for idx, ch_pair in enumerate(ch_it):
-            tic_list.append(time.perf_counter())
+            #tic_list.append(time.perf_counter())
             # _tmp = cp.fft.ifft(fft_shifted_gpu[1, :, :] *
             #                    fft_shifted_gpu[3, :, :].conj(),
             #                    axis=0).mean(axis=1) / fft_params['win_factor']
@@ -101,12 +135,12 @@ def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
             _tmp = cp.fft.ifft(fft_shifted_gpu[ch_pair.ch1.get_idx(), :, :] *
                               fft_shifted_gpu[ch_pair.ch2.get_idx(), :, :].conj(),
                               axis=0).mean(axis=1) / fft_params['win_factor']
-            toc_list.append(time.perf_counter())
+            #toc_list.append(time.perf_counter())
             res[idx, :] = cp.fft.fftshift(_tmp.real)
 
-    dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
-    with open("cupy_timings.txt", "a") as df:
-        df.write("\n".join(dts) + "\n")
+    #dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
+    #with open("cupy_timings.txt", "a") as df:
+    #    df.write("\n".join(dts) + "\n")
 
     res = cp.asnumpy(res)
 
