@@ -24,6 +24,7 @@ size = comm.Get_size()
 
 parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
+parser.add_argument('--sleep', type=float, help='sleep', default=0.0)
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
@@ -67,11 +68,13 @@ _,data = dobj.get_data(trange=[timebase[0],timebase[-1]],norm=1,verbose=0)
 data_all = np.array_split(data,num_batches,axis=-1)
 
 #writer = writer_dataman(shotnr, gen_id)
-writer = writer_gen(shotnr, gen_id, cfg["engine"], cfg["params"])
+#writer = writer_gen(shotnr, gen_id, cfg["engine"], cfg["params"])
+writer = writer_gen(cfg["transport_nersc"])
 
 data_arr = data_all[0]
-varData = writer.DefineVariable("floats",data_arr)
-varTime = writer.DefineVariable("trange",np.array([0.0,0.0]))
+writer.DefineVariable("tstep",np.array(0))
+writer.DefineVariable("floats",data_arr)
+writer.DefineVariable("trange",np.array([0.0,0.0]))
 writer.DefineAttributes("cfg",cfg)
 writer.Open()
 
@@ -81,8 +84,10 @@ for i in range(nstep):
     if(rank == 0):
         print("Sending: {0:d} / {1:d}".format(i, nstep))
     with writer.step() as w:
-        w.put_data(varTime,np.array([tstarts[i],tstops[i]]))
-        w.put_data(varData,data_all[i])
+        w.put_data("tstep",np.array(i))
+        w.put_data("trange",np.array([tstarts[i],tstops[i]]))
+        w.put_data("floats",data_all[i])
+    time.sleep(args.sleep)
 
 t1 = time.time()
 writer.writer.Close()

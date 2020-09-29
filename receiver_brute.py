@@ -17,6 +17,8 @@ import threading
 import sys
 from fluctana import *
 
+from itertools import combinations 
+
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -24,23 +26,33 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+import random
+
 parser = argparse.ArgumentParser(description="Receive KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 parser.add_argument('--debug', help='Use input file to debug', action='store_true')
+parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
+parser.add_argument('--nworkers', type=int, help='Number of workers to middle', default=1)
+parser.add_argument('--workwithmiddleman', help='Process with middleman', action='store_true')
+parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
+parser.add_argument('--subjob', help='subjob', action='store_true')
+parser.add_argument('--onlyn', type=int, help='process only n')
+parser.add_argument('--blocksize', type=int, help='blocksize', default=24)
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
 
 if not args.nompi:
-    from processors.readers import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    from streaming.reader_mpi import reader_gen
+    from streaming.writers import writer_gen
     from mpi4py import MPI
     from mpi4py.futures import MPICommExecutor
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 else:
-    #from processors.readers_nompi import reader_dataman, reader_bpfile, reader_sst, reader_gen
+    from generators.writers_nompi import writer_gen
     from concurrent.futures import ProcessPoolExecutor as MPICommExecutor
     comm = None
     rank = 0
@@ -97,6 +109,21 @@ if args.debug:
             'TFcurrent':reader.dobj.itf/1e3,'Mode':reader.dobj.mode, 
             'LoFreq':reader.dobj.lo,'LensFocus':reader.dobj.sf,'LensZoom':reader.dobj.sz})
 
+def writer_init(shotnr, gen_id, worker_id, data_arr):
+    logging.info(f"\tMiddleman: opening a channel for writer #{worker_id}")
+    #writer = writer_gen(shotnr, gen_id, cfg["middleman_engine"], cfg["middleman_params"])
+    writer = writer_gen(cfg["transport_nersc_middleman"])
+
+    writer.DefineVariable("tstep",np.array(0))
+    writer.DefineVariable("floats",data_arr)
+    writer.DefineVariable("trange",np.array([0.0,0.0]))
+    writer.DefineAttributes("cfg",cfg)
+    # jyc: temporarily disabled
+    # Need to fix for multi-channel streaming
+    #writer.Open(worker_id=worker_id)
+    writer.Open()
+    return writer
+
 def save_spec(results,tstep):
     #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
     #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
@@ -117,7 +144,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     Perform analysis
     """ 
-    logging.info(f"\tWorker: do analysis: tstep = {tstep}, rank = {rank}")
+    logging.info(f"\tWorker: start perform_analysis: tstep = {tstep}, rank = {rank}")
     t0 = time.time()
     if(cfg["analysis"][0]["name"] == "all"):
         results = {} 
@@ -134,8 +161,10 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
+        time.sleep(random.random()//0.5)
+        """
         for ic in range(Nchannels):
-            logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
+            #logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
             chstr = A.Dlist[0].clist[ic]
             done_subset = [ic]
             dtwo_subset = range(done_subset[0],Nchannels)
@@ -169,28 +198,88 @@ def perform_analysis(channel_data, cfg, tstep, trange):
             #9 bicoherence
             #A.bicoherence(done=0,dtwo=0, done_subset=done_subset, dtwo_subset=dtwo_subset, plot=False)
             #results['bicoherence/'+chstr] = A.Dlist[0].val
-            t1 = time.time()
             # Store result in database
             # backend.store(my_analysis, analysis_result)
-            logging.info(f"\tWorker: done with analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
-        logging.info(f"Worker: loop done: tstep={tstep}, rank={rank}, hostname={hostname}")
-        save_spec(results,tstep)
-        logging.info(f"perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname}")
+            #logging.info(f"\tWorker: loop done: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
+        """
+        t1 = time.time()
+        #save_spec(results,tstep)
+        t2 = time.time()
+        logging.info(f"\tWorker: perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname} time elapsed: {t2-t0:.2f}")
 
 # Function for a helper thead (dispatcher).
 # The dispatcher will dispatch data in the queue (dq) and 
 # distribute to other workers (non-master MPI workers) with mpi4py's MPICommExecutor.
+# We assume only a single dispatcher
 def dispatch():
+    isfirst = True
     while True:
         channel_data, cfg, tstep, trange = dq.get()
         logging.info(f"\tDispatcher: read data: tstep = {tstep}, rank = {rank}")
         if channel_data is None:
             break
-        future = executor.submit(perform_analysis, channel_data, cfg, tstep, trange)
+        
+        ## Act as a middleman
+        ## Middleman receives data from the generator and distribute to n processors
+        ## We need to open channel only after receiving at least one step
+        if isfirst and args.middleman:
+            nworkers = args.nworkers
+            writer_list = list()
+            for i in range(nworkers):
+                shotnr = cfg["shotnr"]
+                gen_id = 100000 * rank
+                channels = expand_clist(cfg["channel_range"])
+                batch_size = cfg['batch_size']
+                data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+                w = writer_init(shotnr, gen_id, i, data_array)
+                writer_list.append(w)
+            isfirst = False
+
+        ## If middleman, we write data. Otherwise, distribute to others for analysis
+        if args.middleman:
+            writer = writer_list[tstep%args.nworkers]
+            with writer.step() as w:
+                w.put_data("tstep",np.array(tstep))
+                w.put_data("floats",channel_data)
+                w.put_data("trange",np.array(trange))
+        else:
+            future = executor.submit(perform_analysis, channel_data, cfg, tstep, trange)
         dq.task_done()
+
+    ## Once done, we close open files for writing
+    if args.middleman:
+        nworkers = args.nworkers
+        for i in range(nworkers):
+            writer = writer_list[i]
+            writer.writer.Close()
 
 # Main
 if __name__ == "__main__":
+
+    # ## Create a subcomm
+    # color = rank*args.ngroups//size
+    # key = rank
+    # print ('rank, color, key:', rank, color, key)
+    # newcomm = comm.Split(color, key)
+
+    # newrank = newcomm.Get_rank()
+    # newsize = newcomm.Get_size()
+    # print ('rank, newrank, newsize:', rank, newrank, newsize)
+
+    # ## Act as a middleman
+    # ## Middleman receives data from the generator and distribute to n processors
+    # if args.middleman:
+    #     nworkers = args.nworkers
+    #     writer_list = list()
+    #     for i in range(nworkers):
+    #         shotnr = cfg["shotnr"]
+    #         gen_id = 100000 * rank
+    #         channels = expand_clist(cfg["channel_range"])
+    #         batch_size = cfg['batch_size']
+    #         data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+    #         w = writer_init(shotnr, gen_id, i, data_array)
+    #         writer_list.append(w)
+
     with MPICommExecutor(comm, root=0) as executor:
         if executor is not None:
             # Only master will execute the following block
@@ -207,8 +296,13 @@ if __name__ == "__main__":
             # Only the master thread will open a data stream.
             # General reader: engine type and params can be changed with the config file
             if not args.debug:
-                reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
-                reader.Open()
+                if args.workwithmiddleman:
+                    reader = reader_gen(cfg["shotnr"], 0, cfg["middleman_engine"], cfg["middleman_params"])
+                    reader.Open(worker_id=0)
+                else:
+                    #reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
+                    reader = reader_gen(cfg["transport_nersc"])
+                    reader.Open()
             else:
                 reader.get_all_data()
 
@@ -217,17 +311,39 @@ if __name__ == "__main__":
             # Dispatcher (a helper thread) will asynchronously fetch data in the queue and distribute to other workers.
             cfg_update = False
             logging.info(f"Start data reading loop")
-            tstart = time.time()
+            t0 = time.time()
+            isfirst = True
+            n = 0
             while(True):
                 stepStatus = reader.BeginStep()
-                if stepStatus == adios2.StepStatus.OK:
-                    currentStep = reader.CurrentStep()
+                if stepStatus:
+                    ## Set a timer when we receive the first chunk
+                    if isfirst:
+                        t1 = time.time()
+                        isfirst = False                    
+                    #currentStep = reader.CurrentStep()
+                    currentStep = reader.get_data("tstep")
                     logging.info(f"Step {currentStep} started")
                     trange = list(reader.get_data("trange"))
                     channel_data = reader.get_data("floats")
                     if not cfg_update:
                         cfg.update(reader.get_attrs("cfg"))
                         cfg_update = True
+
+                        # ## Act as a middleman
+                        # ## Middleman receives data from the generator and distribute to n processors
+                        # if args.middleman:
+                        #     nworkers = args.nworkers
+                        #     writer_list = list()
+                        #     for i in range(nworkers):
+                        #         shotnr = cfg["shotnr"]
+                        #         gen_id = 100000 * rank
+                        #         channels = expand_clist(cfg["channel_range"])
+                        #         batch_size = cfg['batch_size']
+                        #         data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
+                        #         w = writer_init(shotnr, gen_id, i, data_array)
+                        #         writer_list.append(w)
+                        
                     reader.EndStep()
                 else:
                     logging.info(f"Receiver: end of stream, rank = {rank}")
@@ -240,13 +356,47 @@ if __name__ == "__main__":
 
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
-                dq.put((channel_data, cfg, currentStep, trange))
-            logging.info(f"All data read and dispatched, time elapsed: {time.time()-tstart}")
+                #dq.put((channel_data, cfg, currentStep, trange))
+                #perform_analysis(channel_data, cfg, currentStep, trange)
+                ## jyc: Testing decomposition
+                if args.subjob:
+                    blocksize = args.blocksize
+                    comb = list()
+                    for i,j in combinations(range(channel_data.shape[0]//blocksize), 2):
+                        comb.append((i,j))
+                    for i in range(channel_data.shape[0]//blocksize):
+                        comb.append((i,i))
+                    logging.info(f"Decomposition: created {len(comb)} subjobs")
+                    for i,j in comb:
+                        logging.info(f"Decomposition: received data tstep={currentStep}, rank = {rank}, ({i},{j})")
+                        np.r_[channel_data[i:8,:], channel_data[0:8,:]].shape
+                        block1 = channel_data[i*blocksize:i*blocksize+blocksize,:]
+                        block2 = channel_data[j*blocksize:j*blocksize+blocksize,:]
+                        data = np.r_[block1,block2]
+                        dq.put((data, cfg, currentStep, trange))
+                else:
+                    dq.put((channel_data, cfg, currentStep, trange))
+                    #perform_analysis(channel_data, cfg, currentStep, trange)
+
+                n = n + 1
+                if (args.onlyn is not None) and (n >= args.onlyn):
+                    break
+            t2 = time.time()
+            logging.info(f"All data read and dispatched, time elapsed: {t2-t1:.2f}")
             
             ## Clean up
             dq.join()
             dq.put((None, None, -1, -1))
             dispatcher.join()
-    if rank==0: logging.info(f"Receiver: done")
+
+    ## All done
+    t3 = time.time()
+    if (rank==0): 
+        logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
+        logging.info(f"")
+        logging.info(f"Summary:")
+        logging.info(f"Data waiting time: {t1-t0:.2f}")
+        logging.info(f"Data loading and queuing time: {t2-t1:.2f}")
+        logging.info(f"Overall time: {t3-t1:.2f}")
 
 # End of file processor_adios2.
