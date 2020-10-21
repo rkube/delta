@@ -1,7 +1,8 @@
 #-*- Coding: UTF-8 -*-
 
 from mpi4py import MPI
-import adios2
+
+import sys 
 import logging
 import json
 from os.path import join
@@ -10,6 +11,9 @@ import numpy as np
 
 #from analysis.channels import channel, channel_range
 from streaming.adios_helpers import gen_io_name
+
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios2
 
 """
 Author: Ralph Kube

@@ -1,11 +1,15 @@
 # -*- coding: UTF-8 -*-
 
+import sys
 from os.path import join
-import adios2
+
 import numpy as np
 import json
 
 import logging
+
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios2
 
 from streaming.adios_helpers import gen_channel_name_v3, gen_io_name
 from analysis.channels import channel_range

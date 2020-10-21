@@ -1,14 +1,18 @@
 #-*- Coding: UTF-8 -*-
 
-import adios2
+import sys
 import logging
 import json
 from os.path import join
 
 import numpy as np
 
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios2
+
 from analysis.channels import channel, channel_range
 from streaming.adios_helpers import gen_io_name, gen_channel_name_v3
+
 
 """
 Author: Ralph Kube

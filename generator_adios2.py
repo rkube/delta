@@ -1,14 +1,17 @@
 # -*- coding: UTF-8 -*-
 
 from mpi4py import MPI
+import sys
+
 import numpy as np
 import time
-import adios2
-
 from os import path
 
 import json
 import argparse
+
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios
 
 from streaming.writers import writer_dataman, writer_bpfile
 from streaming.data_loader import data_loader

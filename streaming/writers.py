@@ -2,11 +2,13 @@
 
 from mpi4py import MPI
 
+import sys
 import numpy as np
 import json
 import logging
 import time
 
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
 import adios2
 
 from streaming.stream_stats import stream_stats

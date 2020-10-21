@@ -9,8 +9,11 @@ Load the ECEI data from the HDF5 file and converts it into a bp file.
 
 import numpy as np
 import h5py
-import adios2
+import sys
+
 from os.path import join
+
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
 
 scratch_dir = "/global/cscratch1/sd/rkube/"
 datadir = "KSTAR/kstar_streaming/018431"

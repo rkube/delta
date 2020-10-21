@@ -30,7 +30,6 @@ import time
 from data_models.channels_2d import channel_2d, channel_range
 
 
-
 class timebase_streaming():
     """Defines a timebase for a data chunk in the stream"""
 
@@ -277,7 +276,6 @@ class ecei_view():
                 ol = self.offlev[tuple(item)]
                 print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
 
-
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data"""
 
@@ -287,12 +285,14 @@ class ecei_chunk():
 
         Parameters:
         -----------
-        data.........: ndarray, float:
-                       Raw data for the ECEI voltages
-        tb...........: timebase_streaming: Timebase
-                       timebase for ECEI voltages
-        num_v, num_h.: int,
-                      Number of vertical and horizontal channels
+        data......: ndarray, float:
+                    Raw data for the ECEI voltages
+        tb........: timebase_streaming
+                    timebase for ECEI voltages
+        num_v.....: int,
+                    Number of vertical and horizontal channels
+        num_h.....: int,
+                     Number of horizontal channels
         """
 
         # Data should have more than 1 dimension, last dimension is time
@@ -314,28 +314,40 @@ class ecei_chunk():
         return self.ecei_data
 
 
-    def filter(self, filter_obj):
-        """Filters data using the passed filter_obj. Returns an ecei_chunk object.
+    def create_ft(self, fft_data, fft_params):
+        """Returns a fourier-transformed object"""
+        return ecei_chunk_ft(fft_data, tb=self.tb, 
+                             freqs=None, fft_params=fft_params)
+
+
+class ecei_chunk_ft():
+    """Class that represents a fourier-transformed time-chunk of ECEI data"""
+
+    def __init__(self, data_ft, tb, freqs, fft_params, num_v=24, num_h=8):
+        """Creates a fourier-transformed time-chunk of ECEI data
 
         Parameters:
         -----------
-        filter_obj: callable, filters data
-
-
-        Usage:
-        ------
-
-        current_chunk = ecei_chunk(data_chunk, tb_chunk)
-        filter_obj = wavelet_filter(filter_config)
-
-        # This call replaces the ecei_data with the filtered data in-place
-        current_chunk.filter(filter_obj)
-
-
+        data_ft....: ndarray, float
+                     Fourier Coefficients
+        tb.........: timebase streaming:
+                     Timebase of the original data.
+        freqs......: ndarray, float
+                     Frequency vector
+        params.....: dictionary
+                     Parameters used to calculate the STFT
+        num_v......: int
+                     Number of vertical channels
+        num_h......: int
+                     Number of horizontal channels
         """
+        self.data_ft = data_ft
+        self.tb = tb
+        self.freqs = freqs 
+        self.fft_params = fft_params
+        self.num_v = num_v
+        self.num_h = num_h
 
-        filter_obj(self.ecei_data, inplace=True)
-        return self
 
 
 

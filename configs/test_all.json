@@ -5,7 +5,7 @@
     "shotnr": 18431,
     "datasource":
     {
-      "source_file": "/scratch/gpfs/rkube/KSTAR/018431/ECEI.018431.LFS.h5",
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/ECEI.018431.LFS.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["L0101-2408"],
@@ -25,8 +25,8 @@
   {
     "old_chunk_size": 10000,
     "old_nstep": 500,
-    "datapath": "tmp_nersc",
     "old_channel_range": ["L0101-2408"],
+    "datapath": "tmp_nersc",
     "engine": "BP4",
     "params":
     {
@@ -46,14 +46,12 @@
   {
     "backend": "null"
   },
- "filters_source": {
-   "denoise_wavelet": {"wavelet": "db5",
-                       "method": "BayesShrink",
-                       "wavelet_levels": 5,
-                       "method": "soft",
-                       "rescale_sigma": false}
+ "preprocess": {
+   "name": {"param1": "value1", "param2": "value2"},
+   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "method": "soft", "rescale_sigma": false},
+   "stft": {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
+   "bandpass": {"freq_lo": 5, "freq_hi": 20}
  },
- "fft_params" : {"nfft": 512, "window": "hann", "overlap": 0.5, "detrend": "constant", "full": true},
  "task_list": [{
                 "task_description" : "cross_correlation",
                 "analysis": "cross_correlation",

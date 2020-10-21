@@ -3,10 +3,6 @@
 """
 This processor implements the one-to-one model using mpi
 
-main loop is based on:
-* https://www.roguelynn.com/words/asyncio-true-concurrency/
-* Jong's threaded queue code
-
 
 To run on an interactive node
 srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
@@ -31,69 +27,13 @@ import argparse
 
 import numpy as np
 
-from analysis.tasks_mpi import task_list_spectral
+from preprocess.preprocess import preprocessor
+from analysis.tasks_mpi import task_list
 from streaming.reader_mpi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name, data_model_generator
 
 
-# class ConsumeThread(threading.Thread):
-#     def __init__(self, Q, executor, task_list, cfg):
-#         """ constructor, setting initial variables """
-#         self.Q = Q
-#         self.executor = executor
-#         self.task_list = task_list
-#         self.logger = logging.getLogger("simple")
-
-#         self.logger.info("Constructing thread")
-
-#         self.cfg = cfg
-#         self.cfg["fft_params"]["fsample"] = self.cfg["ECEI_cfg"]["SampleRate"] * 1e3
-#         self.my_fft = task_fft_scipy(10_000, self.cfg["fft_params"], normalize=True, detrend=True)
-
-#         self._interrupt = threading.Event()
-#         threading.Thread.__init__(self)
-
-
-#     def interrupt(self):
-#         self._interrupt.set()
-
-#     def run(self):
-#         #logger = logging.getLogger('simple')
-#         global cfg
-
-#         #comm  = MPI.COMM_WORLD
-#         #rank = comm.Get_rank()
-#         #size = comm.Get_size()
-
-#         # Create the FFT task
-#         self.logger.info("Starting thread")
-
-#         while True:
-#             try:
-#                 msg = Q.get(timeout=5.0)
-#             except queue.Empty:
-#                 self.logger.info("Queue is empty. Exiting")
-#                 break
-
-#             # If we get our special break message, we exit
-#             if msg.tstep_idx == None:
-#                 Q.task_done()
-#                 break
-
-#             # Step 1) Perform STFT. TODO: We may distribute this among the tasks
-#             tic_fft = timeit.default_timer()
-#             fft_data = self.my_fft.do_fft_local(msg.data)
-#             toc_fft = timeit.default_timer()
-#             logger.info(f"tidx={msg.tstep_idx}: FFT took {(toc_fft - tic_fft):6.4f}s")
-
-#             # Step 2) Distribute tasks to the executor
-#             for task in self.task_list:
-#                 task.submit(self.executor, fft_data, msg.tstep_idx, self.cfg)
-
-#             Q.task_done()
-
-
-def consume(Q, task_list):
+def consume(Q, my_task_list, my_preprocessor):
     """Executed by a local thread. Dispatch work items from the
     Queue to the PoolExecutor"""
 
@@ -122,7 +62,8 @@ def consume(Q, task_list):
 
         # TODO: Should there be a general method to a time index from a data chunk?
         logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}. Got data type {type(msg)}")
-        task_list.submit(msg, msg.tb.chunk_idx)
+        my_preprocessor.submit(msg, msg.tb_chunk_idx)
+        #my_task_list.submit(msg, msg.tb.chunk_idx)
 
         Q.task_done()
     logger.info("Task done")
@@ -154,7 +95,9 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor_fft = MPIPoolExecutor(max_workers=4)
+    # PoolExecutor for pre-processing, on-node.
+    executor_pre = MPIPoolExecutor(max_workers=4)
+    # PoolExecutor for data analysis. off-node
     executor_anl = MPIPoolExecutor(max_workers=24)
 
     stream_varname = gen_var_name(cfg)[rank]
@@ -177,20 +120,23 @@ def main():
     # store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
     # logger.info(f"Stored one")
 
+    # HARDCODED: create fft_config from current config.json
+    fft_config = cfg["preprocess"]["stft"]
+
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
-    task_list = task_list_spectral(executor_anl, executor_fft, cfg["task_list"], cfg["fft_params"], cfg["diagnostic"], cfg["storage"])
-    ####task_list = task_list_spectral(executor, cfg["task_list"], cfg["fft_params"], cfg["ECEI_cfg"], cfg["storage"])
+    my_preprocessor = preprocessor(executor_pre, cfg["preprocess"])
+    my_task_list = task_list(executor_anl, cfg["task_list"], cfg["diagnostic"], cfg["storage"])
 
     dq = queue.Queue()
-    msg = None#
+    msg = None
     data_model_gen = data_model_generator(cfg["diagnostic"])
 
     tic_main = time.perf_counter()
     workers = []
     for _ in range(4):
-        worker = threading.Thread(target=consume, args=(dq, task_list))
+        worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
         worker.start()
         workers.append(worker)
 
@@ -217,7 +163,7 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 100:
+        if reader.CurrentStep() > 5:
             logger.info(f"End of the line. Exiting")
             break
 
@@ -232,7 +178,7 @@ def main():
 
     # Shotdown the executioner
     executor_anl.shutdown(wait=True)
-    executor_fft.shutdown(wait=True)
+    executor_pre.shutdown(wait=True)
     #executor.shutdown(wait=True)
 
     toc_main = time.perf_counter()

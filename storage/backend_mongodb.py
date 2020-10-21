@@ -1,9 +1,9 @@
 #Coding: UTF-8 -*-
 
 from mpi4py import MPI
+import sys
 import datetime
 import numpy as np
-import adios2
 import pickle
 import string
 import random
@@ -12,6 +12,9 @@ import json
 import uuid
 import time
 import traceback
+
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios2
 
 
 import pymongo 

@@ -9,23 +9,18 @@ import datetime
 
 import more_itertools
 
-#from analysis.channels import channel, channel_range, channel_pair, unique_everseen
 #from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_crosscorr, kernel_bicoherence, kernel_skw
 from analysis.kernels_spectral import kernel_crosscorr
 from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
-from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
-
-#from analysis.kernels_spectral_cu import kenel_null
-from analysis.task_fft import task_fft_scipy
+#from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
 
 from data_models.channels_2d import channel_pair
 from data_models.helpers import gen_channel_range, unique_everseen
 
-
 #import storage
 
 from scipy.signal import stft
-import cupy as cp
+#import cupy as cp
 #from cusignal.spectral_analysis.spectral import stft
 
 """
@@ -47,13 +42,14 @@ future_list.
 """
 
 
-def calc(kernel, fft_data, fft_params, ch_it, info_dict):
+def calc(kernel, fft_data, ch_it, info_dict):
     """Dispatches a kernel
 
     Parameters:
     -----------
-    fft_data - ndarray, complex: Contains the fourier-transformed data.
-                        dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+    fft_data - ece_chunk_ft: 
+               Contains the fourier-transformed data.
+               dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
     ch_it - List of channels to iterate over
     info_dict  - metadata for the fft_data object
     """
@@ -67,7 +63,7 @@ def calc(kernel, fft_data, fft_params, ch_it, info_dict):
     # Use datetime to count performance so that we can later use isoformat
     # to write out the log
     t1 = datetime.datetime.now()
-    result = kernel(fft_data, ch_it, fft_params)
+    result = kernel(fft_data.data, ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
     dt = t2 - t1
     with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
@@ -77,13 +73,14 @@ def calc(kernel, fft_data, fft_params, ch_it, info_dict):
     return result
 
 
-def calc_and_store(kernel, storage_backend, fft_data, fft_params, ch_it, info_dict):
+def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     """Dispatches a kernel
 
     Parameters:
     -----------
-    fft_data - ndarray, complex: Contains the fourier-transformed data.
-                        dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+    fft_data - ecei_chunk_ft: 
+               Contains the fourier-transformed data.
+               dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
     ch_it - List of channels to iterate over
     info_dict  - metadata for the fft_data object
     """
@@ -94,7 +91,7 @@ def calc_and_store(kernel, storage_backend, fft_data, fft_params, ch_it, info_di
     tidx = info_dict['tidx']
     an_name = info_dict["analysis_name"]
     t1 = datetime.datetime.now()
-    result = kernel(fft_data, ch_it, fft_params)
+    result = kernel(fft_data.data, ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
     dt_calc = t2 - t1
     #
@@ -114,14 +111,13 @@ def calc_and_store(kernel, storage_backend, fft_data, fft_params, ch_it, info_di
 class task_spectral():
     """Serves as the super-class for analysis methods"""
 
-    def __init__(self, task_config, fft_config, cfg_diagnostic, storage_config):
+    def __init__(self, task_config, cfg_diagnostic, storage_config):
         """Initialize the object with a fixed channel list, a fixed name of the analysis to be performed
         and a fixed set of parameters for the analysis routine.
 
         Inputs:
         =======
         task_config: dict, defines parameters of the analysis to be performed
-        fft_config: dict, gives parameters of the fourier-transformed data
         diag_config: dict, information on ecei diagnostic
         """
 
@@ -137,11 +133,11 @@ class task_spectral():
         self.analysis = task_config["analysis"]
 
         if self.analysis == "cross_phase":
-            self.kernel = kernel_crossphase_cu
+            self.kernel = kernel_crossphase_64_cy
         elif self.analysis == "cross_power":
             self.kernel = kernel_crosspower_64_cy
         elif self.analysis == "cross_correlation":
-            self.kernel = kernel_crosscorr_cu
+            self.kernel = kernel_crosscorr
         elif self.analysis == "coherence":
             self.kernel = kernel_coherence_64_cy
         elif self.analysis == "skw":
@@ -174,11 +170,6 @@ class task_spectral():
         self.channel_chunk_size = task_config["channel_chunk_size"]
         # Total number of chunks, i.e. the number of futures appended to the list per call to calculate
         self.num_chunks = (len(self.unique_channels) + self.channel_chunk_size - 1) // self.channel_chunk_size
-
-        # Get the configuration from task_fft_scipy, but don't store the object.
-        fft_config["fsample"] = cfg_diagnostic["parameters"]["SampleRate"] * 1e3
-        self.my_fft = task_fft_scipy(self.channel_chunk_size, fft_config, normalize=True, detrend=True)
-        self.fft_params = self.my_fft.get_fft_params()
 
         self.storage_backend = None
         # if self.storage_config["backend"] == "numpy":
@@ -224,7 +215,7 @@ class task_spectral():
                            "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
 
         # #res_list = [executor.submit(self.calc_and_store, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
-        _ = [executor.submit(calc_and_store, self.kernel, self.storage_backend, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
+        _ = [executor.submit(calc_and_store, self.kernel, self.storage_backend, fft_data, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         self.logger.info(f"tidx={tidx} submitted {self.analysis} as {self.num_chunks} tasks")
 
 
@@ -245,11 +236,11 @@ class task_spectral():
 
 
 
-class task_list_spectral():
+class task_list():
     """Defines a group of analysis that, together with an FFT, are
     performed on a PEP-3148 exeecutor"""
 
-    def __init__(self, executor_anl, executor_fft, task_config_list, fft_config, diag_config, storage_config):
+    def __init__(self, executor_anl, task_config_list, diag_config, storage_config):
         """Initialize the object with a list of tasks to be performed.
         These tasks share a common channel list.
 
@@ -257,12 +248,8 @@ class task_list_spectral():
         =======
         executor_anl: PEP-3148 executor
                       Executor on which analysis tasks are performed
-        executor_fft: PEP-3148 executor
-                      Executor on which FFTs are performed
         task_list   : dict,
                       Defines parameters for the analysis routines
-        fft_config  : dict,
-                      Defines parameters for the fourier-transformed data
         diag_config : dict,
                       Metadata on diagnostic
         storage_config: dict,
@@ -270,12 +257,10 @@ class task_list_spectral():
         """
 
         self.executor_anl = executor_anl
-        self.executor_fft  = executor_fft
         #self.executor = executor
         self.task_config_list = task_config_list
         # Don't store fft_config but use fft_params from one of the tasks instead.
         # Do this since we need the sampling frequency, which is calculated from ECEi data.
-        #self.fft_config = fft_config
         self.diag_config = diag_config
         self.storage_config = storage_config
 
@@ -283,9 +268,9 @@ class task_list_spectral():
 
         self.task_list = []
         for task_cfg in self.task_config_list:
-            self.task_list.append(task_spectral(task_cfg, fft_config, self.diag_config, self.storage_config))
+            self.task_list.append(task_spectral(task_cfg, self.diag_config, self.storage_config))
 
-        self.fft_params = self.task_list[0].fft_params
+        #self.fft_params = self.task_list[0].fft_params
 
 
     def submit(self, data_chunk, tidx):
@@ -298,7 +283,7 @@ class task_list_spectral():
         tidx: int
         """
 
-        tic_fft = time.perf_counter()
+        #tic_fft = time.perf_counter()
 
         # data_gpu = cp.asarray(data_chunk.data())
         # res = self.executor_fft.submit(stft, data_gpu, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
@@ -306,18 +291,18 @@ class task_list_spectral():
         # fft_data = cp.asnumpy(fft_data_tmp[2])
 
 
-        res = self.executor_fft.submit(stft, data_chunk.data(), axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
-        fft_data = res.result()
-        fft_data = np.fft.fftshift(fft_data[2], axes=1)
+        # res = self.executor_fft.submit(stft, data_chunk.data(), axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        # fft_data = res.result()
+        # fft_data = np.fft.fftshift(fft_data[2], axes=1)
 
-        toc_fft = time.perf_counter()
-        self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s. ")
+        # toc_fft = time.perf_counter()
+        # self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s. ")
 
         #if tidx == 1:
         #    np.savez(f"test_data/fft_array_s{tidx:04d}.npz", fft_data = fft_data)
 
         for task in self.task_list:
-            task.submit(self.executor_anl, fft_data, tidx)
+            task.submit(self.executor_anl, data_chunk.data(), tidx)
         ##    #task.submit(self.executor, fft_data, tidx)
 
 # End of file tasks_mpi.py

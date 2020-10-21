@@ -1,6 +1,11 @@
-import adios2
+# -*- Encoding: UTF-8
+
+import sys
 import numpy as np
 import h5py
+
+sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios2
 
 """
 Author: Ralph Kube
