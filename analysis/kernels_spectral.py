@@ -50,13 +50,11 @@ def kernel_crosspower(fft_data, ch_it, fft_config):
     ========
     cross_power, float.
     """
-    #c1_idx = np.array([ch_pair.ch1.idx() for ch_pair in ch_it])
-    #c2_idx = np.array([ch_pair.ch2.idx() for ch_pair in ch_it])
-    #res = (fft_data[c1_idx, :, :] * fft_data[c2_idx, :, :].conj()).mean(axis=2) / fft_config["win_factor"]
 
     res = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        res[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
+        #res[idx, :] = -1.0
+        res[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["win_factor"]
 
     return(np.abs(res).real)
 
@@ -112,21 +110,19 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
     res = np.zeros([len(ch_it), fft_data.shape[1]])
     fft_shifted = np.fft.fftshift(fft_data, axes=1)
 
-    tic_list = []
-    toc_list = []
+    #tic_list = []
+
+    #toc_list = []
     for idx, ch_pair in enumerate(ch_it):
-        tic_list.append(time.perf_counter())
+        #tic_list.append(time.perf_counter())
 
         X = fft_shifted[ch_pair.ch1.get_idx(), :, :]
         Y = fft_shifted[ch_pair.ch2.get_idx(), :, :]
         _tmp = np.fft.ifft(X * Y.conj(), axis=0).mean(axis=1) / fft_params['win_factor']
-        toc_list.append(time.perf_counter())
+        #toc_list.append(time.perf_counter())
 
-    dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
-    with open("numpy_timings.txt", "a") as df:
-        df.write("\n".join(dts) + "\n")
-
-        res[idx, :] = np.fft.fftshift(_tmp.real)
+    #dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
+    res[idx, :] = np.fft.fftshift(_tmp.real)
 
     return(res)
 

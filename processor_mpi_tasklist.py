@@ -1,4 +1,3 @@
-# -*- coding: UTF-8 -*-
 
 """
 This processor implements the one-to-one model using mpi
@@ -25,7 +24,7 @@ import string
 import json, yaml
 import argparse
 
-import numpy as np
+from socket import gethostname
 
 from preprocess.preprocess import preprocessor
 from analysis.tasks_mpi import task_list
@@ -48,7 +47,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
     while True:
         try:
-            msg = Q.get(timeout=60.0)
+            msg = Q.get(timeout=5.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
