@@ -135,11 +135,11 @@ class task_spectral():
         if self.analysis == "cross_phase":
             self.kernel = kernel_crossphase_64_cy
         elif self.analysis == "cross_power":
-            self.kernel = kernel_crosspower_cu
+            self.kernel = kernel_crosspower_64_cy
         elif self.analysis == "cross_correlation":
             self.kernel = kernel_crosscorr
         elif self.analysis == "coherence":
-            self.kernel = kernel_coherence_cu
+            self.kernel = kernel_coherence_64_cy
         elif self.analysis == "skw":
             self.kernel = kernel_skw
         elif self.analysis == "bicoherence":
@@ -285,11 +285,11 @@ class task_list():
 
         #tic_fft = time.perf_counter()
 
-        # # Following 4 lines execute the stft on the GPU
-        data_gpu = cp.asarray(data_chunk.data())
-        res = self.executor_fft.submit(stft, data_gpu, axis=data_chunk.sample_dim, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
-        fft_data_tmp = res.result()
-        fft_data = cp.asnumpy(fft_data_tmp[2])
+        # # # Following 4 lines execute the stft on the GPU
+        # data_gpu = cp.asarray(data_chunk.data())
+        # res = self.executor_fft.submit(stft, data_gpu, axis=data_chunk.axis_t, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        # fft_data_tmp = res.result()
+        # fft_data = cp.asnumpy(fft_data_tmp[2])
 
 
         # res = self.executor_fft.submit(stft, data_chunk.data(), axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
@@ -301,6 +301,8 @@ class task_list():
 
         #if tidx == 1:
         #    np.savez(f"test_data/fft_array_s{tidx:04d}.npz", fft_data = fft_data)
+
+        self.logger.info(f"task_list: Received type {type(data_chunk)} for tidx {tidx}")
 
         for task in self.task_list:
             task.submit(self.executor_anl, data_chunk.data(), tidx)

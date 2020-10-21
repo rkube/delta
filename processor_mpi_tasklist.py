@@ -61,8 +61,8 @@ def consume(Q, my_task_list, my_preprocessor):
 
         # TODO: Should there be a general method to a time index from a data chunk?
         logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}. Got data type {type(msg)}")
-        my_preprocessor.submit(msg, msg.tb_chunk_idx)
-        #my_task_list.submit(msg, msg.tb.chunk_idx)
+        msg = my_preprocessor.submit(msg)
+        my_task_list.submit(msg, msg.tb.chunk_idx)
 
         Q.task_done()
     logger.info("Task done")

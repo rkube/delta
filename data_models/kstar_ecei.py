@@ -307,10 +307,12 @@ class ecei_chunk():
         #self.ecei_data = np.array(data, copy=True)
         self.ecei_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
         assert(self.ecei_data.flags.contiguous)
-        #self.ecei_data = data
+
         self.tb = tb
-        self.channel_dim = 0
-        self.sample_dim=1
+        # Axis that indexes channels
+        self.axis_ch = 0
+        # Axis that indexes time
+        self.axis_t = 1
 
     def data(self):
         """Common interface to data"""
@@ -326,7 +328,7 @@ class ecei_chunk():
 class ecei_chunk_ft():
     """Class that represents a fourier-transformed time-chunk of ECEI data"""
 
-    def __init__(self, data_ft, tb, freqs, fft_params, num_v=24, num_h=8):
+    def __init__(self, data_ft, tb, freqs, fft_params, axis_ch=0, axis_t=1, num_v=24, num_h=8):
         """Creates a fourier-transformed time-chunk of ECEI data
 
         Parameters:
@@ -339,6 +341,8 @@ class ecei_chunk_ft():
                      Frequency vector
         params.....: dictionary
                      Parameters used to calculate the STFT
+        axis_ch....: axis which indices the channels
+        axis_t.....: axis which indices the fourier frequencies
         num_v......: int
                      Number of vertical channels
         num_h......: int
@@ -348,8 +352,14 @@ class ecei_chunk_ft():
         self.tb = tb
         self.freqs = freqs 
         self.fft_params = fft_params
+        self.axis_ch = axis_ch
+        self.axis_t = axis_t
         self.num_v = num_v
         self.num_h = num_h
+
+    def data(self):
+        """Common interface to data"""
+        return self.data_ft
 
 
 
