@@ -10,9 +10,7 @@ srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/t
 
 import sys
 sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
-import os
 from mpi4py import MPI
-from mpi4py.futures import MPIPoolExecutor
 
 import logging
 import logging.config
@@ -24,7 +22,10 @@ import string
 import json, yaml
 import argparse
 
-from socket import gethostname
+import numpy as np
+
+from concurrent.futures import ThreadPoolExecutor
+from mpi4py.futures import MPIPoolExecutor
 
 from preprocess.preprocess import preprocessor
 from analysis.tasks_mpi import task_list
@@ -56,12 +57,15 @@ def consume(Q, my_task_list, my_preprocessor):
         #    Q.task_done()
         #    break
 
-        #if(msg.tidx == 1):
-        #    np.savez(f"test_data/io_array_tr_s{msg.tidx:04d}.npz", msg.data)
+        if(msg.tb.chunk_idx == 1):
+            np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data())
 
         # TODO: Should there be a general method to a time index from a data chunk?
         logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}. Got data type {type(msg)}")
         msg = my_preprocessor.submit(msg)
+        if(msg.tb.chunk_idx == 1):
+            np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data())
+
         my_task_list.submit(msg, msg.tb.chunk_idx)
 
         Q.task_done()
@@ -95,7 +99,8 @@ def main():
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     # PoolExecutor for pre-processing, on-node.
-    executor_pre = MPIPoolExecutor(max_workers=4)
+    #executor_pre = MPIPoolExecutor(max_workers=4)
+    executor_pre = ThreadPoolExecutor(max_workers=4)
     # PoolExecutor for data analysis. off-node
     executor_anl = MPIPoolExecutor(max_workers=24)
 
@@ -119,8 +124,6 @@ def main():
     # store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
     # logger.info(f"Stored one")
 
-    # HARDCODED: create fft_config from current config.json
-    fft_config = cfg["preprocess"]["stft"]
 
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
