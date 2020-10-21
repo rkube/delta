@@ -9,13 +9,11 @@ import datetime
 
 import more_itertools
 
-#from analysis.channels import channel, channel_range, channel_pair, unique_everseen
-#from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_crosscorr, kernel_bicoherence, kernel_skw
-from analysis.kernels_spectral import kernel_crosscorr
-from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
-from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
+#from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_bicoherence, kernel_skw
+#from analysis.kernels_spectral import kernel_crosscorr
+#from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
+from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu, kernel_crosspower_cu, kernel_coherence_cu
 
-#from analysis.kernels_spectral_cu import kenel_null
 from analysis.task_fft import task_fft_scipy
 
 from data_models.channels_2d import channel_pair
@@ -24,9 +22,9 @@ from data_models.helpers import gen_channel_range, unique_everseen
 
 #import storage
 
-from scipy.signal import stft
+#from scipy.signal import stft
 import cupy as cp
-#from cusignal.spectral_analysis.spectral import stft
+from cusignal.spectral_analysis.spectral import stft
 
 """
 Author: Ralph Kube
@@ -89,6 +87,7 @@ def calc_and_store(kernel, storage_backend, fft_data, fft_params, ch_it, info_di
     """
     from mpi4py import MPI
     import datetime
+    from socket import gethostname
 
     comm = MPI.COMM_WORLD
     tidx = info_dict['tidx']
@@ -104,8 +103,7 @@ def calc_and_store(kernel, storage_backend, fft_data, fft_params, ch_it, info_di
     dt_io = -1.0 #t2 - t1
 
     with open(f"/home/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + f" Storage: {dt_io}" + "\n")
-        #f.write("Hello")
+        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + f" Storage: {dt_io} " + f" {gethostname()}\n")
         df.flush()
 
     return result
@@ -139,11 +137,11 @@ class task_spectral():
         if self.analysis == "cross_phase":
             self.kernel = kernel_crossphase_cu
         elif self.analysis == "cross_power":
-            self.kernel = kernel_crosspower_64_cy
+            self.kernel = kernel_crosspower_cu
         elif self.analysis == "cross_correlation":
             self.kernel = kernel_crosscorr_cu
         elif self.analysis == "coherence":
-            self.kernel = kernel_coherence_64_cy
+            self.kernel = kernel_coherence_cu
         elif self.analysis == "skw":
             self.kernel = kernel_skw
         elif self.analysis == "bicoherence":
@@ -177,8 +175,8 @@ class task_spectral():
 
         # Get the configuration from task_fft_scipy, but don't store the object.
         fft_config["fsample"] = cfg_diagnostic["parameters"]["SampleRate"] * 1e3
-        self.my_fft = task_fft_scipy(self.channel_chunk_size, fft_config, normalize=True, detrend=True)
-        self.fft_params = self.my_fft.get_fft_params()
+        my_fft = task_fft_scipy(self.channel_chunk_size, fft_config, normalize=True, detrend=True)
+        self.fft_params = my_fft.get_fft_params()
 
         self.storage_backend = None
         # if self.storage_config["backend"] == "numpy":
@@ -300,15 +298,17 @@ class task_list_spectral():
 
         tic_fft = time.perf_counter()
 
-        # data_gpu = cp.asarray(data_chunk.data())
-        # res = self.executor_fft.submit(stft, data_gpu, axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
-        # fft_data_tmp = res.result()
-        # fft_data = cp.asnumpy(fft_data_tmp[2])
+        # # Following 4 lines execute the stft on the GPU
+        data_gpu = cp.asarray(data_chunk.data())
+        res = self.executor_fft.submit(stft, data_gpu, axis=data_chunk.sample_dim, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        fft_data_tmp = res.result()
+        fft_data = cp.asnumpy(fft_data_tmp[2])
 
 
-        res = self.executor_fft.submit(stft, data_chunk.data(), axis=1, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
-        fft_data = res.result()
-        fft_data = np.fft.fftshift(fft_data[2], axes=1)
+        # Following 3 lines are for executing fft on the CPU
+        # res = self.executor_fft.submit(stft, data_chunk.data(), axis=data_chunk.sample_dim, fs=self.fft_params["fs"], nperseg=self.fft_params["nfft"], window=self.fft_params["window"], detrend=self.fft_params["detrend"],  noverlap=self.fft_params["noverlap"], padded=False, return_onesided=False, boundary=None)
+        # fft_data = res.result()
+        # fft_data = np.fft.fftshift(fft_data[2], axes=1)
 
         toc_fft = time.perf_counter()
         self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s. ")

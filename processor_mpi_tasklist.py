@@ -1,4 +1,3 @@
-# -*- coding: UTF-8 -*-
 
 """
 This processor implements the one-to-one model using mpi
@@ -29,7 +28,7 @@ import string
 import json, yaml
 import argparse
 
-import numpy as np
+from socket import gethostname
 
 from analysis.tasks_mpi import task_list_spectral
 from streaming.reader_mpi import reader_gen
@@ -108,7 +107,7 @@ def consume(Q, task_list):
 
     while True:
         try:
-            msg = Q.get(timeout=60.0)
+            msg = Q.get(timeout=5.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -154,8 +153,8 @@ def main():
 
     # Create a global executor
     #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
-    executor_fft = MPIPoolExecutor(max_workers=4)
-    executor_anl = MPIPoolExecutor(max_workers=24)
+    executor_fft = MPIPoolExecutor(max_workers=4, mpi_info={"host", gethostname})
+    executor_anl = MPIPoolExecutor(max_workers=28)
 
     stream_varname = gen_var_name(cfg)[rank]
 
@@ -217,9 +216,9 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 100:
-            logger.info(f"End of the line. Exiting")
-            break
+        # if reader.CurrentStep() > 5:
+        #     logger.info(f"End of the line. Exiting")
+        #     break
 
     dq.join()
     logger.info("Queue joined")

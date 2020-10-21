@@ -58,14 +58,15 @@ def kernel_crosspower_cu(fft_data, ch_it, fft_config):
 
     res = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
+        res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["win_factor"]
+    #     res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
 
     res = cp.asnumpy(res)
 
     return(np.abs(res).real)
 
 
-def kernel_coherence(fft_data, ch_it, fft_config):
+def kernel_coherence_cu(fft_data, ch_it, fft_config):
     """Kernel that calculates the coherence between two channels.
     Input:
     ======
@@ -88,10 +89,10 @@ def kernel_coherence(fft_data, ch_it, fft_config):
         Y = fft_data_cu[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
-        Gxy_cu[idx, :] = ((X * Y.conj()) / np.sqrt(Pxx * Pyy)).mean(axis=1)
+        Gxy_cu[idx, :] = ((X * Y.conj()) / cp.sqrt(Pxx * Pyy)).mean(axis=1)
 
-    Gxy_cu = np.abs(Gxy_cu)
-    Gxy = cp.asnumpy(Gxy.real)
+    #Gxy_cu = cp.abs(Gxy_cu)
+    Gxy = cp.asnumpy(cp.abs(Gxy_cu).real)
 
     return(Gxy)
 
@@ -136,7 +137,7 @@ def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
                               fft_shifted_gpu[ch_pair.ch2.get_idx(), :, :].conj(),
                               axis=0).mean(axis=1) / fft_params['win_factor']
             #toc_list.append(time.perf_counter())
-            res[idx, :] = cp.fft.fftshift(_tmp.real)
+        res[idx, :] = cp.fft.fftshift(_tmp.real)
 
     #dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
     #with open("cupy_timings.txt", "a") as df:

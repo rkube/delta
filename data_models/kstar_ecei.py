@@ -288,7 +288,9 @@ class ecei_chunk():
         Parameters:
         -----------
         data.........: ndarray, float:
-                       Raw data for the ECEI voltages
+                       Raw data for the ECEI voltages. Needs to be
+                       axis0: channels (num_v * num_h)
+                       axis1: samples
         tb...........: timebase_streaming: Timebase
                        timebase for ECEI voltages
         num_v, num_h.: int,
@@ -304,10 +306,13 @@ class ecei_chunk():
 
         # We should ensure that the data is contiguous so that we can remove this from
         #if not data.flags.contiguous:
-        self.ecei_data = np.array(data, copy=True)
+        #self.ecei_data = np.array(data, copy=True)
+        self.ecei_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
         assert(self.ecei_data.flags.contiguous)
         #self.ecei_data = data
         self.tb = tb
+        self.channel_dim = 0
+        self.sample_dim=1
 
     def data(self):
         """Common interface to data"""

@@ -118,7 +118,7 @@ class _loader_ecei():
 
         yields
         =======
-        chunk : ecei_chunk, data from current time chumk
+        chunk : ecei_chunk, data from current time chunk
         """
 
         # Pre-allocate temp array in case we are running non-cached.
