@@ -8,6 +8,7 @@ import json
 import argparse
 
 import concurrent.futures
+import multiprocessing as mp
 import time
 import os
 import socket
@@ -20,12 +21,6 @@ from fluctana import *
 from itertools import combinations 
 
 import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s,%(msecs)d %(levelname)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
-
 import random
 
 parser = argparse.ArgumentParser(description="Receive KSTAR data using ADIOS2")
@@ -33,12 +28,19 @@ parser.add_argument('--config', type=str, help='Lists the configuration file', d
 parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 parser.add_argument('--debug', help='Use input file to debug', action='store_true')
 parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
-parser.add_argument('--nworkers', type=int, help='Number of workers to middle', default=1)
+parser.add_argument('--nmiddleman', type=int, help='Number of middlemen', default=1)
+parser.add_argument('--nworkers', type=int, help='Number of workers', default=1)
 parser.add_argument('--workwithmiddleman', help='Process with middleman', action='store_true')
 parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
 parser.add_argument('--subjob', help='subjob', action='store_true')
 parser.add_argument('--onlyn', type=int, help='process only n')
 parser.add_argument('--blocksize', type=int, help='blocksize', default=24)
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--processpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='process')
+group.add_argument('--threadpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='thread')
+group.add_argument('--mpicomm', help='use MPICommExecutor', action='store_const', dest='pool', const='mpicomm')
+group.add_argument('--mpipool', help='use MPIPoolExecutor', action='store_const', dest='pool', const='mpipool')
+parser.set_defaults(pool='process')
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
@@ -47,17 +49,26 @@ if not args.nompi:
     from streaming.reader_mpi import reader_gen
     from streaming.writers import writer_gen
     from mpi4py import MPI
-    from mpi4py.futures import MPICommExecutor
+    from mpi4py.futures import MPICommExecutor, MPIPoolExecutor
+    ## jyc: use processpool for multi-chennel
+    from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 else:
-    from generators.writers_nompi import writer_gen
+    from streaming.reader_nompi import reader_gen
+    from streaming.writers_nompi import writer_gen
     from concurrent.futures import ProcessPoolExecutor as MPICommExecutor
     comm = None
     rank = 0
     size = 1
 hostname = socket.gethostname()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%%(asctime)s,%%(msecs)d %%(levelname)s (rank %d): %%(message)s"%(rank),
+    datefmt="%H:%M:%S",
+)
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
@@ -118,10 +129,8 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
     writer.DefineVariable("floats",data_arr)
     writer.DefineVariable("trange",np.array([0.0,0.0]))
     writer.DefineAttributes("cfg",cfg)
-    # jyc: temporarily disabled
-    # Need to fix for multi-channel streaming
-    #writer.Open(worker_id=worker_id)
-    writer.Open()
+    # Multi-channel streaming when worker_id is not None
+    writer.Open(multi_channel_id=worker_id)
     return writer
 
 def save_spec(results,tstep):
@@ -144,7 +153,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     Perform analysis
     """ 
-    logging.info(f"\tWorker: start perform_analysis: tstep = {tstep}, rank = {rank}")
+    logging.info(f"\tWorker: perform_analysis start: tstep={tstep} rank={rank} pid={os.getpid()}")
     t0 = time.time()
     if(cfg["analysis"][0]["name"] == "all"):
         results = {} 
@@ -161,7 +170,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
-        time.sleep(random.random()//0.5)
+        time.sleep(random.randint(1, 3))
         """
         for ic in range(Nchannels):
             #logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
@@ -205,7 +214,8 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         t1 = time.time()
         #save_spec(results,tstep)
         t2 = time.time()
-        logging.info(f"\tWorker: perform_analysis done: tstep={tstep}, rank={rank}, hostname={hostname} time elapsed: {t2-t0:.2f}")
+        logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} hostname={hostname} time elapsed: {t2-t0:.2f}")
+    return tstep
 
 # Function for a helper thead (dispatcher).
 # The dispatcher will dispatch data in the queue (dq) and 
@@ -215,17 +225,19 @@ def dispatch():
     isfirst = True
     while True:
         channel_data, cfg, tstep, trange = dq.get()
-        logging.info(f"\tDispatcher: read data: tstep = {tstep}, rank = {rank}")
+        logging.info(f"\tDispatcher: read data: tstep={tstep}, rank={rank}")
         if channel_data is None:
+            dq.task_done()
+            logging.info(f"\tDispatcher: no more data. break. rank={rank}")
             break
         
         ## Act as a middleman
         ## Middleman receives data from the generator and distribute to n processors
         ## We need to open channel only after receiving at least one step
         if isfirst and args.middleman:
-            nworkers = args.nworkers
+            nmiddleman = args.nmiddleman
             writer_list = list()
-            for i in range(nworkers):
+            for i in range(nmiddleman):
                 shotnr = cfg["shotnr"]
                 gen_id = 100000 * rank
                 channels = expand_clist(cfg["channel_range"])
@@ -237,21 +249,35 @@ def dispatch():
 
         ## If middleman, we write data. Otherwise, distribute to others for analysis
         if args.middleman:
-            writer = writer_list[tstep%args.nworkers]
+            writer = writer_list[tstep%args.nmiddleman]
             with writer.step() as w:
                 w.put_data("tstep",np.array(tstep))
                 w.put_data("floats",channel_data)
                 w.put_data("trange",np.array(trange))
         else:
             future = executor.submit(perform_analysis, channel_data, cfg, tstep, trange)
+            fs.put(future)
         dq.task_done()
 
     ## Once done, we close open files for writing
     if args.middleman:
-        nworkers = args.nworkers
-        for i in range(nworkers):
+        nmiddleman = args.nmiddleman
+        for i in range(nmiddleman):
             writer = writer_list[i]
             writer.writer.Close()
+
+def foo(n):
+    time.sleep(2)
+    return n
+
+def hello(counter):
+    global _COUNTER
+    _COUNTER = counter
+    with _COUNTER.get_lock():
+        _COUNTER.value += 1
+    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_COUNTER.value}")
+    # time.sleep(random.randint(1, 5))
+    return 0
 
 # Main
 if __name__ == "__main__":
@@ -269,9 +295,9 @@ if __name__ == "__main__":
     # ## Act as a middleman
     # ## Middleman receives data from the generator and distribute to n processors
     # if args.middleman:
-    #     nworkers = args.nworkers
+    #     nmiddleman = args.nmiddleman
     #     writer_list = list()
-    #     for i in range(nworkers):
+    #     for i in range(nmiddleman):
     #         shotnr = cfg["shotnr"]
     #         gen_id = 100000 * rank
     #         channels = expand_clist(cfg["channel_range"])
@@ -280,7 +306,28 @@ if __name__ == "__main__":
     #         w = writer_init(shotnr, gen_id, i, data_array)
     #         writer_list.append(w)
 
-    with MPICommExecutor(comm, root=0) as executor:
+    counter = mp.Value('i', 0)
+
+    if args.pool == 'process':
+        logging.info(f"Using: ProcessPoolExecutor")
+        pool = ProcessPoolExecutor(max_workers=args.nworkers, initializer=hello, initargs=(counter,))
+
+    if args.pool == 'thread':
+        logging.info(f"Using: ThreadPoolExecutor")
+        pool = ThreadPoolExecutor(max_workers=args.nworkers, initializer=hello, initargs=(counter,))
+
+    if args.pool == 'mpicomm':
+        logging.info(f"Using: MPICommExecutor")
+        pool = MPICommExecutor(comm)
+
+    if args.pool == 'mpipool':
+        logging.info(f"Using: MPIPoolExecutor")
+        pool = MPIPoolExecutor(comm)
+
+    #with MPICommExecutor(comm) as executor:
+    #with ProcessPoolExecutor(max_workers=args.nworkers, initializer=hello, initargs=(counter,)) as executor:
+    #with ThreadPoolExecutor(max_workers=4) as executor:
+    with pool as executor:
         if executor is not None:
             # Only master will execute the following block
             # Use of "__main__" is critical
@@ -290,15 +337,31 @@ if __name__ == "__main__":
             # and distribute jobs to other workers.
             # The main idea is not to slow down the master.
             dq = queue.Queue()
+            fs = queue.Queue()
             dispatcher = threading.Thread(target=dispatch)
             dispatcher.start()
+
+            ## Warming-up (just to make sure workers are created.)
+            for _ in executor.map(foo, range(2*args.nworkers)):
+                pass
+            # time.sleep(3)
+
+            ## Check if all workers are successfully created.
+            if args.pool in ('process','thread'):
+                while True:
+                    with counter.get_lock():
+                        logging.info(f'nworkers so far {counter.value}')
+                        if counter.value == args.nworkers:
+                            break
+                        else:
+                            time.sleep(1)
 
             # Only the master thread will open a data stream.
             # General reader: engine type and params can be changed with the config file
             if not args.debug:
                 if args.workwithmiddleman:
-                    reader = reader_gen(cfg["shotnr"], 0, cfg["middleman_engine"], cfg["middleman_params"])
-                    reader.Open(worker_id=0)
+                    reader = reader_gen(cfg["transport_nersc_workwithmiddleman"])
+                    reader.Open(multi_channel_id=rank)
                 else:
                     #reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
                     reader = reader_gen(cfg["transport_nersc"])
@@ -310,7 +373,7 @@ if __name__ == "__main__":
             # Reading data (from KSTAR) and save in the queue (dq) as soon as possible.
             # Dispatcher (a helper thread) will asynchronously fetch data in the queue and distribute to other workers.
             cfg_update = False
-            logging.info(f"Start data reading loop")
+            logging.info(f"Start data reading loop: pid={os.getpid()}")
             t0 = time.time()
             isfirst = True
             n = 0
@@ -329,30 +392,16 @@ if __name__ == "__main__":
                     if not cfg_update:
                         cfg.update(reader.get_attrs("cfg"))
                         cfg_update = True
-
-                        # ## Act as a middleman
-                        # ## Middleman receives data from the generator and distribute to n processors
-                        # if args.middleman:
-                        #     nworkers = args.nworkers
-                        #     writer_list = list()
-                        #     for i in range(nworkers):
-                        #         shotnr = cfg["shotnr"]
-                        #         gen_id = 100000 * rank
-                        #         channels = expand_clist(cfg["channel_range"])
-                        #         batch_size = cfg['batch_size']
-                        #         data_array = np.zeros((len(channels), batch_size), dtype=np.float64)
-                        #         w = writer_init(shotnr, gen_id, i, data_array)
-                        #         writer_list.append(w)
                         
                     reader.EndStep()
                 else:
-                    logging.info(f"Receiver: end of stream, rank = {rank}")
+                    logging.info(f"Receiver: end of stream, rank={rank}")
                     break
 
                 # Recover channel data 
                 #TODO: Does the generator.py have to send data over like this?
                 # channel_data = channel_data.reshape((num_channels, channel_data.size // num_channels))
-                logging.info(f"Receiver: received data tstep={currentStep}, rank = {rank}")
+                logging.info(f"Receiver: received data tstep={currentStep}, rank={rank}")
 
                 # Save data in a queue then go back to work
                 # Dispatcher (a helper thread) will fetch asynchronously.
@@ -368,7 +417,7 @@ if __name__ == "__main__":
                         comb.append((i,i))
                     logging.info(f"Decomposition: created {len(comb)} subjobs")
                     for i,j in comb:
-                        logging.info(f"Decomposition: received data tstep={currentStep}, rank = {rank}, ({i},{j})")
+                        logging.info(f"Decomposition: received data tstep={currentStep}, rank={rank}, ({i},{j})")
                         np.r_[channel_data[i:8,:], channel_data[0:8,:]].shape
                         block1 = channel_data[i*blocksize:i*blocksize+blocksize,:]
                         block2 = channel_data[j*blocksize:j*blocksize+blocksize,:]
@@ -388,6 +437,18 @@ if __name__ == "__main__":
             dq.join()
             dq.put((None, None, -1, -1))
             dispatcher.join()
+            fs.put(None)
+            logging.info(f"All done.")
+
+            logging.info(f"Futures: len={fs.qsize()}")
+            for i in range(fs.qsize()):
+            #for future in iter(fs.get, None):
+                future = fs.get()
+                if future is not None:
+                    logging.info(f"future done? {future.result()}")
+                else:
+                    logging.info(f"no more")
+                    break
 
     ## All done
     t3 = time.time()

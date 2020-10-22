@@ -43,8 +43,13 @@ class reader_base():
         self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
 
 
-    def Open(self):
-        """Opens a new channel"""
+    def Open(self, multi_channel_id=None):
+        """Opens a new channel
+        multi_channel_id (None or int): add suffix for multi-channel
+        """
+        # We add a suffix for multi-channel
+        if multi_channel_id is not None:
+            self.channel_name = "%s_%02d"%(self.channel_name, multi_channel_id)
 
         self.logger.info(f"Waiting to receive channel name {self.channel_name}")
         if self.reader is None:
