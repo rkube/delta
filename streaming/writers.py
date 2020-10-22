@@ -25,9 +25,14 @@ class writer_base():
         self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
         self.writer = None
         # Adios2 variable that is defined in DefineVariable
-        self.variable = None
-        # The shape used to define self.variable
-        self.shape = None
+        # jyc: only one variable?
+        # self.variable = None
+        # # The shape used to define self.variable
+        # self.shape = None
+
+        # jyc: list of variables
+        self.vars = dict() ## dict for vars
+        self.attrs = dict() ## dict for attrs
 
         # Generate a descriptive channel name
         self.chrg = channel_range.from_str(cfg["channel_range"][self.rank])
@@ -45,13 +50,13 @@ class writer_base():
                              all subsequent steps
         """
 
-        self.shape = data_array.shape
-        self.variable =  self.IO.DefineVariable(data_name, data_array, 
-                                                data_array.shape, # shape
-                                                list(np.zeros_like(data_array.shape, dtype=int)),  # start 
-                                                data_array.shape, # count
-                                                adios2.ConstantDims)
-        return(self.variable)
+        v =  self.IO.DefineVariable(data_name, data_array,
+                                    data_array.shape, # shape
+                                    list(np.zeros_like(data_array.shape, dtype=int)),  # start 
+                                    data_array.shape, # count
+                                    adios2.ConstantDims)
+        self.vars[data_name] = v
+        return v
 
 
     def DefineAttributes(self, attrsname: str, attrs: dict):
@@ -64,11 +69,21 @@ class writer_base():
 
         """
         attrsstr = json.dumps(attrs)
-        self.attrs = self.IO.DefineAttribute(attrsname,attrsstr)
+        a = self.IO.DefineAttribute(attrsname,attrsstr)
+        self.attrs[attrsname] = a
+        return a
 
-    def Open(self):
+    def Open(self, multi_channel_id=None):
         """Opens a new channel. 
+
+        multi_channel_id (None or int): add suffix for multi-channel
         """
+
+        # We add a suffix for multi-channel
+        if multi_channel_id is not None:
+            self.channel_name = "%s_%02d"%(self.channel_name, multi_channel_id)
+
+        self.logger.info(f"Writing for channel name {self.channel_name}")
         if self.writer is None:
             self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
 
@@ -82,20 +97,19 @@ class writer_base():
         """wrapper for writer.EndStep()"""
         return self.writer.EndStep()
 
-    def put_data(self, data:np.ndarray):
+    def put_data(self, varname:str, data:np.ndarray):
         """Opens a new stream and send data through it
         Input:
         ======
         data: ndarray. Data to send.
         """
 
-        assert(data.shape == self.shape)
-
         if self.writer is not None:
-            self.logger.info(f"Putting data: name = {self.variable.Name()}, shape = {data.shape}")
+            self.logger.info(f"Putting data: name = {varname}, shape = {data.shape}")
             if not data.flags.contiguous:
                 data = np.array(data, copy=True)
-            self.writer.Put(self.variable, data, adios2.Mode.Sync)
+            var = self.IO.InquireVariable(varname)
+            self.writer.Put(var, data, adios2.Mode.Sync)
 
         return None
 

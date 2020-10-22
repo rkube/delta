@@ -43,8 +43,13 @@ class reader_base():
         self.logger.info(f"reader_base: channel_name =  {self.channel_name}")
 
 
-    def Open(self):
-        """Opens a new channel"""
+    def Open(self, multi_channel_id=None):
+        """Opens a new channel
+        multi_channel_id (None or int): add suffix for multi-channel
+        """
+        # We add a suffix for multi-channel
+        if multi_channel_id is not None:
+            self.channel_name = "%s_%02d"%(self.channel_name, multi_channel_id)
 
         self.logger.info(f"Waiting to receive channel name {self.channel_name}")
         if self.reader is None:
@@ -80,6 +85,20 @@ class reader_base():
         res = self.IO.InquireVariable(varname)
         return(res)
 
+    def get_data(self, varname: str):
+        """Attempt to load `varname` from the opened stream"""
+
+        var = self.IO.InquireVariable(varname)
+        if var.Type() == 'int64_t':
+            dtype = np.dtype('int64')
+        elif var.Type() == 'double':
+            dtype = np.dtype('double')
+        else:
+            dtype = np.dtype(var.Type())
+        io_array = np.zeros(var.Shape(), dtype=dtype)
+        self.reader.Get(var, io_array, adios2.Mode.Sync)
+
+        return(io_array)
 
     def get_attrs(self, attrsname: str):
         """Inquire json string `attrsname` from the opened stream"""

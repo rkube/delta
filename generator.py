@@ -80,7 +80,7 @@ for data in batch_gen:
     if(rank == 0):
         logger.info(f"Sending time_chunk {nstep} / {dl.num_chunks}")
     writer.BeginStep()
-    writer.put_data(data)
+    writer.put_data(ch_rg.to_str(), data)
     writer.EndStep()
     nstep += 1
     time.sleep(0.1)
