@@ -27,14 +27,26 @@ how to launch distributed anaylsis workflows.
 
 
 Guide
-^^^^^
+=====
 
 
 .. toctree::
    :maxdepth: 2
+   :caption: Running Delta
 
-   configuring
-   launching
+   notes/configuring
+   notes/launching
+
+
+Data models
+===========
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Package reference
+
+    modules/data_models
+
 
 
 

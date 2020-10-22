@@ -15,8 +15,7 @@ class data_model_generator():
     def __init__(self, cfg_diagnostic: dict):
         """Sets up data model generation.
 
-        Parameters:
-        ===========
+        Args:
         cfg_diagnostic: dict,
                         Diagnostic section of the config file
         """
@@ -32,10 +31,8 @@ class data_model_generator():
     def new_chunk(self, stream_data: np.array, chunk_idx: int):
         """Generates a data model from new chunk of streamed data.
 
-        Parameters
-        ----------
-        stream_data : np.array
-                      New data chunk read from reader_gen.
+        Args:
+            stream_data (np.array): New data chunk read from :class: reader_gen.
 
         """
 
@@ -137,26 +134,25 @@ class normalize_mean():
         self.sigstd = None
 
     def __call__(self, data):
-        """Normalizes data
+        """Normalizes data in-place
 
-        Parameters:
-        -----------
-        data......: array.
-                    dim0...-2: spatial data. dim -1: Time
+        Args:
+          data (twod_data):
+             Data that will be normalized to siglev and sigstd
         """
 
         # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
 
-        assert(self.offlev.shape[:-1] == data.shape[:-1])
-        assert(self.offstd.shape[:-1] == data.shape[:-1])
+        assert(self.offlev.shape[:-1] == data.shape[data.axis_t])
+        assert(self.offstd.shape[:-1] == data.shape[data.axis_t])
         assert(self.offlev.ndim == data.ndim)
         assert(self.offstd.ndim == data.ndim)
 
         data[:] = data - self.offlev
-        self.siglev = np.median(data, axis=-1, keepdims=True)
-        self.sigstd = data.std(axis=-1, keepdims=True)
+        self.siglev = np.median(data, axis=data.axis_t, keepdims=True)
+        self.sigstd = data.std(axis=data.axis_t, keepdims=True)
 
-        data[:] = data / data.mean(axis=-1, keepdims=True) - 1.0
+        data[:] = data / data.mean(axis=data.axis_t, keepdims=True) - 1.0
 
         return None
 

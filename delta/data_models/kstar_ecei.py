@@ -20,119 +20,12 @@ refer to one of the three components.
 
 
 import numpy as np
-import warnings
-import h5py
-import itertools
 import json
-import time
 
 
-from data_models.channels_2d import channel_2d, channel_range
+#from data_models.channels_2d import channel_2d, channel_range
+from .channels_2d import channel_2d, channel_range
 
-
-class timebase_streaming():
-    """Defines a timebase for a data chunk in the stream"""
-
-    def __init__(self, t_start: float, t_end: float, f_sample: float, samples_per_chunk: int, chunk_idx: int):
-        """
-        Defines a timebase for a data chunk in the stream
-
-        Parameters:
-        -----------
-        t_start............: float, Start time of the data stream, in seconds
-        t_end..............: float, End time of the data stream, in seconds
-        f_sample...........: float, Sampling frequency, in Hz
-        samples_per_chunk..: int, Number of samples per chunk
-        chunk_idx..........: int, Index of the chunk that this timebase is used used
-        """
-        assert(t_start < t_end)
-        assert(f_sample > 0)
-        assert(chunk_idx >= 0)
-        assert(chunk_idx < (t_end - t_start) * f_sample // samples_per_chunk)
-
-        self.t_start = t_start
-        self.t_end = t_end
-        self.f_sample = f_sample
-        self.dt = 1. / self.f_sample
-
-        # Total samples in the entire stream
-        self.total_num_samples = int((self.t_end - self.t_start) / self.dt)
-        self.chunk_idx = chunk_idx
-        # How many samples are in a chunk
-        self.samples_per_chunk = samples_per_chunk
-
-    def time_to_idx(self, time: float):
-        """Generates an index suitable to index the current data chunk for
-        the time
-
-        Parameters:
-        -----------
-        time.......: float, Absolute time we wish to get an index for
-        """
-        assert(time >= self.t_start)
-        assert(time <= self.t_end)
-
-        # Generate the index the time would have in the entire time-series
-        tidx_absolute = round((time - self.t_start) / self.dt)
-        if tidx_absolute // self.samples_per_chunk != self.chunk_idx:
-            return None
-        tidx_rel = tidx_absolute % self.samples_per_chunk
-
-        return tidx_rel
-
-
-    def gen_full_timebase(self):
-        """Generates an array of times associated with the samples in the current chunk"""
-
-        return np.arange(self.chunk_idx * self.samples_per_chunk,
-                         (self.chunk_idx + 1) * self.samples_per_chunk) * self.dt + self.t_start
-
-
-class timebase():
-    def __init__(self, t_start, t_end, f_sample):
-        """
-        Defines a time base for ECEI channel data
-        Parameters
-        ----------
-            t_trigger: float,
-            t_offset: float,
-            f_sample: float, sampling frequency of the ECEI data
-        """
-        # Assume that 0 <= t_start < t_end
-        assert(t_end >= 0.0)
-        assert(t_start < t_end)
-        assert(f_sample >= 0.0)
-        self.t_start = t_start
-        self.t_end = t_end
-        self.f_sample = f_sample
-        self.dt = 1. / self.f_sample
-
-        self.num_samples = int((self.t_end - self.t_start) / self.dt)
-
-
-    def time_to_idx(self, t0):
-        """
-        Given a timestamp, returns the index where the timebase is closest.
-
-        Parameters:
-        t0: float - Time stamps that we want to calculate the index for
-        """
-        # Ensure that the time we are looking for is inside the domain
-        assert(t0 >= self.t_start)
-        assert(t0 <= self.t_end)
-
-        fulltime = self.get_fulltime()
-        idx = np.argmin(np.abs(fulltime - t0))
-
-        return idx
-
-
-    def get_fulltime(self):
-        """
-        Returns an array with the full timebase
-
-        """
-        return np.arange(self.t_start, self.t_end, self.dt)
 
 
 def channel_range_from_str(range_str):
@@ -175,106 +68,6 @@ def channel_range_from_str(range_str):
         return channel_range(ch_i, ch_f)
 
 
-
-class ecei_view():
-    """Defines the view of an ECEI. This extends ecei_channel to the entire diagnostic
-
-    Parameters:
-    -----------
-    datafilename: string, filename to the HDF5 file
-    tb: timebase - Timebase object for the raw voltages
-    dev: device name
-    t_offset: tuple (t_n0, t_n1) - Tuple that defines the time interval where a signal reference value is calculated. If None,
-                                    raw values will be used.
-    t_crop: tuple (t_c0, t_c1) - Defines the time interval where the data is cropped to. If None, data will not
-                                    be cropped
-
-
-    """
-
-    def __init__(self, datafilename, tb, dev, t_offset=(-0.099, -0.089), t_crop=(1.0, 1.1), num_v=24, num_h=8):
-
-        # Number of vertical and horizontal channels
-        self.num_v = num_v
-        self.num_h = num_h
-        # Infer number of samples in the cropped interval
-        idx_offset = [tb.time_to_idx(t) for t in t_offset]
-        if idx_crop is not None:
-            idx_crop = [tb.time_to_idx(t) for t in t_crop]
-        self.num_samples = idx_crop[1] - idx_crop[0]
-
-        # Use float32 since data is generated from 16bit integers
-        self.ecei_data = np.zeros([self.num_v, self.num_h, self.num_samples], dtype=np.float32)
-        # Marks data the we ignore for plotting etc.
-        self.bad_data = np.zeros([self.num_v, self.num_h], dtype=bool)
-
-        # Offset level
-        self.offlev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-        # Offset standard deviation
-        self.offstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-        # Signal level
-        self.siglev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-        # Signal standard deviation
-        self.sigstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-
-        tic = time.perf_counter()
-        # Load data from HDF file
-        with h5py.File(datafilename, "r") as df:
-            print("Trigger time: ", df['ECEI'].attrs['TriggerTime'])
-            for ch_idx in range(192):
-                ch_v, ch_h = np.mod(ch_idx, 24), ch_idx // 24
-                ch_str = f"/ECEI/ECEI_{dev}{(ch_v + 1):02d}{(ch_h + 1):02d}/Voltage"
-
-                # Calculate the start-of-shot offset
-                self.offlev[ch_v, ch_h] = np.median(df[ch_str][idx_offset[0]:idx_offset[1]]) * 1e-4
-                self.offstd[ch_v, ch_h] = df[ch_str][idx_offset[0]:idx_offset[1]].std() * 1e-4
-
-                tmp = df[ch_str][idx_crop[0]:idx_crop[1]] * 1e-4  - self.offlev[ch_v, ch_h]
-
-                self.siglev[ch_v, ch_h] = np.median(tmp)
-                self.sigstd = tmp.std()
-                self.ecei_data[ch_v, ch_h, :] = tmp / tmp.mean() - 1.0
-
-        toc = time.perf_counter()
-
-        print(f"Loading data took {(toc - tic):4.2f}s")
-
-        self.tb = timebase(t_crop[0], t_crop[1], tb.f_sample)
-
-        self.mark_bad_channels(verbose=True)
-
-
-    def mark_bad_channels(self, verbose=False):
-        """Mark bad channels. These are channels with either
-        * Low signal level: std(offset) / siglev > 0.3
-        * Saturated signal data(bottom saturation): std(offset) < 0.001
-        * Saturated offset data(top saturation): std(signal) < 0.001
-        """
-
-        # Check for low signal level
-        ref = 100. * self.offstd / self.siglev
-        ref[self.siglev < 0.01] = 100
-
-        if verbose:
-            for item in np.argwhere(ref > 30.0):
-                print(f"LOW SIGNAL: channel({item[0] + 1:d},{item[1] + 1:d}): {ref[tuple(item)]*1e2:4.2f}")
-        self.bad_data[ref > 30.0] = True
-
-        # Mark bottom saturated channels
-        self.bad_data[self.offstd < 1e-3] = True
-        if verbose:
-            for item in np.argwhere(self.offstd < 1e-3):
-                os = self.offstd[tuple(item)]
-                ol = self.offlev[tuple(item)]
-                print(f"SAT offset data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
-
-        # Mark top saturated channels
-        self.bad_data[self.sigstd < 1e-3] = True
-        if verbose:
-            for item in np.argwhere(self.sigstd < 1e-3):
-                os = self.offstd[tuple(item)]
-                ol = self.offlev[tuple(item)]
-                print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
 
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data"""
@@ -360,11 +153,6 @@ class ecei_chunk_ft():
     def data(self):
         """Common interface to data"""
         return self.data_ft
-
-
-
-
-
 
 
 class ecei_channel_2d(channel_2d):
@@ -957,6 +745,109 @@ def channel_position(ch, ecei_cfg):
                 (4. * np.pi * np.pi * me * ((ch.ch_h - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
     zpos, apos = beam_path(ch, LensFocus, LensZoom, rpos)
     return (rpos, zpos, apos)
+
+
+
+
+# class ecei_view():
+#     """Defines the view of an ECEI. This extends ecei_channel to the entire diagnostic
+
+#     Parameters:
+#     -----------
+#     datafilename: string, filename to the HDF5 file
+#     tb: timebase - Timebase object for the raw voltages
+#     dev: device name
+#     t_offset: tuple (t_n0, t_n1) - Tuple that defines the time interval where a signal reference value is calculated. If None,
+#                                     raw values will be used.
+#     t_crop: tuple (t_c0, t_c1) - Defines the time interval where the data is cropped to. If None, data will not
+#                                     be cropped
+
+
+#     """
+
+#     def __init__(self, datafilename, tb, dev, t_offset=(-0.099, -0.089), t_crop=(1.0, 1.1), num_v=24, num_h=8):
+
+#         # Number of vertical and horizontal channels
+#         self.num_v = num_v
+#         self.num_h = num_h
+#         # Infer number of samples in the cropped interval
+#         idx_offset = [tb.time_to_idx(t) for t in t_offset]
+#         if idx_crop is not None:
+#             idx_crop = [tb.time_to_idx(t) for t in t_crop]
+#         self.num_samples = idx_crop[1] - idx_crop[0]
+
+#         # Use float32 since data is generated from 16bit integers
+#         self.ecei_data = np.zeros([self.num_v, self.num_h, self.num_samples], dtype=np.float32)
+#         # Marks data the we ignore for plotting etc.
+#         self.bad_data = np.zeros([self.num_v, self.num_h], dtype=bool)
+
+#         # Offset level
+#         self.offlev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+#         # Offset standard deviation
+#         self.offstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+#         # Signal level
+#         self.siglev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+#         # Signal standard deviation
+#         self.sigstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+
+#         tic = time.perf_counter()
+#         # Load data from HDF file
+#         with h5py.File(datafilename, "r") as df:
+#             print("Trigger time: ", df['ECEI'].attrs['TriggerTime'])
+#             for ch_idx in range(192):
+#                 ch_v, ch_h = np.mod(ch_idx, 24), ch_idx // 24
+#                 ch_str = f"/ECEI/ECEI_{dev}{(ch_v + 1):02d}{(ch_h + 1):02d}/Voltage"
+
+#                 # Calculate the start-of-shot offset
+#                 self.offlev[ch_v, ch_h] = np.median(df[ch_str][idx_offset[0]:idx_offset[1]]) * 1e-4
+#                 self.offstd[ch_v, ch_h] = df[ch_str][idx_offset[0]:idx_offset[1]].std() * 1e-4
+
+#                 tmp = df[ch_str][idx_crop[0]:idx_crop[1]] * 1e-4  - self.offlev[ch_v, ch_h]
+
+#                 self.siglev[ch_v, ch_h] = np.median(tmp)
+#                 self.sigstd = tmp.std()
+#                 self.ecei_data[ch_v, ch_h, :] = tmp / tmp.mean() - 1.0
+
+#         toc = time.perf_counter()
+
+#         print(f"Loading data took {(toc - tic):4.2f}s")
+
+#         self.tb = timebase(t_crop[0], t_crop[1], tb.f_sample)
+
+#         self.mark_bad_channels(verbose=True)
+
+
+#     def mark_bad_channels(self, verbose=False):
+#         """Mark bad channels. These are channels with either
+#         * Low signal level: std(offset) / siglev > 0.3
+#         * Saturated signal data(bottom saturation): std(offset) < 0.001
+#         * Saturated offset data(top saturation): std(signal) < 0.001
+#         """
+
+#         # Check for low signal level
+#         ref = 100. * self.offstd / self.siglev
+#         ref[self.siglev < 0.01] = 100
+
+#         if verbose:
+#             for item in np.argwhere(ref > 30.0):
+#                 print(f"LOW SIGNAL: channel({item[0] + 1:d},{item[1] + 1:d}): {ref[tuple(item)]*1e2:4.2f}")
+#         self.bad_data[ref > 30.0] = True
+
+#         # Mark bottom saturated channels
+#         self.bad_data[self.offstd < 1e-3] = True
+#         if verbose:
+#             for item in np.argwhere(self.offstd < 1e-3):
+#                 os = self.offstd[tuple(item)]
+#                 ol = self.offlev[tuple(item)]
+#                 print(f"SAT offset data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
+
+#         # Mark top saturated channels
+#         self.bad_data[self.sigstd < 1e-3] = True
+#         if verbose:
+#             for item in np.argwhere(self.sigstd < 1e-3):
+#                 os = self.offstd[tuple(item)]
+#                 ol = self.offlev[tuple(item)]
+#                 print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
 
 
 # End of file kstar_ecei.py
