@@ -1,10 +1,7 @@
 # DELTA-FUSION (aDaptive rEaL Time Analysis of big fusion data)
 
-This project implements a client-server model for analysis of streaming data from
-fusion experiments or large-scale simulations.
+This project facilitates near real-time streaming analysis of big fusion data on HPC resources.
 
-Implemented as part of "Adaptive near-real time net-worked analysis of big
-fusion data", (FY18).
 
 This project implements a streaming analysis workflow. Data is streamed by a generator, using the new
 ADIOS2 WAN capabilities, to a processing facility. At the processing facility, the received data packets
