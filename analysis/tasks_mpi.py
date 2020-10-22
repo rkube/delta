@@ -92,7 +92,7 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     tidx = info_dict['tidx']
     an_name = info_dict["analysis_name"]
     t1 = datetime.datetime.now()
-    # result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
+    result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
     dt_calc = t2 - t1
     # #
@@ -201,7 +201,13 @@ class task_spectral():
 
 
     def submit(self, executor, fft_data, tidx):
-        """Submits a kernel to the executor
+        """Launches a spectral analysis kernel on an executor.
+
+        Parameters:
+        -----------
+        executor..: PEP-3148-style executor
+        fft_data..: data-model (Fourier transformed)
+        tidx......: time-index
 
         Note: When submitting member functions on the executioner we are losing the
         ability to store future lists.
@@ -216,7 +222,7 @@ class task_spectral():
 
         # #res_list = [executor.submit(self.calc_and_store, fft_data, self.fft_params, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
         _ = [executor.submit(calc_and_store, self.kernel, self.storage_backend, fft_data, ch_it, info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(), info_dict_list)]
-        self.logger.info(f"tidx={tidx} submitted {self.analysis} as {self.num_chunks} tasks")
+        self.logger.info(f"tidx={tidx} submitted {self.analysis} as {self.num_chunks} tasks. fft_data: {type(fft_data)}")
 
 
         #for fut in fut_list:
@@ -305,7 +311,7 @@ class task_list():
         self.logger.info(f"task_list: Received type {type(data_chunk)} for tidx {tidx}")
 
         for task in self.task_list:
-            task.submit(self.executor_anl, data_chunk.data(), tidx)
+            task.submit(self.executor_anl, data_chunk, tidx)
         ##    #task.submit(self.executor, fft_data, tidx)
 
 # End of file tasks_mpi.py
