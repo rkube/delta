@@ -63,9 +63,9 @@ def calc(kernel, fft_data, ch_it, info_dict):
     # Use datetime to count performance so that we can later use isoformat
     # to write out the log
     t1 = datetime.datetime.now()
-    result = kernel(fft_data.data, ch_it, fft_data.fft_params)
+    #result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
-    dt = t2 - t1
+    #dt = t2 - t1
     with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
         df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + "\n")
         df.flush()
@@ -92,16 +92,16 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     tidx = info_dict['tidx']
     an_name = info_dict["analysis_name"]
     t1 = datetime.datetime.now()
-    result = kernel(fft_data.data, ch_it, fft_data.fft_params)
+    # result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
     dt_calc = t2 - t1
-    #
+    # #
     #t1 = datetime.datetime.now()
     # #storage_backend.store_data(result, info_dict)
     #t2 = datetime.datetime.now()
     dt_io = -1.0 #t2 - t1
 
-    with open(f"/home/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
+    with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
         df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " + t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + f" Storage: {dt_io} " + f" {gethostname()}\n")
         df.flush()
 

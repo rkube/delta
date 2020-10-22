@@ -23,9 +23,6 @@
   },
   "transport_nersc":
   {
-    "old_chunk_size": 10000,
-    "old_nstep": 500,
-    "old_channel_range": ["L0101-2408"],
     "datapath": "tmp_nersc",
     "engine": "BP4",
     "params":

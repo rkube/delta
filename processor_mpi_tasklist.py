@@ -165,7 +165,7 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 5:
+        if reader.CurrentStep() > 10:
             logger.info(f"End of the line. Exiting")
             break
 
