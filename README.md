@@ -1,3 +1,11 @@
+[docs-image]: https://readthedocs.org/projects/delta-fusion/badge/?version=latest
+[docs-url]: https://delta-fusion.readthedocs.io/en/latest/?badge=latest
+
+-------------------------------------------------------------------------------
+[![Documentation Status][docs-image]][docs-url]
+
+**[Documentation](https://delta-fusion.readthedocs.io/en/latest/index.html)
+
 # DELTA-FUSION (aDaptive rEaL Time Analysis of big fusion data)
 
 Delta facilitates near real-time streaming analysis of big fusion data on
