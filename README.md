@@ -1,24 +1,12 @@
 # DELTA-FUSION (aDaptive rEaL Time Analysis of big fusion data)
 
-This project facilitates near real-time streaming analysis of big fusion data on HPC resources.
-
-
-This project implements a streaming analysis workflow. Data is streamed by a generator, using the new
-ADIOS2 WAN capabilities, to a processing facility. At the processing facility, the received data packets
-are analyzed and stored by a backend. Optional visualization can be attached by coupling to the backend.
-
-This repository is a loose collection of 
-* generators
-* processors
-* backends
-
-The implemented analysis routines are based on [https://www.github.com:minjunJchoi/fluctana](https://www.github.com:minjunJchoi/fluctana) refactored in cython and adapted as computational kernels
-
-Generators, processors, and backends read their configuration from a shared json file. The different
-implementations don't have a common syntax yet.
+Delta facilitates near real-time streaming analysis of big fusion data on
+remote HPC resources. It consists of multiple executables that send,
+receive, and process data on different machines. The picture below gives an 
+overview of Delta.
 
 Here is a diagram of the framework:
-![Delta Architecture](https://github.com/rkube/delta/blob/master/doc/delta_architecture.png "Delta Architecture")
+![Delta Architecture](https://github.com/rkube/delta/blob/master/docs/source/delta_arch_v02.png "Delta Architecture")
 
 # Implemented Workflows
 
