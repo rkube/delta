@@ -26,8 +26,8 @@ This documentation describes the capabilities of `Delta`, how to configure it an
 how to launch distributed anaylsis workflows.
 
 
-Guide
-=====
+Running Delta
+=============
 
 
 .. toctree::
@@ -38,61 +38,18 @@ Guide
    notes/launching
 
 
-Data models
-===========
+Package reference
+=================
 
 .. toctree::
     :maxdepth: 1
     :caption: Package reference
 
     modules/data_models
-
-
-Sources
-=======
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Data Sources
-
     modules/sources
-
-Streaming
-=========
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Streaming
-
     modules/streaming
-
-
-Pre-processing
-==============
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Pre-processing
-    
     modules/preprocess
-
-Data analysis
-=============
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Data analysis
-
     modules/analysis
-
-
-Data storage
-============
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Data storage
-
     modules/storage
 
 
