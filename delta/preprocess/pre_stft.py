@@ -8,6 +8,13 @@ class pre_stft():
     """Implements short-time Fourier transformation"""
 
     def __init__(self, params):
+        """Instantiates the STFT class as a callable.
+
+        Args:
+            params (dictionary):
+                Provides keywords that are passed to `scipy.signal.stft <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.stft.html>`_
+
+        """
         self.params = params
         self.params["noverlap"] = int(self.params["overlap"] * self.params["nfft"])
 
@@ -15,14 +22,15 @@ class pre_stft():
     def process(self, data_chunk, executor):
         """Performs STFT preprocessing on an executor
 
-        Parameters:
-        -----------
-        data_chunk: twod_chunk, time-chunk of image data.
-        executor..: PEP-3148 executor
+        Args:
+            data_chunk (twod_chunk):
+                Time-chunk of image data.
+            executor (PEP-3148 executor):
+                Executor on which calls to submit will be launched
 
         Returns:
-        --------
-        data_chunk_ft: twod_chunk_f, fourier-transformed image-data chunk
+            data_chunk_ft (twod_chunk_f):
+                Fourier-transformed image-data chunk
         """
 
         fut = executor.submit(stft, data_chunk.data(), axis=data_chunk.axis_t,
@@ -48,17 +56,25 @@ class pre_stft():
 
     def build_fft_window(self, tnum, nfft, window, overlap):
         """Builds the window used in the STFTs. Taken from KSTAR/specs.py
-        Input:
-        ======
-        tnum: int, length of the input time series
-        nfft: int, data points used in FFT
-        window: string, defines the window to use. See corresponding numpy functions.
-        overlap: float, Overlap between ffts, relative to nfft.
+
+        Args:
+            tnum (int):
+                Number of samples in the input array
+            nfft (int):
+                Number of data points used in FFT
+            window (str):
+                Defines the window to use. See corresponding numpy functions.
+            overlap (float)
+                Overlap between ffts as a fraction of tnum. Between 0 and 1.
+
         Returns:
-        ========
-        bins: int, The number of individual data points performed on the input time series
-        win: ndarray, flot, The window function applied to input-segments of the FFT
+            bins (int):
+                The number of individual data points performed on the input time series
+            win (ndarray):
+                The window function applied to input-segments of the FFT
         """
+
+        assert((overlap > 0.0) & (overlap < 1.0))
 
         # use overlapping
         bins = int(np.fix((int(tnum/nfft) - overlap)/(1.0 - overlap)))

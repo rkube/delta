@@ -3,9 +3,7 @@
 #import itertools
 
 class channel_2d:
-    """Abstraction of a channel in 2d array
-
-    """
+    """Abstraction of a channel in 2d array"""
 
     def __init__(self, ch_v, ch_h, chnum_v, chnum_h, order):
         """Initializes channel_2d class
@@ -40,6 +38,7 @@ class channel_2d:
     def __str__(self):
         return f"({self.ch_v:03d}, {self.ch_h:03d})"
 
+
     def __eq__(self, other):
         """Define equality for two channels when both ch_h, and ch_v are equal to one another."""
         return (self.ch_v == other.ch_v) and (self.ch_h == other.ch_h)
@@ -47,7 +46,6 @@ class channel_2d:
 
     def get_num(self):
         return self.idx_fct(self.ch_v, self.ch_h)
-
 
     def get_idx(self):
         """Returns the linear, ZERO-BASED, index corresponding to ch_h and ch_v
@@ -61,8 +59,9 @@ class channel_2d:
 
 class channel_pair:
     """Custom defined channel pair.
-    This is just a tuple with an overloaded equality operator. It's also hashable
-    so one can use it in conjunction with sets
+
+    This is just a tuple with an overloaded equality operator. It's also hashable so one can 
+    use it in conjunction with sets.
 
     >>> ch1 = channel(13, 7, 24, 8, 'horizontal')
     >>> ch2 = channel(12, 7, 24, 8, 'horizontal')
@@ -76,11 +75,12 @@ class channel_pair:
 
     def __init__(self, ch1, ch2):
         """Initializes channel pair with 2 channels.
+
         Args:
-            ch1 (channel): 
-              First channel
-            ch2 (channel): 
-              Second channel
+            ch1 (:py:class:`channel_2d`):
+                First channel
+            ch2 (:py:class:`channel_2d`):
+                Second channel
 
         """
         self.ch1 = ch1
@@ -101,6 +101,7 @@ class channel_pair:
 
     def __iter__(self):
         yield from [self.ch1, self.ch2]
+
 
     def __hash__(self):
         """Implement hash so that we can use sets."""
@@ -123,14 +124,12 @@ class channel_pair:
         return cpair
 
 
-
-
 class channel_range:
     """Defines iterators over a 2d sub-array.
     
        This class defines an iterator over a rectangular selection in a 2d sub-array,
        as defined by vertical and horizontal initial and final position (vi, hi), and (vf, hf).
-       
+
        .. line-block::
              v
              ^
@@ -159,10 +158,9 @@ class channel_range:
     def __init__(self, ch_start, ch_end):
         """
 
-        Parameters:
-        -----------
-        ch_start, ch_end: channel_2d
-                          Start and end channel of the iteration
+        Args:
+            ch_start (:py:class:`channel_2d`): Initial channel for iteration
+            ch_end (:py:class:`channel_2d`): Stop channel for iteration
         """
 
         assert(ch_start.get_num() <= ch_end.get_num())
@@ -249,11 +247,9 @@ class num_to_vh():
         """Initializes with number of vertical and horizontal views.
 
         Args:
-        chnum_v (int): Number of vertical views in the diagnostic
-        chnum_h (int): Number of horizontal views in the diagnostic
-        order (string) : Either 'horizontal' or 'vertical'
-                          denotes whether horizontal or vertical channels are ordered
-                          consecutively
+            chnum_v (int): Number of vertical views in the diagnostic
+            chnum_h (int): Number of horizontal views in the diagnostic
+            order (string) : Either 'horizontal' or 'vertical' denotes whether horizontal or vertical channels are ordered consecutively.
         """
 
         self.chnum_v = chnum_v
@@ -264,10 +260,10 @@ class num_to_vh():
         """Converts 2d indices ch_v and ch_h to linear index.
         
         Args:
-        ch_num (int): Linear, one-based channel number
+            ch_num (int): Linear, one-based channel number
 
         Returns:
-        (ch_v, ch_h) (tuple): Vertical and horizontal channel view
+            (ch_v, ch_h) (tuple): Vertical and horizontal channel view
         """
         assert((ch_num >= 1) & (ch_num <= self.chnum_v * self.chnum_h))
         # Calculate using zero-base
@@ -278,7 +274,7 @@ class num_to_vh():
 
 
 class vh_to_num:
-    """Returns the linear channel number for a tuple (ch_v, ch_h).
+    """Returns the linear channel number for a tuple of channel indices.
 
     >>> obj = vh_to_num(24, 8, order='horizontal')
     >>> obj(2, 4)
@@ -290,13 +286,16 @@ class vh_to_num:
     """
 
     def __init__(self, chnum_v, chnum_h, order="horizontal"):
-        """
+        """Initializes the functor class.
+
         Args:
-            ch_v, ch_h: int
-                        vertical and horizontal chanel numbers
-            order      : string, either 'horizontal' or 'vertical'
-                         identifies the whether the horizontal or vertical
-                         channels are consecutively ordered
+            ch_v (int): 
+                vertical channel number
+            ch_h (int): 
+                horizontal channel number
+            order (str) : 
+                Either 'horizontal' or 'vertical'. Identifies the whether the horizontal
+                or vertical ordered consecutively.
 
         """
 
@@ -310,11 +309,13 @@ class vh_to_num:
         """Converts ch_v and ch_h to linear index.
         
         Args:
-        (ch_v, ch_h) (tuple): Vertical and horizontal channel view
+            (ch_v, ch_h) (tuple): 
+                Vertical and horizontal channel view
         
 
         Returns:
-        ch_num (int): Linear, one-based channel number
+            ch_num (int):
+                Linear, one-based channel number
         """
 
     # We usually want to check that we are within the bounds.

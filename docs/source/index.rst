@@ -48,6 +48,55 @@ Data models
     modules/data_models
 
 
+Sources
+=======
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Data Sources
+
+    modules/sources
+
+Streaming
+=========
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Streaming
+
+    modules/streaming
+
+
+Pre-processing
+==============
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Pre-processing
+    
+    modules/preprocess
+
+Data analysis
+=============
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Data analysis
+
+    modules/analysis
+
+
+Data storage
+============
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Data storage
+
+    modules/storage
+
+
+
 
 
 Indices and tables
