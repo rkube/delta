@@ -1,6 +1,6 @@
 # -*- Encoding: UTF-8 -*-
 
-#import itertools
+import json
 
 class channel_2d:
     """Abstraction of a channel in 2d array"""
@@ -111,17 +111,17 @@ class channel_pair:
         return hash((min(self.ch1.get_idx(), self.ch2.get_idx()),
                      max(self.ch1.get_idx(), self.ch2.get_idx())))
 
-    def to_json(self):
-        return('{"ch1": ' + self.ch1.to_json() + ', "ch2": ' + self.ch2.to_json() + '}')
+    # def to_json(self):
+    #     return('{"ch1": ' + self.ch1.to_json() + ', "ch2": ' + self.ch2.to_json() + '}')
 
 
-    @classmethod
-    def from_json(cls, str):
-        j = json.loads(str)
-        ch1 = channel.from_json(json.dumps(j["ch1"]))
-        ch2 = channel.from_json(json.dumps(j["ch2"]))
-        cpair = cls(ch1, ch2)
-        return cpair
+    # @classmethod
+    # def from_json(cls, str):
+    #     j = json.loads(str)
+    #     ch1 = channel.from_json(json.dumps(j["ch1"]))
+    #     ch2 = channel.from_json(json.dumps(j["ch2"]))
+    #     cpair = cls(ch1, ch2)
+    #     return cpair
 
 
 class channel_range:

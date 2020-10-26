@@ -14,6 +14,7 @@ import sys
 from os.path import join
 
 sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+import adios2
 
 scratch_dir = "/global/cscratch1/sd/rkube/"
 datadir = "KSTAR/kstar_streaming/018431"

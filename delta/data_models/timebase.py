@@ -1,5 +1,7 @@
 # -*- Encoding: UTF-8 -*-
 
+import numpy as np
+
 
 class timebase_streaming():
     """Defines a timebase for a data chunk in the stream"""

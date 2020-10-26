@@ -6,8 +6,9 @@
 import numpy as np
 from itertools import filterfalse
 
-import data_models.kstar_ecei
-from data_models.channels_2d import channel_2d, channel_range
+import kstar_ecei
+from .channels_2d import channel_2d, channel_range
+from .timebase import timebase_streaming
 
 
 class data_model_generator():
@@ -16,17 +17,23 @@ class data_model_generator():
         """Sets up data model generation.
 
         Args:
-        cfg_diagnostic: dict,
-                        Diagnostic section of the config file
+            cfg_diagnostic: dict,
+                Diagnostic section of the config file
+
+        Raises:
+            ValueError:
+                Field 'name' specified in cfg_diagnostic could not be matched to an existing data_model
+
+
         """
         self.cfg = cfg_diagnostic
 
         if self.cfg["name"] == "kstarecei":
-            self.data_type = data_models.kstar_ecei.ecei_chunk
+            self.data_type = kstar_ecei.ecei_chunk
         elif self["name"] == "nstxgpi":
             self.data_type = None
         else:
-            raise ValeuError(f"No data model for diagnotisc {cfg['diagnostic']['name']}")
+            raise ValueError(f"No data model for diagnostic {cfg_diagnostic['name']}")
 
     def new_chunk(self, stream_data: np.array, chunk_idx: int):
         """Generates a data model from new chunk of streamed data.
@@ -44,10 +51,9 @@ class data_model_generator():
             f_sample = 1e3 * self.cfg["parameters"]["SampleRate"]
             samples_per_chunk = self.cfg["datasource"]["chunk_size"]
 
-            tb = data_models.kstar_ecei.timebase_streaming(t_start, t_end, f_sample,
-                                               samples_per_chunk, chunk_idx)
+            tb = timebase_streaming(t_start, t_end, f_sample, samples_per_chunk, chunk_idx)
 
-            return data_models.kstar_ecei.ecei_chunk(stream_data, tb)
+            return kstar_ecei.ecei_chunk(stream_data, tb)
 
         elif self.cfg["name"] == "nstxgpi":
             raise NotImplementedError("NSTX chunk generation not implemented")

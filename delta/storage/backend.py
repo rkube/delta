@@ -6,7 +6,7 @@ Author: Ralph Kube
 Defines a basic interface to the backend-storage classes and helper routines
 """
 
-from analysis.channels import channel, channel_pair
+from ..data_models.channels_2d import channel_2d, channel_pair
 
 class backend():
     def __init__(self):
@@ -98,10 +98,10 @@ def deserialize_dispatch_seq(channel_ser):
     for pair_list in channel_ser:
         new_list = []
         for pair in pair_list:
-            ch1 = channel(pair["ch1"]["dev"], 
+            ch1 = channel_2d(pair["ch1"]["dev"], 
                           pair["ch1"]["ch_v"], 
                           pair["ch1"]["ch_h"])
-            ch2 = channel(pair["ch2"]["dev"], 
+            ch2 = channel_2d(pair["ch2"]["dev"], 
                           pair["ch2"]["ch_v"], 
                           pair["ch2"]["ch_h"])
             new_list.append(channel_pair(ch1, ch2))

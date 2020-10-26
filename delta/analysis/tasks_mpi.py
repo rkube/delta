@@ -10,12 +10,12 @@ import datetime
 import more_itertools
 
 #from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_crosscorr, kernel_bicoherence, kernel_skw
-from analysis.kernels_spectral import kernel_crosscorr
-from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
+from .kernels_spectral import kernel_crosscorr
+from .kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
 #from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
 
-from data_models.channels_2d import channel_pair
-from data_models.helpers import gen_channel_range, unique_everseen
+from ..data_models.channels_2d import channel_pair
+from ..data_models.helpers import gen_channel_range, unique_everseen
 
 #import storage
 
@@ -63,7 +63,7 @@ def calc(kernel, fft_data, ch_it, info_dict):
     # Use datetime to count performance so that we can later use isoformat
     # to write out the log
     t1 = datetime.datetime.now()
-    #result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
+    result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
     #dt = t2 - t1
     with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
@@ -140,12 +140,12 @@ class task_spectral():
             self.kernel = kernel_crosscorr
         elif self.analysis == "coherence":
             self.kernel = kernel_coherence_64_cy
-        elif self.analysis == "skw":
-            self.kernel = kernel_skw
-        elif self.analysis == "bicoherence":
-            self.kernel = kernel_bicoherence
-        elif self.analysis == "null":
-            self.kernel = kernel_null
+        #elif self.analysis == "skw":
+        #    self.kernel = kernel_skw
+        #elif self.analysis == "bicoherence":
+        #    self.kernel = kernel_bicoherence
+        #elif self.analysis == "null":
+        #    self.kernel = kernel_null
         else:
             raise NameError(f"Unknown analysis task {self.analysis}")
 

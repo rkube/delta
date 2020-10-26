@@ -1,12 +1,12 @@
 # Encoding: UTF-8 -*-
 
-import sys
-sys.path.append("/home/rkube/repos/delta")
+#import sys
+#sys.path.append("/home/rkube/repos/delta")
 import itertools
 import numpy as np
 
 
-from data_models.channels_2d import num_to_vh, vh_to_num, channel_2d, channel_pair, channel_range, unique_everseen
+from .context.data_models.channels_2d import num_to_vh, vh_to_num, channel_2d, channel_pair, channel_range, unique_everseen
 
 # Test the correct mapping from channel linear index 0..191 to VV and HH tuple
 
@@ -111,9 +111,9 @@ def test_answer():
         # Append this channel pair to the list. Take a 50/50 chance to switch the channels too.
         ch2, ch1 = chpair_list[chidx]
         if np.random.randint(0, 2) == True:
-            chpair_list.append(channels.channel_pair(ch2, ch1))
+            chpair_list.append(channels_2d.channel_pair(ch2, ch1))
         else:
-            chpair_list.append(channels.channel_pair(ch1, ch2))
+            chpair_list.append(channels_2d.channel_pair(ch1, ch2))
 
         assert(len(chpair_list) == num_unq_pairs + num_duplicates)
 
