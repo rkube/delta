@@ -276,11 +276,13 @@ def hello(counter):
     with _ID.get_lock():
         _ID.value += 1
     affinity = None
-    if hasattr(os, 'sched_getaffinity'):
-        ## We leave rank-0 core for the main process
-        affinity_mask = { _ID.value }
-        os.sched_setaffinity(0, affinity_mask)
-        affinity = os.sched_getaffinity(0)
+    ## Set affinity when using ProcessPoolExecutor
+    if args.pool == 'process':
+        if hasattr(os, 'sched_getaffinity'):
+            ## We leave rank-0 core for the main process
+            affinity_mask = { _ID.value }
+            os.sched_setaffinity(0, affinity_mask)
+            affinity = os.sched_getaffinity(0)
     logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_ID.value} affinity={affinity}")
     # time.sleep(random.randint(1, 5))
     return 0
