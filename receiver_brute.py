@@ -27,6 +27,7 @@ parser = argparse.ArgumentParser(description="Receive KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 parser.add_argument('--debug', help='Use input file to debug', action='store_true')
+parser.add_argument('--sim_analysis', help='Simulate analysis', action='store_true')
 parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
 parser.add_argument('--nmiddleman', type=int, help='Number of middlemen', default=1)
 parser.add_argument('--nworkers', type=int, help='Number of workers', default=1)
@@ -275,7 +276,13 @@ def hello(counter):
     _COUNTER = counter
     with _COUNTER.get_lock():
         _COUNTER.value += 1
-    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_COUNTER.value}")
+    affinity = None
+    if hasattr(os, 'sched_getaffinity'):
+        ## We leave rank-0 core for the main process
+        affinity_mask = { _COUNTER.value }
+        os.sched_setaffinity(0, affinity_mask)
+        affinity = os.sched_getaffinity(0)
+    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_COUNTER.value} affinity={affinity}")
     # time.sleep(random.randint(1, 5))
     return 0
 
