@@ -292,6 +292,8 @@ def hello_mpi():
     class _obj: pass
     _ID = _obj()
     _ID.value = rank
+    affinity = None
+    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_ID.value} affinity={affinity}")
 
 # Main
 if __name__ == "__main__":
