@@ -127,7 +127,7 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
 
     ## For DataMan, assign different port number
     if cfg["transport_nersc_middleman"]["engine"].lower() == "dataman":
-        cfg["transport_nersc_middleman"]["params"].update(Port = str(int(cfg["params"]["Port"]) + worker_id))
+        cfg["transport_nersc_middleman"]["params"].update(Port = str(int(cfg["transport_nersc_middleman"]["params"]["Port"]) + worker_id))
         logging.info(f'DataMan Por: {cfg["transport_nersc_middleman"]["params"]["Port"]}')
 
     writer = writer_gen(cfg["transport_nersc_middleman"])
@@ -389,7 +389,7 @@ if __name__ == "__main__":
                 if args.workwithmiddleman:
                     ## For DataMan, assign different port number
                     if cfg["transport_nersc_workwithmiddleman"]["engine"].lower() == "dataman":
-                        cfg["transport_nersc_workwithmiddleman"]["params"].update(Port = str(int(cfg["params"]["Port"]) + rank))
+                        cfg["transport_nersc_workwithmiddleman"]["params"].update(Port = str(int(cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]) + rank))
                         logging.info(f'DataMan Por: {cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]}')
 
                     reader = reader_gen(cfg["transport_nersc_workwithmiddleman"])
