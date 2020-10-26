@@ -287,6 +287,12 @@ def hello(counter):
     # time.sleep(random.randint(1, 5))
     return 0
 
+def hello_mpi():
+    global _ID
+    class _obj: pass
+    _ID = _obj()
+    _ID.value = rank
+
 # Main
 if __name__ == "__main__":
 
@@ -327,10 +333,12 @@ if __name__ == "__main__":
     if args.pool == 'mpicomm':
         logging.info(f"Using: MPICommExecutor")
         pool = MPICommExecutor(comm)
+        hello_mpi()
 
     if args.pool == 'mpipool':
         logging.info(f"Using: MPIPoolExecutor")
         pool = MPIPoolExecutor(comm)
+        hello_mpi()
 
     #with MPICommExecutor(comm) as executor:
     #with ProcessPoolExecutor(max_workers=args.nworkers, initializer=hello, initargs=(counter,)) as executor:
