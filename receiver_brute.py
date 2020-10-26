@@ -469,7 +469,7 @@ if __name__ == "__main__":
 
     ## All done
     t3 = time.time()
-    if (rank==0): 
+    if ((args.pool.starswith('mpi') and (rank==0)) or (args.pool == 'process') or (args.pool == 'thread'): 
         logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
         logging.info(f"")
         logging.info(f"Summary:")
