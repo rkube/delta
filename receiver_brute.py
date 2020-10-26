@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(description="Receive KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 parser.add_argument('--debug', help='Use input file to debug', action='store_true')
-parser.add_argument('--sim_analysis', help='Simulate analysis', action='store_true')
+parser.add_argument('--dryanalysis', help='dry-analysis', action='store_true')
 parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
 parser.add_argument('--nmiddleman', type=int, help='Number of middlemen', default=1)
 parser.add_argument('--nworkers', type=int, help='Number of workers', default=1)
@@ -154,6 +154,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     Perform analysis
     """ 
+    global _ID
     logging.info(f"\tWorker: perform_analysis start: tstep={tstep} rank={rank} pid={os.getpid()}")
     t0 = time.time()
     if(cfg["analysis"][0]["name"] == "all"):
@@ -171,7 +172,12 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
-        #time.sleep(random.randint(1, 3))
+        if args.dryanalysis:
+            time.sleep(random.randint(1, 3))
+            t2 = time.time()
+            logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={_ID.value} hostname={hostname} time elapsed: {t2-t0:.2f}")
+            return tstep
+
         for ic in range(Nchannels):
             #logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
             chstr = A.Dlist[0].clist[ic]
@@ -213,7 +219,6 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         t1 = time.time()
         #save_spec(results,tstep)
         t2 = time.time()
-        global _ID
         logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={_ID.value} hostname={hostname} time elapsed: {t2-t0:.2f}")
     return tstep
 
@@ -469,7 +474,7 @@ if __name__ == "__main__":
 
     ## All done
     t3 = time.time()
-    if ((args.pool.starswith('mpi') and (rank==0)) or (args.pool == 'process') or (args.pool == 'thread'): 
+    if (args.pool.startswith('mpi') and (rank==0)) or (args.pool == 'process') or (args.pool == 'thread'): 
         logging.info(f"Receiver: done, time elapsed: {t3-t1:.2f}")
         logging.info(f"")
         logging.info(f"Summary:")
