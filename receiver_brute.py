@@ -171,8 +171,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
-        time.sleep(random.randint(1, 3))
-        """
+        #time.sleep(random.randint(1, 3))
         for ic in range(Nchannels):
             #logging.info(f"\tWorker: do analysis: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
             chstr = A.Dlist[0].clist[ic]
@@ -211,11 +210,11 @@ def perform_analysis(channel_data, cfg, tstep, trange):
             # Store result in database
             # backend.store(my_analysis, analysis_result)
             #logging.info(f"\tWorker: loop done: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
-        """
         t1 = time.time()
         #save_spec(results,tstep)
         t2 = time.time()
-        logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} hostname={hostname} time elapsed: {t2-t0:.2f}")
+        global _ID
+        logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={_ID.value} hostname={hostname} time elapsed: {t2-t0:.2f}")
     return tstep
 
 # Function for a helper thead (dispatcher).
@@ -272,17 +271,17 @@ def foo(n):
     return n
 
 def hello(counter):
-    global _COUNTER
-    _COUNTER = counter
-    with _COUNTER.get_lock():
-        _COUNTER.value += 1
+    global _ID
+    _ID = counter
+    with _ID.get_lock():
+        _ID.value += 1
     affinity = None
     if hasattr(os, 'sched_getaffinity'):
         ## We leave rank-0 core for the main process
-        affinity_mask = { _COUNTER.value }
+        affinity_mask = { _ID.value }
         os.sched_setaffinity(0, affinity_mask)
         affinity = os.sched_getaffinity(0)
-    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_COUNTER.value} affinity={affinity}")
+    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_ID.value} affinity={affinity}")
     # time.sleep(random.randint(1, 5))
     return 0
 
