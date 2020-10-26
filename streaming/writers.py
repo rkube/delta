@@ -139,8 +139,5 @@ class writer_gen(writer_base):
         self.IO.SetEngine(cfg["engine"])
         self.IO.SetParameters(cfg["params"])
 
-        if cfg["engine"].lower() == "dataman":
-            cfg["params"].update(Port = str(int(cfg["params"]["Port"]) + self.rank))
-
 
 # End of file writers.pyf

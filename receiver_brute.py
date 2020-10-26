@@ -124,8 +124,13 @@ if args.debug:
 def writer_init(shotnr, gen_id, worker_id, data_arr):
     logging.info(f"\tMiddleman: opening a channel for writer #{worker_id}")
     #writer = writer_gen(shotnr, gen_id, cfg["middleman_engine"], cfg["middleman_params"])
-    writer = writer_gen(cfg["transport_nersc_middleman"])
 
+    ## For DataMan, assign different port number
+    if cfg["transport_nersc_middleman"]["engine"].lower() == "dataman":
+        cfg["transport_nersc_middleman"]["params"].update(Port = str(int(cfg["params"]["Port"]) + worker_id))
+        logging.info(f'DataMan Por: {cfg["transport_nersc_middleman"]["params"]["Port"]}')
+
+    writer = writer_gen(cfg["transport_nersc_middleman"])
     writer.DefineVariable("tstep",np.array(0))
     writer.DefineVariable("floats",data_arr)
     writer.DefineVariable("trange",np.array([0.0,0.0]))
@@ -382,6 +387,11 @@ if __name__ == "__main__":
             # General reader: engine type and params can be changed with the config file
             if not args.debug:
                 if args.workwithmiddleman:
+                    ## For DataMan, assign different port number
+                    if cfg["transport_nersc_workwithmiddleman"]["engine"].lower() == "dataman":
+                        cfg["transport_nersc_workwithmiddleman"]["params"].update(Port = str(int(cfg["params"]["Port"]) + rank))
+                        logging.info(f'DataMan Por: {cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]}')
+
                     reader = reader_gen(cfg["transport_nersc_workwithmiddleman"])
                     reader.Open(multi_channel_id=rank)
                 else:
