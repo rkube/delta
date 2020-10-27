@@ -23,11 +23,55 @@ from itertools import combinations
 import logging
 import random
 
+def check_clockdiff():
+    def _SKaMPI_pingpong(p1, p2, n_pingpongs=100) -> float:
+
+        td_min = -float("inf")
+        td_max = float("inf")
+
+        for i in range(n_pingpongs):
+            if (rank == p1):
+                s_last = time.time()
+                comm.send(s_last, dest=p2)
+                t_last = comm.recv(source=p2)
+                s_now = time.time()
+
+                td_min = max(td_min, t_last - s_now)
+                td_max = min(td_max, t_last - s_last)
+            elif (rank == p2):
+                s_last = comm.recv(source=p1)
+                t_last = time.time()
+                comm.send(t_last, dest=p1)
+                t_now = time.time()
+
+                td_min = max(td_min, s_last - t_now)
+                td_max = min(td_max, s_last - t_last)
+        
+        diff = (td_min + td_max)/2.0
+        #print (">> rank, td_min, td_max, diff= %d\t%.09f\t%.09f\t%.09f"%(rank, td_min, td_max, diff))
+
+        return diff
+
+    comm = MPI.COMM_WORLD
+    size = comm.Get_size()
+    rank = comm.Get_rank()
+
+    diff = [0.0,]*size
+
+    for i in range(1,size):
+        comm.barrier()
+        if rank == 0:
+            diff[i] = _SKaMPI_pingpong(i, 0)
+        elif rank == i:
+            diff[i] = _SKaMPI_pingpong(i, 0)
+    
+    return diff[rank]
+
 parser = argparse.ArgumentParser(description="Receive KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--nompi', help='Use with nompi', action='store_true')
 parser.add_argument('--debug', help='Use input file to debug', action='store_true')
-parser.add_argument('--dryanalysis', help='dry-analysis', action='store_true')
+parser.add_argument('--dry', help='dry-analysis', action='store_true')
 parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
 parser.add_argument('--nmiddleman', type=int, help='Number of middlemen', default=1)
 parser.add_argument('--nworkers', type=int, help='Number of workers', default=1)
@@ -65,11 +109,21 @@ else:
     size = 1
 hostname = socket.gethostname()
 
+## A simple hack to adjust time
+## arg is self. just pass arg2 to time.localtime
+time_drift = check_clockdiff()
+def myrelativetime(arg=None, arg2=None):
+    return time.localtime(arg2+time_drift)
+        
+logging.Formatter.converter = myrelativetime
+
 logging.basicConfig(
     level=logging.INFO,
     format="%%(asctime)s,%%(msecs)d %%(levelname)s (rank %d): %%(message)s"%(rank),
     datefmt="%H:%M:%S",
 )
+
+logging.info(f"Time drift: {time_drift}")
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
@@ -177,7 +231,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         results['stft'] = A.Dlist[0].spdata
 
         Nchannels = channel_data.shape[0] 
-        if args.dryanalysis:
+        if args.dry:
             time.sleep(random.randint(1, 3))
             t2 = time.time()
             logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={_ID.value} hostname={hostname} time elapsed: {t2-t0:.2f}")
