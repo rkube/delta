@@ -336,7 +336,7 @@ def foo(n):
 def hello(counter):
     with counter.get_lock():
         counter.value += 1
-        pidmap[os.getpid()] = (args.nworkers+1)*rank + counter.value
+        pidmap[os.getpid()] = counter.value
     affinity = None
     ## Set affinity when using ProcessPoolExecutor
     if args.pool == 'process':
