@@ -75,6 +75,7 @@ parser.add_argument('--dry', help='dry-analysis', action='store_true')
 parser.add_argument('--middleman', help='Run as a middleman', action='store_true')
 parser.add_argument('--nmiddleman', type=int, help='Number of middlemen', default=1)
 parser.add_argument('--nworkers', type=int, help='Number of workers', default=1)
+parser.add_argument('--ncorespernode', type=int, help='Number of cores per node', default=64)
 parser.add_argument('--workwithmiddleman', help='Process with middleman', action='store_true')
 parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1)
 parser.add_argument('--subjob', help='subjob', action='store_true')
@@ -336,13 +337,13 @@ def foo(n):
 def hello(counter):
     with counter.get_lock():
         counter.value += 1
-        pidmap[os.getpid()] = counter.value
+        pidmap[os.getpid()] = (args.nworkers+1)*rank + counter.value
     affinity = None
     ## Set affinity when using ProcessPoolExecutor
     if args.pool == 'process':
         if hasattr(os, 'sched_getaffinity'):
             ## We leave rank-0 core for the main process
-            affinity_mask = {pidmap[os.getpid()]}
+            affinity_mask = {pidmap[os.getpid()]%args.ncorespernode}
             os.sched_setaffinity(0, affinity_mask)
             affinity = os.sched_getaffinity(0)
     logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={pidmap[os.getpid()]} affinity={affinity}")
