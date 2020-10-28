@@ -86,6 +86,7 @@ group.add_argument('--threadpool', help='use ProcessPoolExecutor', action='store
 group.add_argument('--mpicomm', help='use MPICommExecutor', action='store_const', dest='pool', const='mpicomm')
 group.add_argument('--mpipool', help='use MPIPoolExecutor', action='store_const', dest='pool', const='mpipool')
 parser.set_defaults(pool='process')
+
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
 args = parser.parse_args(sys.argv[idx:])
@@ -108,6 +109,8 @@ else:
     rank = 0
     size = 1
 hostname = socket.gethostname()
+## dict for pid-workerid
+pidmap = {}
 
 ## A simple hack to adjust time
 ## arg is self. just pass arg2 to time.localtime
@@ -116,19 +119,16 @@ def myrelativetime(arg=None, arg2=None):
     return time.localtime(arg2+time_drift)
         
 logging.Formatter.converter = myrelativetime
-
 logging.basicConfig(
     level=logging.INFO,
     format="%%(asctime)s,%%(msecs)d %%(levelname)s (rank %d): %%(message)s"%(rank),
     datefmt="%H:%M:%S",
 )
-
 logging.info(f"Time drift: {time_drift}")
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
-
 
 #TODO: Remove for non-debug
 if args.debug:
@@ -213,7 +213,6 @@ def perform_analysis(channel_data, cfg, tstep, trange):
     """ 
     Perform analysis
     """ 
-    global _ID
     logging.info(f"\tWorker: perform_analysis start: tstep={tstep} rank={rank} pid={os.getpid()}")
     t0 = time.time()
     if(cfg["analysis"][0]["name"] == "all"):
@@ -234,7 +233,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         if args.dry:
             time.sleep(random.randint(1, 3))
             t2 = time.time()
-            logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={_ID.value} hostname={hostname} time elapsed: {t2-t0:.2f}")
+            logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={pidmap[os.getpid()]} hostname={hostname} time elapsed: {t2-t0:.2f}")
             return tstep
 
         for ic in range(Nchannels):
@@ -278,7 +277,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         t1 = time.time()
         #save_spec(results,tstep)
         t2 = time.time()
-        logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={_ID.value} hostname={hostname} time elapsed: {t2-t0:.2f}")
+        logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={pidmap[os.getpid()]} hostname={hostname} time elapsed: {t2-t0:.2f}")
     return tstep
 
 # Function for a helper thead (dispatcher).
@@ -335,28 +334,26 @@ def foo(n):
     return n
 
 def hello(counter):
-    global _ID
-    _ID = counter
-    with _ID.get_lock():
-        _ID.value += 1
+    with counter.get_lock():
+        counter.value += 1
+        pidmap[os.getpid()] = (args.nworkers+1)*rank + counter.value
     affinity = None
     ## Set affinity when using ProcessPoolExecutor
     if args.pool == 'process':
         if hasattr(os, 'sched_getaffinity'):
             ## We leave rank-0 core for the main process
-            affinity_mask = { _ID.value }
+            affinity_mask = {pidmap[os.getpid()]}
             os.sched_setaffinity(0, affinity_mask)
             affinity = os.sched_getaffinity(0)
-    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_ID.value} affinity={affinity}")
+    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={pidmap[os.getpid()]} affinity={affinity}")
     # time.sleep(random.randint(1, 5))
     return 0
 
 def hello_mpi(counter):
-    global _ID
-    _ID = counter
-    _ID.value = rank
+    counter.value = rank
+    pidmap[os.getpid()] = counter.value
     affinity = None
-    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={_ID.value} affinity={affinity}")
+    logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={pidmap[os.getpid()]} affinity={affinity}")
 
 # Main
 if __name__ == "__main__":
