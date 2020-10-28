@@ -182,8 +182,9 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
 
     ## For DataMan, assign different port number
     if cfg["transport_nersc_middleman"]["engine"].lower() == "dataman":
-        cfg["transport_nersc_middleman"]["params"].update(Port = str(int(cfg["transport_nersc_middleman"]["params"]["Port"]) + 10*worker_id))
-        logging.info(f'DataMan Por: {cfg["transport_nersc_middleman"]["params"]["Port"]}')
+        ## (2020/10) jyc: hardcode port num for now
+        cfg["transport_nersc_middleman"]["params"].update(Port = str(5001 + 10*worker_id))
+        logging.info(f'DataMan Port: {cfg["transport_nersc_middleman"]["params"]["Port"]}')
 
     writer = writer_gen(cfg["transport_nersc_middleman"])
     writer.DefineVariable("tstep",np.array(0))
@@ -299,9 +300,8 @@ def dispatch():
         ## Middleman receives data from the generator and distribute to n processors
         ## We need to open channel only after receiving at least one step
         if isfirst and args.middleman:
-            nmiddleman = args.nmiddleman
             writer_list = list()
-            for i in range(nmiddleman):
+            for i in range(args.nmiddleman):
                 shotnr = cfg["shotnr"]
                 gen_id = 100000 * rank
                 channels = expand_clist(cfg["channel_range"])
@@ -325,8 +325,7 @@ def dispatch():
 
     ## Once done, we close open files for writing
     if args.middleman:
-        nmiddleman = args.nmiddleman
-        for i in range(nmiddleman):
+        for i in range(args.nmiddleman):
             writer = writer_list[i]
             writer.writer.Close()
 
@@ -403,9 +402,6 @@ if __name__ == "__main__":
         pool = MPIPoolExecutor(comm)
         hello_mpi(counter)
 
-    #with MPICommExecutor(comm) as executor:
-    #with ProcessPoolExecutor(max_workers=args.nworkers, initializer=hello, initargs=(counter,)) as executor:
-    #with ThreadPoolExecutor(max_workers=4) as executor:
     with pool as executor:
         if executor is not None:
             # Only master will execute the following block
@@ -441,8 +437,9 @@ if __name__ == "__main__":
                 if args.workwithmiddleman:
                     ## For DataMan, assign different port number
                     if cfg["transport_nersc_workwithmiddleman"]["engine"].lower() == "dataman":
-                        cfg["transport_nersc_workwithmiddleman"]["params"].update(Port = str(int(cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]) + 10*rank))
-                        logging.info(f'DataMan Por: {cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]}')
+                        ## (2020/10) jyc: hardcode port num for now
+                        cfg["transport_nersc_workwithmiddleman"]["params"].update(Port = str(5001 + 10*rank))
+                        logging.info(f'DataMan Port: {cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]}')
 
                     reader = reader_gen(cfg["transport_nersc_workwithmiddleman"])
                     reader.Open(multi_channel_id=rank)
