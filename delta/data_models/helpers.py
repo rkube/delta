@@ -6,9 +6,9 @@
 import numpy as np
 from itertools import filterfalse
 
-import kstar_ecei
-from .channels_2d import channel_2d, channel_range
-from .timebase import timebase_streaming
+from data_models.kstar_ecei import ecei_chunk
+from data_models.channels_2d import channel_2d, channel_range
+from data_models.timebase import timebase_streaming
 
 
 class data_model_generator():
@@ -29,7 +29,7 @@ class data_model_generator():
         self.cfg = cfg_diagnostic
 
         if self.cfg["name"] == "kstarecei":
-            self.data_type = kstar_ecei.ecei_chunk
+            self.data_type = ecei_chunk
         elif self["name"] == "nstxgpi":
             self.data_type = None
         else:
@@ -53,7 +53,7 @@ class data_model_generator():
 
             tb = timebase_streaming(t_start, t_end, f_sample, samples_per_chunk, chunk_idx)
 
-            return kstar_ecei.ecei_chunk(stream_data, tb)
+            return ecei_chunk(stream_data, tb)
 
         elif self.cfg["name"] == "nstxgpi":
             raise NotImplementedError("NSTX chunk generation not implemented")

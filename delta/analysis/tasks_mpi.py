@@ -10,12 +10,12 @@ import datetime
 import more_itertools
 
 #from analysis.kernels_spectral import kernel_null, kernel_crosspower, kernel_crossphase, kernel_coherence, kernel_crosscorr, kernel_bicoherence, kernel_skw
-from .kernels_spectral import kernel_crosscorr
-from .kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
+from analysis.kernels_spectral import kernel_crosscorr
+from analysis.kernels_spectral_cy import kernel_coherence_64_cy, kernel_crosspower_64_cy, kernel_crossphase_64_cy
 #from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
 
-from ..data_models.channels_2d import channel_pair
-from ..data_models.helpers import gen_channel_range, unique_everseen
+from data_models.channels_2d import channel_pair
+from data_models.helpers import gen_channel_range, unique_everseen
 
 #import storage
 
