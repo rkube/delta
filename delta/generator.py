@@ -21,7 +21,9 @@ from data_models.helpers import gen_channel_name, gen_var_name
 
 
 """
-Distributes time-chunked ECEI data via ADIOS2.
+Author: R. Kube
+
+Reads diagnostic data and stages it chunk-wise for transport.
 """
 
 
@@ -31,7 +33,7 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
+parser = argparse.ArgumentParser(description="Reads diagnostic data and stages it chunk-wise for transport.")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/test_generator.json')
 args = parser.parse_args()
 
@@ -73,9 +75,6 @@ for nstep, chunk in enumerate(batch_gen):
     writer.put_data(chunk, {"tidx": nstep})
     writer.EndStep()
     time.sleep(0.1)
-    # 
-    # if nstep > 100:
-    #     break
 
 writer.writer.Close()
 logger.info(writer.transfer_stats())

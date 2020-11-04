@@ -6,8 +6,9 @@
 import numpy as np
 from itertools import filterfalse
 
-import data_models.kstar_ecei
-from data_models.channels_2d import channel_2d, channel_range
+import kstar_ecei
+from .channels_2d import channel_2d, channel_range
+from .timebase import timebase_streaming
 
 
 class data_model_generator():
@@ -15,27 +16,30 @@ class data_model_generator():
     def __init__(self, cfg_diagnostic: dict):
         """Sets up data model generation.
 
-        Parameters:
-        ===========
-        cfg_diagnostic: dict,
-                        Diagnostic section of the config file
+        Args:
+            cfg_diagnostic: dict,
+                Diagnostic section of the config file
+
+        Raises:
+            ValueError:
+                Field 'name' specified in cfg_diagnostic could not be matched to an existing data_model
+
+
         """
         self.cfg = cfg_diagnostic
 
         if self.cfg["name"] == "kstarecei":
-            self.data_type = data_models.kstar_ecei.ecei_chunk
+            self.data_type = kstar_ecei.ecei_chunk
         elif self["name"] == "nstxgpi":
             self.data_type = None
         else:
-            raise ValeuError(f"No data model for diagnotisc {cfg['diagnostic']['name']}")
+            raise ValueError(f"No data model for diagnostic {cfg_diagnostic['name']}")
 
     def new_chunk(self, stream_data: np.array, chunk_idx: int):
         """Generates a data model from new chunk of streamed data.
 
-        Parameters
-        ----------
-        stream_data : np.array
-                      New data chunk read from reader_gen.
+        Args:
+            stream_data (np.array): New data chunk read from :class: reader_gen.
 
         """
 
@@ -47,10 +51,9 @@ class data_model_generator():
             f_sample = 1e3 * self.cfg["parameters"]["SampleRate"]
             samples_per_chunk = self.cfg["datasource"]["chunk_size"]
 
-            tb = data_models.kstar_ecei.timebase_streaming(t_start, t_end, f_sample,
-                                               samples_per_chunk, chunk_idx)
+            tb = timebase_streaming(t_start, t_end, f_sample, samples_per_chunk, chunk_idx)
 
-            return data_models.kstar_ecei.ecei_chunk(stream_data, tb)
+            return kstar_ecei.ecei_chunk(stream_data, tb)
 
         elif self.cfg["name"] == "nstxgpi":
             raise NotImplementedError("NSTX chunk generation not implemented")
@@ -137,26 +140,25 @@ class normalize_mean():
         self.sigstd = None
 
     def __call__(self, data):
-        """Normalizes data
+        """Normalizes data in-place
 
-        Parameters:
-        -----------
-        data......: array.
-                    dim0...-2: spatial data. dim -1: Time
+        Args:
+          data (twod_data):
+             Data that will be normalized to siglev and sigstd
         """
 
         # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
 
-        assert(self.offlev.shape[:-1] == data.shape[:-1])
-        assert(self.offstd.shape[:-1] == data.shape[:-1])
+        assert(self.offlev.shape[:-1] == data.shape[data.axis_t])
+        assert(self.offstd.shape[:-1] == data.shape[data.axis_t])
         assert(self.offlev.ndim == data.ndim)
         assert(self.offstd.ndim == data.ndim)
 
         data[:] = data - self.offlev
-        self.siglev = np.median(data, axis=-1, keepdims=True)
-        self.sigstd = data.std(axis=-1, keepdims=True)
+        self.siglev = np.median(data, axis=data.axis_t, keepdims=True)
+        self.sigstd = data.std(axis=data.axis_t, keepdims=True)
 
-        data[:] = data / data.mean(axis=-1, keepdims=True) - 1.0
+        data[:] = data / data.mean(axis=data.axis_t, keepdims=True) - 1.0
 
         return None
 

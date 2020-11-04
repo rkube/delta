@@ -20,135 +20,28 @@ refer to one of the three components.
 
 
 import numpy as np
-import warnings
-import h5py
-import itertools
 import json
-import time
 
 
-from data_models.channels_2d import channel_2d, channel_range
+#from data_models.channels_2d import channel_2d, channel_range
+from .channels_2d import channel_2d, channel_range
 
-
-class timebase_streaming():
-    """Defines a timebase for a data chunk in the stream"""
-
-    def __init__(self, t_start: float, t_end: float, f_sample: float, samples_per_chunk: int, chunk_idx: int):
-        """
-        Defines a timebase for a data chunk in the stream
-
-        Parameters:
-        -----------
-        t_start............: float, Start time of the data stream, in seconds
-        t_end..............: float, End time of the data stream, in seconds
-        f_sample...........: float, Sampling frequency, in Hz
-        samples_per_chunk..: int, Number of samples per chunk
-        chunk_idx..........: int, Index of the chunk that this timebase is used used
-        """
-        assert(t_start < t_end)
-        assert(f_sample > 0)
-        assert(chunk_idx >= 0)
-        assert(chunk_idx < (t_end - t_start) * f_sample // samples_per_chunk)
-
-        self.t_start = t_start
-        self.t_end = t_end
-        self.f_sample = f_sample
-        self.dt = 1. / self.f_sample
-
-        # Total samples in the entire stream
-        self.total_num_samples = int((self.t_end - self.t_start) / self.dt)
-        self.chunk_idx = chunk_idx
-        # How many samples are in a chunk
-        self.samples_per_chunk = samples_per_chunk
-
-    def time_to_idx(self, time: float):
-        """Generates an index suitable to index the current data chunk for
-        the time
-
-        Parameters:
-        -----------
-        time.......: float, Absolute time we wish to get an index for
-        """
-        assert(time >= self.t_start)
-        assert(time <= self.t_end)
-
-        # Generate the index the time would have in the entire time-series
-        tidx_absolute = round((time - self.t_start) / self.dt)
-        if tidx_absolute // self.samples_per_chunk != self.chunk_idx:
-            return None
-        tidx_rel = tidx_absolute % self.samples_per_chunk
-
-        return tidx_rel
-
-
-    def gen_full_timebase(self):
-        """Generates an array of times associated with the samples in the current chunk"""
-
-        return np.arange(self.chunk_idx * self.samples_per_chunk,
-                         (self.chunk_idx + 1) * self.samples_per_chunk) * self.dt + self.t_start
-
-
-class timebase():
-    def __init__(self, t_start, t_end, f_sample):
-        """
-        Defines a time base for ECEI channel data
-        Parameters
-        ----------
-            t_trigger: float,
-            t_offset: float,
-            f_sample: float, sampling frequency of the ECEI data
-        """
-        # Assume that 0 <= t_start < t_end
-        assert(t_end >= 0.0)
-        assert(t_start < t_end)
-        assert(f_sample >= 0.0)
-        self.t_start = t_start
-        self.t_end = t_end
-        self.f_sample = f_sample
-        self.dt = 1. / self.f_sample
-
-        self.num_samples = int((self.t_end - self.t_start) / self.dt)
-
-
-    def time_to_idx(self, t0):
-        """
-        Given a timestamp, returns the index where the timebase is closest.
-
-        Parameters:
-        t0: float - Time stamps that we want to calculate the index for
-        """
-        # Ensure that the time we are looking for is inside the domain
-        assert(t0 >= self.t_start)
-        assert(t0 <= self.t_end)
-
-        fulltime = self.get_fulltime()
-        idx = np.argmin(np.abs(fulltime - t0))
-
-        return idx
-
-
-    def get_fulltime(self):
-        """
-        Returns an array with the full timebase
-
-        """
-        return np.arange(self.t_start, self.t_end, self.dt)
 
 
 def channel_range_from_str(range_str):
         """
         Generates a channel_range from a range, specified as
-        'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
 
-        Parameters:
-        -----------
-        range_str..: str,
-                     Specifices KSTAR ECEI channel range
+        ..code-block::
+            'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
+
+        Args:
+          range_str (str): 
+            Specifices KSTAR ECEI channel range
 
         Returns:
-        --------
-        channel_range: channel_range,
-                       Channel range corresponding to range_str
+            channel_range (channel_range): 
+                Channel range corresponding to range_str
         """
 
         import re
@@ -176,106 +69,6 @@ def channel_range_from_str(range_str):
 
 
 
-class ecei_view():
-    """Defines the view of an ECEI. This extends ecei_channel to the entire diagnostic
-
-    Parameters:
-    -----------
-    datafilename: string, filename to the HDF5 file
-    tb: timebase - Timebase object for the raw voltages
-    dev: device name
-    t_offset: tuple (t_n0, t_n1) - Tuple that defines the time interval where a signal reference value is calculated. If None,
-                                    raw values will be used.
-    t_crop: tuple (t_c0, t_c1) - Defines the time interval where the data is cropped to. If None, data will not
-                                    be cropped
-
-
-    """
-
-    def __init__(self, datafilename, tb, dev, t_offset=(-0.099, -0.089), t_crop=(1.0, 1.1), num_v=24, num_h=8):
-
-        # Number of vertical and horizontal channels
-        self.num_v = num_v
-        self.num_h = num_h
-        # Infer number of samples in the cropped interval
-        idx_offset = [tb.time_to_idx(t) for t in t_offset]
-        if idx_crop is not None:
-            idx_crop = [tb.time_to_idx(t) for t in t_crop]
-        self.num_samples = idx_crop[1] - idx_crop[0]
-
-        # Use float32 since data is generated from 16bit integers
-        self.ecei_data = np.zeros([self.num_v, self.num_h, self.num_samples], dtype=np.float32)
-        # Marks data the we ignore for plotting etc.
-        self.bad_data = np.zeros([self.num_v, self.num_h], dtype=bool)
-
-        # Offset level
-        self.offlev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-        # Offset standard deviation
-        self.offstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-        # Signal level
-        self.siglev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-        # Signal standard deviation
-        self.sigstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
-
-        tic = time.perf_counter()
-        # Load data from HDF file
-        with h5py.File(datafilename, "r") as df:
-            print("Trigger time: ", df['ECEI'].attrs['TriggerTime'])
-            for ch_idx in range(192):
-                ch_v, ch_h = np.mod(ch_idx, 24), ch_idx // 24
-                ch_str = f"/ECEI/ECEI_{dev}{(ch_v + 1):02d}{(ch_h + 1):02d}/Voltage"
-
-                # Calculate the start-of-shot offset
-                self.offlev[ch_v, ch_h] = np.median(df[ch_str][idx_offset[0]:idx_offset[1]]) * 1e-4
-                self.offstd[ch_v, ch_h] = df[ch_str][idx_offset[0]:idx_offset[1]].std() * 1e-4
-
-                tmp = df[ch_str][idx_crop[0]:idx_crop[1]] * 1e-4  - self.offlev[ch_v, ch_h]
-
-                self.siglev[ch_v, ch_h] = np.median(tmp)
-                self.sigstd = tmp.std()
-                self.ecei_data[ch_v, ch_h, :] = tmp / tmp.mean() - 1.0
-
-        toc = time.perf_counter()
-
-        print(f"Loading data took {(toc - tic):4.2f}s")
-
-        self.tb = timebase(t_crop[0], t_crop[1], tb.f_sample)
-
-        self.mark_bad_channels(verbose=True)
-
-
-    def mark_bad_channels(self, verbose=False):
-        """Mark bad channels. These are channels with either
-        * Low signal level: std(offset) / siglev > 0.3
-        * Saturated signal data(bottom saturation): std(offset) < 0.001
-        * Saturated offset data(top saturation): std(signal) < 0.001
-        """
-
-        # Check for low signal level
-        ref = 100. * self.offstd / self.siglev
-        ref[self.siglev < 0.01] = 100
-
-        if verbose:
-            for item in np.argwhere(ref > 30.0):
-                print(f"LOW SIGNAL: channel({item[0] + 1:d},{item[1] + 1:d}): {ref[tuple(item)]*1e2:4.2f}")
-        self.bad_data[ref > 30.0] = True
-
-        # Mark bottom saturated channels
-        self.bad_data[self.offstd < 1e-3] = True
-        if verbose:
-            for item in np.argwhere(self.offstd < 1e-3):
-                os = self.offstd[tuple(item)]
-                ol = self.offlev[tuple(item)]
-                print(f"SAT offset data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
-
-        # Mark top saturated channels
-        self.bad_data[self.sigstd < 1e-3] = True
-        if verbose:
-            for item in np.argwhere(self.sigstd < 1e-3):
-                os = self.offstd[tuple(item)]
-                ol = self.offlev[tuple(item)]
-                print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
-
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data"""
 
@@ -283,16 +76,15 @@ class ecei_chunk():
         """
         Creates an ecei_chunk from a give dataset
 
-        Parameters:
-        -----------
-        data......: ndarray, float:
-                    Raw data for the ECEI voltages
-        tb........: timebase_streaming
-                    timebase for ECEI voltages
-        num_v.....: int,
-                    Number of vertical and horizontal channels
-        num_h.....: int,
-                     Number of horizontal channels
+        Args:
+            data (ndarray, float): 
+                Raw data for the ECEI voltages
+            tb (timebase_streaming): 
+                timebase for ECEI voltages
+            num_v (int): 
+                Number of vertical channels. Defaults to 24.
+            num_h (int): 
+                Number of horizontal channels. Defaults to 8.
         """
 
         # Data should have more than 1 dimension, last dimension is time
@@ -331,22 +123,23 @@ class ecei_chunk_ft():
     def __init__(self, data_ft, tb, freqs, fft_params, axis_ch=0, axis_t=1, num_v=24, num_h=8):
         """Creates a fourier-transformed time-chunk of ECEI data
 
-        Parameters:
-        -----------
-        data_ft....: ndarray, float
-                     Fourier Coefficients
-        tb.........: timebase streaming:
-                     Timebase of the original data.
-        freqs......: ndarray, float
-                     Frequency vector
-        params.....: dictionary
-                     Parameters used to calculate the STFT
-        axis_ch....: axis which indices the channels
-        axis_t.....: axis which indices the fourier frequencies
-        num_v......: int
-                     Number of vertical channels
-        num_h......: int
-                     Number of horizontal channels
+        Args:
+            data_ft (ndarray, float): 
+                Fourier Coefficients
+            tb (timebase streaming): 
+                Timebase of the original data.
+            freqs (ndarray, float): 
+                Frequency vector
+            params (dictionary): 
+                Parameters used to calculate the STFT
+            axis_ch (int): 
+                axis which indices the channels
+            axis_t (int): 
+                axis which indices the fourier frequencies
+            num_v (int): 
+                Number of vertical channels
+            num_h (int): 
+                Number of horizontal channels
         """
         self.data_ft = data_ft
         self.tb = tb
@@ -362,11 +155,6 @@ class ecei_chunk_ft():
         return self.data_ft
 
 
-
-
-
-
-
 class ecei_channel_2d(channel_2d):
     """Represents an ECEI channel.
     The ECEI array has 24 horizontal channels and 8 vertical channels.
@@ -378,11 +166,13 @@ class ecei_channel_2d(channel_2d):
 
     def __init__(self, dev, ch_v, ch_h):
         """
-        Parameters
-        ----------
-        dev: string, must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
-        ch_h: int, Horizontal channel number, between 1 and 24
-        ch_v: int, Vertical channel number, between 1 and 8
+        Args: 
+            dev (string): 
+                must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
+            ch_h (int): 
+                Horizontal channel number, between 1 and 24
+            ch_v (int): 
+                Vertical channel number, between 1 and 8
         """
         #
         assert(dev in ['L', 'H', 'G', "GT", 'HT', 'GR', 'HR'])
@@ -393,10 +183,12 @@ class ecei_channel_2d(channel_2d):
     @classmethod
     def from_str(cls, ch_str):
         """Generates a channel object from a string, such as L2204 or GT1606.
-        Input:
-        ======
-        cls: The class object (this is never passed to the method, but akin to self)
-        ch_str: A channel string, such as L2205 of GT0808
+        
+        Args:
+            cls: 
+                The class object (this is never passed to the method, but akin to self)
+            ch_str (string): 
+                A channel string, such as L2205 of GT0808
         """
 
         import re
@@ -444,6 +236,225 @@ class ecei_channel_2d(channel_2d):
 
         channel1 = cls(j["dev"], int(j["ch_v"]), int(j["ch_h"]))
         return(channel1)
+
+
+
+def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
+    """
+
+    Args:
+        ch (channel): 
+            channel
+        LensZoom (float): 
+            LensZoom
+        LensFocus (float): 
+            LensFocus
+        Rinit (float): 
+            Radial position of the channel, in meter
+        new_H (bool): 
+            If true, use new values for H-dev, shot > 12957
+
+    Returns:
+        ABCD (ndarray, float): 
+            The ABCD matrix
+    """
+
+    # ABCD matrix
+    if channel.dev == 'L':
+        sp = 3350 - Rinit*1000  # [m] -> [mm]
+        abcd = np.array([[1,250+sp],[0,1]]).dot(
+               np.array([[1,0],[(1.52-1)/(-730),1.52]])).dot(
+               np.array([[1,135],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(2700*1.52),1/1.52]])).dot(
+               np.array([[1,1265-LensZoom],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/1100,1.52]])).dot(
+               np.array([[1,40],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(-1100*1.52),1/1.52]])).dot(
+               np.array([[1,LensZoom],[0,1]])).dot(
+               np.array([[1,0],[0,1.52]])).dot(
+               np.array([[1,65],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(800*1.52),1/1.52]])).dot(
+               np.array([[1,710-LensFocus+140],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(-1270),1.52]])).dot(
+               np.array([[1,90],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1270*1.52),1/1.52]])).dot(
+               np.array([[1,539+35+LensFocus],[0,1]]))
+
+    elif channel.dev == 'H':
+        sp = 3350 - Rinit*1000
+        abcd = np.array([[1,250+sp],[0,1]]).dot(
+               np.array([[1,0],[(1.52-1)/(-730),1.52]])).dot(
+               np.array([[1,135],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(2700*1.52),1/1.52]])).dot(
+               np.array([[1,1265-LensZoom],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/1100,1.52]])).dot(
+               np.array([[1,40],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(-1100*1.52),1/1.52]])).dot(
+               np.array([[1,LensZoom],[0,1]])).dot(
+               np.array([[1,0],[0,1.52]])).dot(
+               np.array([[1,65],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(800*1.52),1/1.52]]))
+
+        if new_H:
+            abcd = abcd.dot(
+               np.array([[1,520-LensFocus+590-9.2],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(-1100),1.52]])).dot(
+               np.array([[1,88.4],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1100*1.52),1/1.52]])).dot(
+               np.array([[1,446+35+LensFocus-9.2],[0,1]]))
+        else:
+            abcd = abcd.dot(
+               np.array([[1,520-LensFocus+590],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(-1400),1.52]])).dot(
+               np.array([[1,70],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1400*1.52),1/1.52]])).dot(
+               np.array([[1,446+35+LensFocus],[0,1]]))
+
+    elif channel.dev == 'G':
+        sp = 3150 - Rinit*1000
+        abcd = np.array([[1,1350-LensZoom+sp],[0,1]]).dot(
+               np.array([[1,0],[0,1.545]])).dot(
+               np.array([[1,100],[0,1]])).dot(
+               np.array([[1,0],[(1-1.545)/(900*1.545),1/1.545]])).dot(
+               np.array([[1,1430-LensFocus+660+LensZoom+470],[0,1]])).dot(
+               np.array([[1,0],[0,1.545]])).dot(
+               np.array([[1,70],[0,1]])).dot(
+               np.array([[1,0],[(1-1.545)/(800*1.545),1/1.545]])).dot(
+               np.array([[1,LensFocus-470],[0,1]])).dot(
+               np.array([[1,0],[0,1.545]])).dot(
+               np.array([[1,80],[0,1]])).dot(
+               np.array([[1,0],[(1-1.545)/(800*1.545),1/1.545]])).dot(
+               np.array([[1,390],[0,1]]))
+
+    elif channel.dev == 'GT':
+        sp = 2300 - Rinit*1000
+        abcd = np.array([[1,sp+(1954-LensZoom)],[0,1]]).dot(
+               np.array([[1,0],[(1.52-1)/(-1000),1.52]])).dot(
+               np.array([[1,160],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1000*1.52),1/1.52]])).dot(
+               np.array([[1,2280-(1954+160-LensZoom)],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/1000,1.52]])).dot(
+               np.array([[1,20],[0,1]])).dot(
+               np.array([[1,0],[0,1/1.52]])).dot(
+               np.array([[1,4288-(2280+20)-LensFocus],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(-1200),1.52]])).dot(
+               np.array([[1,140],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1200*1.52),1/1.52]])).dot(
+               np.array([[1,4520-(4288+140-LensFocus)],[0,1]])).dot(
+               np.array([[1,0],[0,1.52]])).dot(
+               np.array([[1,30],[0,1]])).dot(
+               np.array([[1,0],[0,1/1.52]])).dot(
+               np.array([[1,4940-(4520+30)],[0,1]]))
+
+    elif channel.dev == 'GR':
+        sp = 2300 - Rinit*1000
+        abcd = np.array([[1,sp+(1954-LensZoom)],[0,1]]).dot(
+               np.array([[1,0],[(1.52-1)/(-1000),1.52]])).dot(
+               np.array([[1,160],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1000*1.52),1/1.52]])).dot(
+               np.array([[1,2280-(1954+160-LensZoom)],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/1000,1.52]])).dot(
+               np.array([[1,20],[0,1]])).dot(
+               np.array([[1,0],[0,1/1.52]])).dot(
+               np.array([[1,4288-(2280+20)-LensFocus],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(-1200),1.52]])).dot(
+               np.array([[1,140],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1200*1.52),1/1.52]])).dot(
+               np.array([[1,4520-(4288+140-LensFocus)],[0,1]])).dot(
+               np.array([[1,0],[0,1.52]])).dot(
+               np.array([[1,30],[0,1]])).dot(
+               np.array([[1,0],[0,1/1.52]])).dot(
+               np.array([[1,4940-(4520+30)],[0,1]]))
+
+    elif channel.dev == 'HT':
+        sp = 2300 - Rinit*1000
+        abcd = np.array([[1,sp+2586],[0,1]]).dot(
+               np.array([[1,0],[0,1.52]])).dot(
+               np.array([[1,140],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(770*1.52),1/1.52]])).dot(
+               np.array([[1,4929-(2586+140)-LensZoom],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(1200),1.52]])).dot(
+               np.array([[1,20],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(-1200*1.52),1/1.52]])).dot(
+               np.array([[1,5919-(4929+20-LensZoom)-LensFocus],[0,1]])).dot(
+               np.array([[1,0],[(1.52-1)/(-1300),1.52]])).dot(
+               np.array([[1,130],[0,1]])).dot(
+               np.array([[1,0],[(1-1.52)/(1300*1.52),1/1.52]])).dot(
+               np.array([[1,6489-(5919+130-LensFocus)],[0,1]])).dot(
+               np.array([[1,0],[0,1.52]])).dot(
+               np.array([[1,25.62],[0,1]])).dot(
+               np.array([[1,0],[0,1/1.52]])).dot(
+               np.array([[1,7094.62-(6489+25.62)],[0,1]]))
+
+    return abcd
+
+
+def beam_path(ch, LensFocus, LensZoom, rpos):
+    """Calculates the ray vertical position and angle at rpos [m] ray starting from the array box position.
+
+    Args:
+        ch (channel): 
+            Channel for which to calculate the beam path
+        LensFocus (float): 
+            LensFocus factor
+        LensZoom (float): 
+            LensZoom factor.
+        rpos (float): 
+            Radial position of the channel view, in meters
+        ch_v (int): 
+            number of vertical channel
+    """
+
+    abcd = get_abcd(ch, LensFocus, LensZoom, rpos)
+
+    # vertical position from the reference axis (vertical center of all lens, z=0 line) at ECEI array box
+    zz = (np.arange(24, 0, -1) - 12.5) * 14  # [mm]
+    # angle against the reference axis at ECEI array box
+    aa = np.zeros(np.size(zz))
+
+    # vertical posistion and angle at rpos
+    za = np.dot(abcd, [zz, aa])
+    zpos = za[0][ch.ch_v - 1] * 1e-3  # zpos [m]
+    apos = za[1][ch.ch_v - 1]  # angle [rad] positive means the (z+) up-directed (divering from array to plasma)
+
+    return zpos, apos
+
+def channel_position(ch, ecei_cfg):
+    """Calculates the position of a channel in configuration space
+
+    Args:
+        ch (channel): 
+            The channel whos position we want to calculate
+        ecei_cfg (dict): 
+            Parameters of the ECEi diagnostic.
+    """
+
+    me = 9.1e-31             # electron mass, in kg
+    e = 1.602e-19            # charge, in C
+    mu0 = 4. * np.pi * 1e-7  # permeability
+    ttn = 56*16              # total TF coil turns
+
+    # Unpack ecei_cfg
+    TFcurrent = ecei_cfg["TFcurrent"] # Instead of multiplying by 1e3, we put this in the config file
+    LoFreq = ecei_cfg["LoFreq"]
+    LensFocus = ecei_cfg["LensFocus"]
+    LensZoom = ecei_cfg["LensZoom"]
+    # Set hn, depending on mode. If mode is undefined, set X-mode as default.
+    try:
+        if ecei_cfg["Mode"] == 'O':
+            hn = 1
+        elif ecei_cfg["Mode"] == 'X':
+            hn = 2
+
+    except KeyError as k:
+        print("ecei_cfg: key {0:s} not found. Defaulting to 2nd X-mode".format(k.__str__()))
+        ecei_cfg["Mode"] = 'X'
+        hn = 2
+
+    rpos = hn * e * mu0 * ttn * TFcurrent /\
+                (4. * np.pi * np.pi * me * ((ch.ch_h - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
+    zpos, apos = beam_path(ch, LensFocus, LensZoom, rpos)
+    return (rpos, zpos, apos)
 
 
 
@@ -747,216 +758,108 @@ class ecei_channel_2d(channel_2d):
 #         return('{"ch_start": ' + ch_start.to_json() + ', "ch_end": ' + ch_end.to_json() + '}')
 #
 
-def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
-    """
-
-    Parameters
-    ----------
-    ch: channel
-    LensZoom: float
-    LensFocus: float
-    Rinit: float
-           radial position of the channel, in meter
-    new_H: bool
-           If true, use new values for H-dev, shot > 12957
-
-    Returns
-    -------
-    ABCD: The ABCD matrix
-    """
-
-    # ABCD matrix
-    if channel.dev == 'L':
-        sp = 3350 - Rinit*1000  # [m] -> [mm]
-        abcd = np.array([[1,250+sp],[0,1]]).dot(
-               np.array([[1,0],[(1.52-1)/(-730),1.52]])).dot(
-               np.array([[1,135],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(2700*1.52),1/1.52]])).dot(
-               np.array([[1,1265-LensZoom],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/1100,1.52]])).dot(
-               np.array([[1,40],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(-1100*1.52),1/1.52]])).dot(
-               np.array([[1,LensZoom],[0,1]])).dot(
-               np.array([[1,0],[0,1.52]])).dot(
-               np.array([[1,65],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(800*1.52),1/1.52]])).dot(
-               np.array([[1,710-LensFocus+140],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(-1270),1.52]])).dot(
-               np.array([[1,90],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1270*1.52),1/1.52]])).dot(
-               np.array([[1,539+35+LensFocus],[0,1]]))
-
-    elif channel.dev == 'H':
-        sp = 3350 - Rinit*1000
-        abcd = np.array([[1,250+sp],[0,1]]).dot(
-               np.array([[1,0],[(1.52-1)/(-730),1.52]])).dot(
-               np.array([[1,135],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(2700*1.52),1/1.52]])).dot(
-               np.array([[1,1265-LensZoom],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/1100,1.52]])).dot(
-               np.array([[1,40],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(-1100*1.52),1/1.52]])).dot(
-               np.array([[1,LensZoom],[0,1]])).dot(
-               np.array([[1,0],[0,1.52]])).dot(
-               np.array([[1,65],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(800*1.52),1/1.52]]))
-
-        if new_H:
-            abcd = abcd.dot(
-               np.array([[1,520-LensFocus+590-9.2],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(-1100),1.52]])).dot(
-               np.array([[1,88.4],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1100*1.52),1/1.52]])).dot(
-               np.array([[1,446+35+LensFocus-9.2],[0,1]]))
-        else:
-            abcd = abcd.dot(
-               np.array([[1,520-LensFocus+590],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(-1400),1.52]])).dot(
-               np.array([[1,70],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1400*1.52),1/1.52]])).dot(
-               np.array([[1,446+35+LensFocus],[0,1]]))
-
-    elif channel.dev == 'G':
-        sp = 3150 - Rinit*1000
-        abcd = np.array([[1,1350-LensZoom+sp],[0,1]]).dot(
-               np.array([[1,0],[0,1.545]])).dot(
-               np.array([[1,100],[0,1]])).dot(
-               np.array([[1,0],[(1-1.545)/(900*1.545),1/1.545]])).dot(
-               np.array([[1,1430-LensFocus+660+LensZoom+470],[0,1]])).dot(
-               np.array([[1,0],[0,1.545]])).dot(
-               np.array([[1,70],[0,1]])).dot(
-               np.array([[1,0],[(1-1.545)/(800*1.545),1/1.545]])).dot(
-               np.array([[1,LensFocus-470],[0,1]])).dot(
-               np.array([[1,0],[0,1.545]])).dot(
-               np.array([[1,80],[0,1]])).dot(
-               np.array([[1,0],[(1-1.545)/(800*1.545),1/1.545]])).dot(
-               np.array([[1,390],[0,1]]))
-
-    elif channel.dev == 'GT':
-        sp = 2300 - Rinit*1000
-        abcd = np.array([[1,sp+(1954-LensZoom)],[0,1]]).dot(
-               np.array([[1,0],[(1.52-1)/(-1000),1.52]])).dot(
-               np.array([[1,160],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1000*1.52),1/1.52]])).dot(
-               np.array([[1,2280-(1954+160-LensZoom)],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/1000,1.52]])).dot(
-               np.array([[1,20],[0,1]])).dot(
-               np.array([[1,0],[0,1/1.52]])).dot(
-               np.array([[1,4288-(2280+20)-LensFocus],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(-1200),1.52]])).dot(
-               np.array([[1,140],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1200*1.52),1/1.52]])).dot(
-               np.array([[1,4520-(4288+140-LensFocus)],[0,1]])).dot(
-               np.array([[1,0],[0,1.52]])).dot(
-               np.array([[1,30],[0,1]])).dot(
-               np.array([[1,0],[0,1/1.52]])).dot(
-               np.array([[1,4940-(4520+30)],[0,1]]))
-
-    elif channel.dev == 'GR':
-        sp = 2300 - Rinit*1000
-        abcd = np.array([[1,sp+(1954-LensZoom)],[0,1]]).dot(
-               np.array([[1,0],[(1.52-1)/(-1000),1.52]])).dot(
-               np.array([[1,160],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1000*1.52),1/1.52]])).dot(
-               np.array([[1,2280-(1954+160-LensZoom)],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/1000,1.52]])).dot(
-               np.array([[1,20],[0,1]])).dot(
-               np.array([[1,0],[0,1/1.52]])).dot(
-               np.array([[1,4288-(2280+20)-LensFocus],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(-1200),1.52]])).dot(
-               np.array([[1,140],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1200*1.52),1/1.52]])).dot(
-               np.array([[1,4520-(4288+140-LensFocus)],[0,1]])).dot(
-               np.array([[1,0],[0,1.52]])).dot(
-               np.array([[1,30],[0,1]])).dot(
-               np.array([[1,0],[0,1/1.52]])).dot(
-               np.array([[1,4940-(4520+30)],[0,1]]))
-
-    elif channel.dev == 'HT':
-        sp = 2300 - Rinit*1000
-        abcd = np.array([[1,sp+2586],[0,1]]).dot(
-               np.array([[1,0],[0,1.52]])).dot(
-               np.array([[1,140],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(770*1.52),1/1.52]])).dot(
-               np.array([[1,4929-(2586+140)-LensZoom],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(1200),1.52]])).dot(
-               np.array([[1,20],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(-1200*1.52),1/1.52]])).dot(
-               np.array([[1,5919-(4929+20-LensZoom)-LensFocus],[0,1]])).dot(
-               np.array([[1,0],[(1.52-1)/(-1300),1.52]])).dot(
-               np.array([[1,130],[0,1]])).dot(
-               np.array([[1,0],[(1-1.52)/(1300*1.52),1/1.52]])).dot(
-               np.array([[1,6489-(5919+130-LensFocus)],[0,1]])).dot(
-               np.array([[1,0],[0,1.52]])).dot(
-               np.array([[1,25.62],[0,1]])).dot(
-               np.array([[1,0],[0,1/1.52]])).dot(
-               np.array([[1,7094.62-(6489+25.62)],[0,1]]))
-
-    return abcd
 
 
-def beam_path(ch, LensFocus, LensZoom, rpos):
-    """Calculates the ray vertical position and angle at rpos [m] ray starting
-    from the array box position.
 
-    Input:
-    ======
-    ch, channel.
-    LensFocus, float
-    LensZoom: float
-    rpos: float, radial position of the channel view, in meters
-    ch_v: int, number of vertical channel
-    """
+# class ecei_view():
+#     """Defines the view of an ECEI. This extends ecei_channel to the entire diagnostic
 
-    abcd = get_abcd(ch, LensFocus, LensZoom, rpos)
+#     Parameters:
+#     -----------
+#     datafilename: string, filename to the HDF5 file
+#     tb: timebase - Timebase object for the raw voltages
+#     dev: device name
+#     t_offset: tuple (t_n0, t_n1) - Tuple that defines the time interval where a signal reference value is calculated. If None,
+#                                     raw values will be used.
+#     t_crop: tuple (t_c0, t_c1) - Defines the time interval where the data is cropped to. If None, data will not
+#                                     be cropped
 
-    # vertical position from the reference axis (vertical center of all lens, z=0 line) at ECEI array box
-    zz = (np.arange(24, 0, -1) - 12.5) * 14  # [mm]
-    # angle against the reference axis at ECEI array box
-    aa = np.zeros(np.size(zz))
 
-    # vertical posistion and angle at rpos
-    za = np.dot(abcd, [zz, aa])
-    zpos = za[0][ch.ch_v - 1] * 1e-3  # zpos [m]
-    apos = za[1][ch.ch_v - 1]  # angle [rad] positive means the (z+) up-directed (divering from array to plasma)
+#     """
 
-    return zpos, apos
+#     def __init__(self, datafilename, tb, dev, t_offset=(-0.099, -0.089), t_crop=(1.0, 1.1), num_v=24, num_h=8):
 
-def channel_position(ch, ecei_cfg):
-    """Calculates the position of a channel in configuration space
+#         # Number of vertical and horizontal channels
+#         self.num_v = num_v
+#         self.num_h = num_h
+#         # Infer number of samples in the cropped interval
+#         idx_offset = [tb.time_to_idx(t) for t in t_offset]
+#         if idx_crop is not None:
+#             idx_crop = [tb.time_to_idx(t) for t in t_crop]
+#         self.num_samples = idx_crop[1] - idx_crop[0]
 
-    Input:
-    ======
-    ch, channel, The channel whos position we want to calculate
-    ecei_cfg, dict: Parameters of the ECEi diagnostic.
-    """
+#         # Use float32 since data is generated from 16bit integers
+#         self.ecei_data = np.zeros([self.num_v, self.num_h, self.num_samples], dtype=np.float32)
+#         # Marks data the we ignore for plotting etc.
+#         self.bad_data = np.zeros([self.num_v, self.num_h], dtype=bool)
 
-    me = 9.1e-31             # electron mass, in kg
-    e = 1.602e-19            # charge, in C
-    mu0 = 4. * np.pi * 1e-7  # permeability
-    ttn = 56*16              # total TF coil turns
+#         # Offset level
+#         self.offlev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+#         # Offset standard deviation
+#         self.offstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+#         # Signal level
+#         self.siglev = np.zeros([self.num_v, self.num_h], dtype=np.float32)
+#         # Signal standard deviation
+#         self.sigstd = np.zeros([self.num_v, self.num_h], dtype=np.float32)
 
-    # Unpack ecei_cfg
-    TFcurrent = ecei_cfg["TFcurrent"] # Instead of multiplying by 1e3, we put this in the config file
-    LoFreq = ecei_cfg["LoFreq"]
-    LensFocus = ecei_cfg["LensFocus"]
-    LensZoom = ecei_cfg["LensZoom"]
-    # Set hn, depending on mode. If mode is undefined, set X-mode as default.
-    try:
-        if ecei_cfg["Mode"] == 'O':
-            hn = 1
-        elif ecei_cfg["Mode"] == 'X':
-            hn = 2
+#         tic = time.perf_counter()
+#         # Load data from HDF file
+#         with h5py.File(datafilename, "r") as df:
+#             print("Trigger time: ", df['ECEI'].attrs['TriggerTime'])
+#             for ch_idx in range(192):
+#                 ch_v, ch_h = np.mod(ch_idx, 24), ch_idx // 24
+#                 ch_str = f"/ECEI/ECEI_{dev}{(ch_v + 1):02d}{(ch_h + 1):02d}/Voltage"
 
-    except KeyError as k:
-        print("ecei_cfg: key {0:s} not found. Defaulting to 2nd X-mode".format(k.__str__()))
-        ecei_cfg["Mode"] = 'X'
-        hn = 2
+#                 # Calculate the start-of-shot offset
+#                 self.offlev[ch_v, ch_h] = np.median(df[ch_str][idx_offset[0]:idx_offset[1]]) * 1e-4
+#                 self.offstd[ch_v, ch_h] = df[ch_str][idx_offset[0]:idx_offset[1]].std() * 1e-4
 
-    rpos = hn * e * mu0 * ttn * TFcurrent /\
-                (4. * np.pi * np.pi * me * ((ch.ch_h - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
-    zpos, apos = beam_path(ch, LensFocus, LensZoom, rpos)
-    return (rpos, zpos, apos)
+#                 tmp = df[ch_str][idx_crop[0]:idx_crop[1]] * 1e-4  - self.offlev[ch_v, ch_h]
+
+#                 self.siglev[ch_v, ch_h] = np.median(tmp)
+#                 self.sigstd = tmp.std()
+#                 self.ecei_data[ch_v, ch_h, :] = tmp / tmp.mean() - 1.0
+
+#         toc = time.perf_counter()
+
+#         print(f"Loading data took {(toc - tic):4.2f}s")
+
+#         self.tb = timebase(t_crop[0], t_crop[1], tb.f_sample)
+
+#         self.mark_bad_channels(verbose=True)
+
+
+#     def mark_bad_channels(self, verbose=False):
+#         """Mark bad channels. These are channels with either
+#         * Low signal level: std(offset) / siglev > 0.3
+#         * Saturated signal data(bottom saturation): std(offset) < 0.001
+#         * Saturated offset data(top saturation): std(signal) < 0.001
+#         """
+
+#         # Check for low signal level
+#         ref = 100. * self.offstd / self.siglev
+#         ref[self.siglev < 0.01] = 100
+
+#         if verbose:
+#             for item in np.argwhere(ref > 30.0):
+#                 print(f"LOW SIGNAL: channel({item[0] + 1:d},{item[1] + 1:d}): {ref[tuple(item)]*1e2:4.2f}")
+#         self.bad_data[ref > 30.0] = True
+
+#         # Mark bottom saturated channels
+#         self.bad_data[self.offstd < 1e-3] = True
+#         if verbose:
+#             for item in np.argwhere(self.offstd < 1e-3):
+#                 os = self.offstd[tuple(item)]
+#                 ol = self.offlev[tuple(item)]
+#                 print(f"SAT offset data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
+
+#         # Mark top saturated channels
+#         self.bad_data[self.sigstd < 1e-3] = True
+#         if verbose:
+#             for item in np.argwhere(self.sigstd < 1e-3):
+#                 os = self.offstd[tuple(item)]
+#                 ol = self.offlev[tuple(item)]
+#                 print(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d}) offstd = {os} offlevel = {ol}")
 
 
 # End of file kstar_ecei.py

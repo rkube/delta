@@ -5,7 +5,7 @@ import numpy as np
 import logging
 import json
 
-from .storage import backend, serialize_dispatch_seq
+from storage import backend, serialize_dispatch_seq
 
 
 class backend_numpy(backend):
