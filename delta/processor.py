@@ -8,8 +8,8 @@ srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/t
 
 """
 
-import sys
-sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
+# import sys
+# sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
 from mpi4py import MPI
 
 import logging
@@ -19,7 +19,8 @@ import queue
 import threading
 import time
 import string
-import json, yaml
+import json
+import yaml
 import argparse
 
 import numpy as np
@@ -40,9 +41,8 @@ def consume(Q, my_task_list, my_preprocessor):
     logger = logging.getLogger('simple')
     global cfg
 
-    comm  = MPI.COMM_WORLD
+    comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    size = comm.Get_size()
 
     logger.info("Starting consume")
 
@@ -53,9 +53,9 @@ def consume(Q, my_task_list, my_preprocessor):
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
         # If we get our special break message, we exit
-        #if msg.tstep_idx == None:
-        #    Q.task_done()
-        #    break
+        # if msg.tstep_idx == None:
+        #     Q.task_done()
+        #     break
 
         if(msg.tb.chunk_idx == 1):
             np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data())
@@ -73,13 +73,15 @@ def consume(Q, my_task_list, my_preprocessor):
 
 
 def main():
-    comm  = MPI.COMM_WORLD
+    comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    size = comm.Get_size()
+    # size = comm.Get_size()
 
     # Parse command line arguments and read configuration file
-    parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a mpi queue")
-    parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/config_null.json')
+    parser = argparse.ArgumentParser(description="Receive data and dispatch analysis" +
+                                     "tasks to a mpi queue")
+    parser.add_argument('--config', type=str, help='Lists the configuration file',
+                        default='configs/config_null.json')
     parser.add_argument('--benchmark', action="store_true")
     args = parser.parse_args()
 
@@ -97,9 +99,9 @@ def main():
     logger = logging.getLogger('simple')
 
     # Create a global executor
-    #executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
+    # executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     # PoolExecutor for pre-processing, on-node.
-    #executor_pre = MPIPoolExecutor(max_workers=4)
+    # executor_pre = MPIPoolExecutor(max_workers=4)
     executor_pre = ThreadPoolExecutor(max_workers=4)
     # PoolExecutor for data analysis. off-node
     executor_anl = MPIPoolExecutor(max_workers=24)
@@ -124,8 +126,6 @@ def main():
     # store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
     # logger.info(f"Stored one")
 
-
-    # Create ADIOS reader object
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
     my_preprocessor = preprocessor(executor_pre, cfg["preprocess"])
@@ -146,7 +146,7 @@ def main():
     # data stream. Put this right before entering the main loop
     logger.info(f"{rank} Waiting for generator")
     reader.Open()
-    logger.info(f"Starting main loop")
+    logger.info("Starting main loop")
 
     rx_list = []
     while True:
@@ -166,7 +166,7 @@ def main():
             break
 
         if reader.CurrentStep() > 10:
-            logger.info(f"End of the line. Exiting")
+            logger.info("End of the line. Exiting")
             break
 
     dq.join()
@@ -181,11 +181,12 @@ def main():
     # Shotdown the executioner
     executor_anl.shutdown(wait=True)
     executor_pre.shutdown(wait=True)
-    #executor.shutdown(wait=True)
+    # executor.shutdown(wait=True)
 
     toc_main = time.perf_counter()
     logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
     logger.info(f"Processed {len(rx_list)} time_chunks: {rx_list}")
+
 
 if __name__ == "__main__":
     main()

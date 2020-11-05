@@ -1,7 +1,8 @@
 # Encoding: UTF-8 -*-
 
 import logging
-from .storage import backend
+from storage import backend
+
 
 class backend_null(backend):
     """
@@ -15,7 +16,6 @@ class backend_null(backend):
         super().__init__()
         self.logger = logging.getLogger("simple")
 
-
     def store_one(self, item):
         pass
 
@@ -23,10 +23,10 @@ class backend_null(backend):
         self.logger.info("storage finished:", info_dict)
         return None
 
-
     def store_metadata(self, cfg, dispatch_seq):
         """Stores nothing"""
 
         self.logger.info("store_metadata finished")
-
         return None
+
+# End of file backend_null.py

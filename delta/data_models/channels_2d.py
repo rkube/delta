@@ -1,6 +1,5 @@
 # -*- Encoding: UTF-8 -*-
 
-import json
 
 class channel_2d:
     """Abstraction of a channel in 2d array"""
@@ -18,11 +17,11 @@ class channel_2d:
             chnum_h (int):
               Total count of vertical channels
             order (string):
-              Either 'horizontal' or 'vertical'. Denotes whether horizontal or 
+              Either 'horizontal' or 'vertical'. Denotes whether horizontal or
               vertical channels are arranged consecutively
         """
         # horizontal channels
-        assert((ch_v > 0) & (ch_v <= chnum_v ))
+        assert((ch_v > 0) & (ch_v <= chnum_v))
         # vertical channels
         assert((ch_h > 0) & (ch_h <= chnum_h))
         #
@@ -34,22 +33,19 @@ class channel_2d:
         self.idx_fct = vh_to_num(self.chnum_v, self.chnum_h, order)
         self.order = order
 
-
     def __str__(self):
         return f"({self.ch_v:03d}, {self.ch_h:03d})"
-
 
     def __eq__(self, other):
         """Define equality for two channels when both ch_h, and ch_v are equal to one another."""
         return (self.ch_v == other.ch_v) and (self.ch_h == other.ch_h)
-
 
     def get_num(self):
         return self.idx_fct(self.ch_v, self.ch_h)
 
     def get_idx(self):
         """Returns the linear, ZERO-BASED, index corresponding to ch_h and ch_v
-        
+
         Returns:
             index (int):
                Linear, zero-based index corresponding to ch_h and ch_v in the 2d array.
@@ -60,7 +56,7 @@ class channel_2d:
 class channel_pair:
     """Custom defined channel pair.
 
-    This is just a tuple with an overloaded equality operator. It's also hashable so one can 
+    This is just a tuple with an overloaded equality operator. It's also hashable so one can
     use it in conjunction with sets.
 
     >>> ch1 = channel(13, 7, 24, 8, 'horizontal')
@@ -86,11 +82,9 @@ class channel_pair:
         self.ch1 = ch1
         self.ch2 = ch2
 
-
     def __eq__(self, other):
-        return( ((self.ch1 == other.ch1) and (self.ch2 == other.ch2)) or
-            ((self.ch1 == other.ch2) and (self.ch2 == other.ch1)))
-
+        return(((self.ch1 == other.ch1) and (self.ch2 == other.ch2)) or
+               ((self.ch1 == other.ch2) and (self.ch2 == other.ch1)))
 
     def __str__(self):
         """Returns a standardized string"""
@@ -98,23 +92,17 @@ class channel_pair:
         ch_str = f"{self.__class__.__name__}: (ch1={self.ch1}, ch2={self.ch2})"
         return(ch_str)
 
-
     def __iter__(self):
         yield from [self.ch1, self.ch2]
 
-
     def __hash__(self):
         """Implement hash so that we can use sets."""
-        #print("({0:s} x {1:s}) hash={2:d}".format(self.ch1.__str__(), self.ch2.__str__(),\
-        #    hash((min(self.ch1.idx(), self.ch2.idx()), max(self.ch1.idx(), self.ch2.idx())))))
 
         return hash((min(self.ch1.get_idx(), self.ch2.get_idx()),
                      max(self.ch1.get_idx(), self.ch2.get_idx())))
 
     # def to_json(self):
     #     return('{"ch1": ' + self.ch1.to_json() + ', "ch2": ' + self.ch2.to_json() + '}')
-
-
     # @classmethod
     # def from_json(cls, str):
     #     j = json.loads(str)
@@ -126,7 +114,7 @@ class channel_pair:
 
 class channel_range:
     """Defines iterators over a 2d sub-array.
-    
+
        This class defines an iterator over a rectangular selection in a 2d sub-array,
        as defined by vertical and horizontal initial and final position (vi, hi), and (vf, hf).
 
@@ -142,17 +130,17 @@ class channel_range:
            1 | oooooo
               +--------> h
                123456
-       
+
      The rectangular selection above shows (vi,hi) = (2,3) and (vf, hf) = (5,5).
      Iteration over this selection with horizontal channels consecutively ordered
      gives the index series
-     
+
      .. line-block::
          (3,2), (4,2), (5,2),
          (3,3), (4,3), (5,3),
          (3,4), (4,4), (5,4),
          (4,5), (4,5), (5,5).
-     
+
     """
 
     def __init__(self, ch_start, ch_end):
@@ -179,14 +167,12 @@ class channel_range:
         self.ch_h = self.ch_hi
         self.ch_v = self.ch_vi
 
-
     def __iter__(self):
         """Returns an iterator over the selected range"""
         self.ch_v = self.ch_vi
         self.ch_h = self.ch_h
 
         return(self)
-
 
     def __next__(self):
         """Advances an iterator"""
@@ -219,19 +205,15 @@ class channel_range:
             else:
                 self.ch_h += 1
 
-
         return channel_2d(ch_v, ch_h, self.chnum_v, self.chnum_h, self.order)
-
 
     def length(self):
         """Returns the number of channels in the range.
-        
+
         Returns:
             int: Number of channels in the range
         """
         return(self.ch_end.get_num() - self.ch_start.get_num() + 1)
-
-
 
 
 class num_to_vh():
@@ -249,7 +231,8 @@ class num_to_vh():
         Args:
             chnum_v (int): Number of vertical views in the diagnostic
             chnum_h (int): Number of horizontal views in the diagnostic
-            order (string) : Either 'horizontal' or 'vertical' denotes whether horizontal or vertical channels are ordered consecutively.
+            order (string) : Either 'horizontal' or 'vertical' denotes whether horizontal
+                             or vertical channels are ordered consecutively.
         """
 
         self.chnum_v = chnum_v
@@ -258,7 +241,7 @@ class num_to_vh():
 
     def __call__(self, ch_num):
         """Converts 2d indices ch_v and ch_h to linear index.
-        
+
         Args:
             ch_num (int): Linear, one-based channel number
 
@@ -286,14 +269,14 @@ class vh_to_num:
     """
 
     def __init__(self, chnum_v, chnum_h, order="horizontal"):
-        """Initializes the functor class.
+        """ Initializes the functor class.
 
         Args:
-            ch_v (int): 
+            ch_v (int):
                 vertical channel number
-            ch_h (int): 
+            ch_h (int):
                 horizontal channel number
-            order (str) : 
+            order (str) :
                 Either 'horizontal' or 'vertical'. Identifies the whether the horizontal
                 or vertical ordered consecutively.
 
@@ -307,11 +290,10 @@ class vh_to_num:
 
     def __call__(self, ch_v, ch_h):
         """Converts ch_v and ch_h to linear index.
-        
+
         Args:
-            (ch_v, ch_h) (tuple): 
+            (ch_v, ch_h) (tuple):
                 Vertical and horizontal channel view
-        
 
         Returns:
             ch_num (int):
@@ -325,9 +307,5 @@ class vh_to_num:
         assert((ch_h > 0) & (ch_h < self.chnum_h + 1))
 
         return((ch_v - 1) * self.chnum_h + ch_h)
-
-
-
-
 
 # End of file channels_2d.py

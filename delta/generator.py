@@ -1,11 +1,10 @@
 # -*- coding: UTF-8 -*-
 
 from mpi4py import MPI
-import sys
+# import sys
 
-sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
-from os import path
-import numpy as np
+# sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
+# import numpy as np
 
 import json
 import yaml
@@ -13,7 +12,8 @@ import argparse
 
 import time
 
-import logging, logging.config
+import logging
+import logging.config
 
 from streaming.writers import writer_gen
 from sources.dataloader import get_loader
@@ -33,8 +33,11 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description="Reads diagnostic data and stages it chunk-wise for transport.")
-parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/test_generator.json')
+parser = argparse.ArgumentParser(description="Reads diagnostic data and stages" +
+                                 " it chunk-wise for transport.")
+parser.add_argument('--config', type=str,
+                    help='Lists the configuration file',
+                    default='configs/test_generator.json')
 args = parser.parse_args()
 
 # set up the configuration
@@ -47,7 +50,7 @@ with open('configs/logger.yaml', 'r') as f:
 logging.config.dictConfig(log_cfg)
 logger = logging.getLogger("generator")
 
-logger.info(f"Starting up...")
+logger.info("Starting up...")
 
 # Instantiate a dataloader
 dataloader = get_loader(cfg)

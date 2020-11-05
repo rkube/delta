@@ -3,6 +3,7 @@
 import numpy as np
 import cupy as cp
 
+
 def kernel_null(fft_data, ch_it, fft_config):
     """Does nothing. Used in performance testing to evaluate framework communication overhead"""
     return(None)
@@ -23,7 +24,6 @@ def kernel_crossphase_cu(fft_data, ch_it, fft_config):
     Axy: float, the cross phase
     """
 
-
     fft_data_cu = cp.asarray(fft_data)
     # Gather results on device, since
     Pxy = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
@@ -32,12 +32,12 @@ def kernel_crossphase_cu(fft_data, ch_it, fft_config):
     # results in Pxy which needs to by a cupy array. Copy to host once
     # loop is done
     for idx, ch_pair in enumerate(ch_it):
-        Pxy[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1)
+        Pxy[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] *
+                       fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1)
 
     Pxy = cp.asnumpy(Pxy)
 
     return(np.arctan2(Pxy.imag, Pxy.real).real)
-
 
 
 def kernel_crosspower_cu(fft_data, ch_it, fft_config):
@@ -58,8 +58,13 @@ def kernel_crosspower_cu(fft_data, ch_it, fft_config):
 
     res = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
-        res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["win_factor"]
-    #     res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) / fft_config["fft_params"]["win_factor"]
+        res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] *
+                       fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) /\
+            fft_config["win_factor"]
+
+        # res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] *
+        #                fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) /\
+        #     fft_config["fft_params"]["win_factor"]
 
     res = cp.asnumpy(res)
 
@@ -91,7 +96,7 @@ def kernel_coherence_cu(fft_data, ch_it, fft_config):
         Pyy = Y * Y.conj()
         Gxy_cu[idx, :] = ((X * Y.conj()) / cp.sqrt(Pxx * Pyy)).mean(axis=1)
 
-    #Gxy_cu = cp.abs(Gxy_cu)
+    # Gxy_cu = cp.abs(Gxy_cu)
     Gxy = cp.asnumpy(cp.abs(Gxy_cu).real)
 
     return(Gxy)
@@ -113,40 +118,30 @@ def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
     cross-correlation, float array
     """
 
-    import time
-    from cupyx.scipy import fft
+    # import time
+    from cupy.scipy import fft
 
     fft_shifted = np.fft.fftshift(fft_data, axes=1)
 
     fft_shifted_gpu = cp.asarray(fft_shifted)
     res = cp.zeros([len(ch_it), fft_data.shape[1]])
 
-    tic_list = []
-    toc_list = []
-
     # Pre-calculate one plan for all following FFTs:
     plan = fft.get_fft_plan(fft_shifted_gpu[0, :, :], axes=0)
     with plan:
         for idx, ch_pair in enumerate(ch_it):
-            #tic_list.append(time.perf_counter())
             # _tmp = cp.fft.ifft(fft_shifted_gpu[1, :, :] *
             #                    fft_shifted_gpu[3, :, :].conj(),
             #                    axis=0).mean(axis=1) / fft_params['win_factor']
 
             _tmp = cp.fft.ifft(fft_shifted_gpu[ch_pair.ch1.get_idx(), :, :] *
-                              fft_shifted_gpu[ch_pair.ch2.get_idx(), :, :].conj(),
-                              axis=0).mean(axis=1) / fft_params['win_factor']
-            #toc_list.append(time.perf_counter())
-        res[idx, :] = cp.fft.fftshift(_tmp.real)
-
-    #dts = [f"{toc - tic}" for toc, tic in zip(toc_list, tic_list)]
-    #with open("cupy_timings.txt", "a") as df:
-    #    df.write("\n".join(dts) + "\n")
+                               fft_shifted_gpu[ch_pair.ch2.get_idx(), :, :].conj(),
+                               axis=0).mean(axis=1) / fft_params['win_factor']
+            res[idx, :] = cp.fft.fftshift(_tmp.real)
 
     res = cp.asnumpy(res)
 
     return(res)
-
 
 
 # End of file kernels_spectral_cu.py

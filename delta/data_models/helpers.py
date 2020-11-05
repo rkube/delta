@@ -22,7 +22,8 @@ class data_model_generator():
 
         Raises:
             ValueError:
-                Field 'name' specified in cfg_diagnostic could not be matched to an existing data_model
+                Field 'name' specified in cfg_diagnostic could not be matched
+                to an existing data_model
 
 
         """
@@ -92,7 +93,6 @@ def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
 
     else:
         raise ValueError
-
 
 
 def gen_var_name(cfg: dict) -> str:

@@ -9,7 +9,7 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
+
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../delta'))
@@ -18,13 +18,11 @@ sys.setrecursionlimit(1500)
 
 # -- Project information -----------------------------------------------------
 
-<<<<<<< HEAD
 project = 'delta-fusion'
 copyright = '2020, R. Kube, R.M. Churchill, Y.J. Choi, J. Wang'
 author = 'R. Kube, R.M. Churchill, Y.J. Choi, J. Wang'
 
 # The full version, including alpha/beta/rc tags
->>>>>>> 93ff3d20a80fbcb126936977474a19ee1f0b54f7
 
 
 # -- General configuration ---------------------------------------------------

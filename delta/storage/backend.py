@@ -6,7 +6,8 @@ Author: Ralph Kube
 Defines a basic interface to the backend-storage classes and helper routines
 """
 
-from ..data_models.channels_2d import channel_2d, channel_pair
+from data_models.channels_2d import channel_2d, channel_pair
+
 
 class backend():
     def __init__(self):
@@ -14,6 +15,7 @@ class backend():
 
     def store(self):
         pass
+
 
 def serialize_dispatch_seq(dispatch_seq):
     """Serializes the iteration over the channels
@@ -28,20 +30,21 @@ def serialize_dispatch_seq(dispatch_seq):
                     ...
                     [pairM_1, pairM_2, ... pairM_N]
                   ]
-                  
+
     Returns
     -------
     j, the json string representation serialization of dispatch_seq
-        
+
     The end result will be a JSON nested array with the serialization of each channel pairs,
-    i.e. j_str = '[ [ pair1.to_json(), pair2.to_json() ...], [pair1.to_json(), pair1.to_json()...], ...]
-    
+    i.e. j_str = '[ [ pair1.to_json(), pair2.to_json() ...],
+                    [pair1.to_json(), pair1.to_json()...], ...]
+
     This has the advantage that we can store the entire iteration as one item in a json file
-    
-    To reconstruct the pairs, load 
+
+    To reconstruct the pairs, load
     >>> j = json.loads(j_str)
     This loads j as a nested list and the channel pairs are available as dictionaries
-    >>> type(j[0][0]) 
+    >>> type(j[0][0])
     dict
     Channel pairs are recovered as
     >>> pair = channels.channel_pair.from_json(json.dumps(j[0][0]))
@@ -65,20 +68,21 @@ def serialize_dispatch_seq(dispatch_seq):
     # We now have the list of channel pairs, f.ex.
     # chunk_list[0] = [channel_pair(L0101, L0101), channel_pair(L0102, L0101), ...()]
     # This data is serialized as a json array like this:
-    # json_str = "[channel_pair(L0101, L0101).to_json() + ", " + channel_pair(L0102, L0101).to_json(), ...)]"
+    # json_str = "[channel_pair(L0101, L0101).to_json() + ", " +\
+    #  channel_pair(L0102, L0101).to_json(), ...)]"
 
     j_lists = []
     for sub_list in chunk_lists:
-        j_lists.append("["  + ", ".join([c.to_json() for c in sub_list]) + "]")
+        j_lists.append("[" + ", ".join([c.to_json() for c in sub_list]) + "]")
     j_str = "[" + ", ".join(j_lists) + "]"
 
     return j_str
 
     # Put the channel serialization in the corresponding key
-    #j_str = '{"channel_serialization": ' + j_str + '}'
+    # j_str = '{"channel_serialization": ' + j_str + '}'
     #
     #
-    #j = json.loads(j_str)
+    # j = json.loads(j_str)
 
 
 def deserialize_dispatch_seq(channel_ser):
@@ -94,20 +98,19 @@ def deserialize_dispatch_seq(channel_ser):
     """
 
     dispatch_seq = []
-    
+
     for pair_list in channel_ser:
         new_list = []
         for pair in pair_list:
-            ch1 = channel_2d(pair["ch1"]["dev"], 
-                          pair["ch1"]["ch_v"], 
-                          pair["ch1"]["ch_h"])
-            ch2 = channel_2d(pair["ch2"]["dev"], 
-                          pair["ch2"]["ch_v"], 
-                          pair["ch2"]["ch_h"])
+            ch1 = channel_2d(pair["ch1"]["dev"],
+                             pair["ch1"]["ch_v"],
+                             pair["ch1"]["ch_h"])
+            ch2 = channel_2d(pair["ch2"]["dev"],
+                             pair["ch2"]["ch_v"],
+                             pair["ch2"]["ch_h"])
             new_list.append(channel_pair(ch1, ch2))
         dispatch_seq.append(new_list)
 
     return dispatch_seq
-
 
 # End of file backend.py

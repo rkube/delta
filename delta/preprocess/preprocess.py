@@ -10,8 +10,6 @@ class preprocessor():
 
     This class defines a pre-processing pipeline that is serially executed on the
     processor.
-
-   
     """
 
     def __init__(self, executor, cfg_preprocess):
@@ -48,7 +46,6 @@ class preprocessor():
 
         tic = time.perf_counter()
         for item in self.preprocess_list:
-            print("Preprocessing: ", item)
             data = item.process(data, self.executor)
 
         toc = time.perf_counter()

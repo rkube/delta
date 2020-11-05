@@ -1,5 +1,5 @@
 # File backends/__init__.py
-#-*- Encoding: UTF-8 -*-
+# -*- Encoding: UTF-8 -*-
 
 """
 Author: Ralph Kube
@@ -35,18 +35,15 @@ The task can then store its current data together with some meta-data like this:
 
     backend.store(self.description, res, metadata)
 
-The down-side of this approach is that it is 
+The down-side of this approach is that it is
 1) blocking
 2) terribly convoluted
 
 """
 
-
-from .backend import backend
+# from .backend import backend
 from .backend_numpy import backend_numpy
 from .backend_mongodb import backend_mongodb
 from .backend_null import backend_null
-
-
 
 # End of file backends/__init__.py

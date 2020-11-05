@@ -27,7 +27,6 @@ def get_preprocess_routine(key, params):
 
     """
 
-
     if key == "stft":
         return pre_stft(params)
     elif key == "wavelet":
@@ -38,8 +37,6 @@ def get_preprocess_routine(key, params):
         return pre_bandpass_iir(params)
     else:
         raise NameError(f"Requested invalid pre-processing routine: {key}")
-
-
 
 
 # End of file helpers.py

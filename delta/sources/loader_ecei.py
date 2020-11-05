@@ -1,11 +1,10 @@
-#-*- Coding: UTF-8 -*-
+# -*- Coding: UTF-8 -*-
 
 import h5py
-#from mpi4py import MPI
 import numpy as np
 
 from analysis.channels import channel_range
-from analysis.ecei_channel import timebase
+
 
 class loader_ecei():
     """Loads KSTAR ECEi data time-chunk wise for a specified channel range from an HDF5 file"""
@@ -43,31 +42,32 @@ class loader_ecei():
         # Get the sampling frequency, in units of Hz
         fs = self.ecei_cfg["SampleRate"] * 1e3
 
-        # The time base starts at t0. Assume samples are streaming in continuously with sampling frequency fs.
+        # The time base starts at t0. Assume samples are streaming in continuously with
+        # sampling frequency fs.
         # Offset of the first sample in current chunk
         offset = self.chunk_size * chunk_num
         t_sample = 1. / fs
-        # Use integers in arange to avoid round-off errors. We want exactly chunk_size elements in this array
+        # Use integers in arange to avoid round-off errors.
+        # We want exactly chunk_size elements in this array
         tb = np.arange(offset, offset + self.chunk_size, dtype=np.float64)
         # Scale timebase with t_sample and shift to tt0
-        tb = (tb * t_sample) + tt0        
+        tb = (tb * t_sample) + tt0
         return(tb)
-
 
     def batch_generator(self):
         """Loads the next time-chunk from the data file.
         This implementation works as a generator.
         In production use this as
-        
-        The ECEI data is usually normalized to a fixed offset, calculated using data 
+
+        The ECEI data is usually normalized to a fixed offset, calculated using data
         at the beginning of the stream.
 
-        The time interval where the data we normalize to is taken from is given in ECEI_config, t_norm.
-        As long as this data is not seen by the reader, raw data is returned.
-        
+        The time interval where the data we normalize to is taken from is given in ECEI_config,
+        t_norm. As long as this data is not seen by the reader, raw data is returned.
+
         Once the data we normalize to is seen, the normalization values are calculated.
         After that, the data from the current and all subsequent chunks is normalized.
-    
+
         The flag self.is_data_normalized is set to false if raw data is returned.
         It is set to true if normalized data is returned.
 
@@ -86,10 +86,11 @@ class loader_ecei():
             time_chunk = np.zeros([self.ch_range.length(), self.chunk_size], dtype=np.float64)
             with h5py.File(self.filename, "r",) as df:
                 for ch in self.ch_range:
-                    chname_h5 = f"/ECEI/ECEI_{ch}/Voltage" 
-                    #print(df[chname_h5])
-                    time_chunk[ch.idx(), :] = df[chname_h5][current_chunk * self.chunk_size:
-                                                           (current_chunk + 1) * self.chunk_size].astype(np.float64)
+                    chname_h5 = f"/ECEI/ECEI_{ch}/Voltage"
+                    time_chunk[ch.idx(), :] =\
+                        df[chname_h5][current_chunk * self.chunk_size:
+                                      (current_chunk + 1) *
+                                      self.chunk_size].astype(np.float64)
 
             # Scale, see get_data in kstarecei.py
             time_chunk = time_chunk * 1e-4
@@ -97,8 +98,9 @@ class loader_ecei():
             # See if we can calculate the normalization.
             if self.got_normalization:
                 # This corresponds to norm == 1 in kstarecei.py
-                time_chunk = (time_chunk - self.offset_lvl) / time_chunk.mean(axis=1, keepdims=True) - 1.0
-            elif self.got_normalization == False:
+                time_chunk = (time_chunk - self.offset_lvl) /\
+                    time_chunk.mean(axis=1, keepdims=True) - 1.0
+            elif not self.got_normalization:
                 tb = self.gen_timebase(current_chunk)
                 tnorm_idx = (tb > self.tnorm[0]) & (tb < self.tnorm[1])
 
@@ -110,4 +112,4 @@ class loader_ecei():
             yield time_chunk
 
 
-# End of file 
+# End of file

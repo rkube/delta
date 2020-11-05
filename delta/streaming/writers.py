@@ -14,6 +14,7 @@ import adios2
 from streaming.stream_stats import stream_stats
 from streaming.adios_helpers import gen_io_name
 
+
 class writer_base():
     def __init__(self, cfg: dict, stream_name: str):
         comm = MPI.COMM_WORLD
@@ -147,3 +148,4 @@ class writer_gen(writer_base):
 
 
 # End of file writers.py
+

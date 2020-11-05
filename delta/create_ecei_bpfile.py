@@ -32,9 +32,10 @@ chlist_g = []
 chlist_h = []
 chlist_l = []
 
+num_timesteps = -1
 
 # First we gather all the different channel names
-for h5_fname, chlist in zip([h5fname_g, h5fname_h, h5fname_l], 
+for h5_fname, chlist in zip([h5fname_g, h5fname_h, h5fname_l],
                             [chlist_g, chlist_h, chlist_l]):
     with h5py.File(h5_fname) as h5file:
         for i in h5file["/ECEI"].items():
@@ -43,7 +44,7 @@ for h5_fname, chlist in zip([h5fname_g, h5fname_h, h5fname_l],
                 num_data = h5file["/ECEI/{0:s}/Voltage".format(chlist[-1])].shape[0]
                 num_timesteps = num_data // num_per_chunk
 
-                print("num_data = {0:d}, num_timestpes = {1:d}".format(num_data, num_timesteps))
+                print(f"num_data = {num_data:d}, num_timestpes = {num_timesteps:d}")
         h5file.close()
 
 # Continue by creating an adios2 file
@@ -68,7 +69,8 @@ dummy_count = [num_per_chunk]
 for chlist, bp_var_list in zip([chlist_g, chlist_h, chlist_l],
                                [bp_var_list_g, bp_var_list_h, bp_var_list_l]):
     for ch_name in chlist:
-        var = bpIO.DefineVariable(ch_name, dummy_arr, dummy_shape, dummy_start, dummy_count, adios2.ConstantDims)
+        var = bpIO.DefineVariable(ch_name, dummy_arr, dummy_shape, dummy_start,
+                                  dummy_count, adios2.ConstantDims)
         bp_var_list.append(var)
 
 for tstep in range(num_timesteps):
@@ -77,16 +79,15 @@ for tstep in range(num_timesteps):
     print("Time step {0:d}: {1:d} - {2:d}".format(tstep, t0, t1))
     bpWriter.BeginStep()
 
-    for bp_var_list, h5_fname, ch_list in zip([bp_var_list_g, bp_var_list_h, bp_var_list_l], 
+    for bp_var_list, h5_fname, ch_list in zip([bp_var_list_g, bp_var_list_h, bp_var_list_l],
                                               [h5fname_g, h5fname_h, h5fname_l],
-                                              [chlist_g, chlist_h, chlist_l]): 
+                                              [chlist_g, chlist_h, chlist_l]):
 
         with h5py.File(h5_fname) as h5file:
             for ch, bp_var in zip(ch_list, bp_var_list):
                 h5data = h5file["/ECEI/{0:s}/Voltage".format(ch)][t0:t1]
                 bpWriter.Put(bp_var, h5data.astype(np.float32), adios2.Mode.Sync)
-                              
+
     bpWriter.EndStep()
 
 bpWriter.Close()
-

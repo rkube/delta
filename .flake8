@@ -1,0 +1,16 @@
+# .flake8
+[flake8]
+select = C,E,F,W
+max-complexity = 10
+max-line-length = 100
+ignore = W504
+exclude = 
+    .nox
+    streaming
+    tests
+    generator_brute_multi.py
+    receiver_mpi.py
+    receiver.py
+    generator_adios2.py
+    generator_brute.py
+    receiver_brute.py

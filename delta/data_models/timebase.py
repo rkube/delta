@@ -6,7 +6,8 @@ import numpy as np
 class timebase_streaming():
     """Defines a timebase for a data chunk in the stream"""
 
-    def __init__(self, t_start: float, t_end: float, f_sample: float, samples_per_chunk: int, chunk_idx: int):
+    def __init__(self, t_start: float, t_end: float, f_sample: float,
+                 samples_per_chunk: int, chunk_idx: int):
         """
         Defines a timebase for a data chunk in the stream
 
@@ -53,7 +54,6 @@ class timebase_streaming():
 
         return tidx_rel
 
-
     def gen_full_timebase(self):
         """Generates an array of times associated with the samples in the current chunk"""
 
@@ -82,7 +82,6 @@ class timebase():
 
         self.num_samples = int((self.t_end - self.t_start) / self.dt)
 
-
     def time_to_idx(self, t0):
         """
         Given a timestamp, returns the index where the timebase is closest.
@@ -99,15 +98,11 @@ class timebase():
 
         return idx
 
-
     def get_fulltime(self):
         """
         Returns an array with the full timebase
 
         """
         return np.arange(self.t_start, self.t_end, self.dt)
-
-
-
 
 # End of file timebases.py

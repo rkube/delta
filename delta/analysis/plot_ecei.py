@@ -1,8 +1,8 @@
-#-*- Encoding: UTF-8 -*-
+# -*- Encoding: UTF-8 -*-
 
 import numpy as np
 
-import matplotlib as mpl 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from data_models.kstar_ecei import ecei_view
@@ -20,14 +20,13 @@ class radial_interpolator():
         self.rpos_arr = rpos_arr
         self.zpos_arr = zpos_arr
 
-
     def __call__(self, frame, mask=None, cutoff=0.03):
         """Applies radial interpolation on the frame.
         frame: ndarray(float): Frame values
         mask: ndarray(bool): True marks channels that have good data. False marks channels
                              with bad data.
         cutoff: float, scale-length for mask kernel around bad channels
-        
+
         Returns:
         --------
         ndarray(float)
@@ -46,7 +45,7 @@ class radial_interpolator():
 
         for bad_idx in np.argwhere(mask):
             print(bad_idx)
-            
+
             r_bad = self.rpos_arr[bad_idx[0], bad_idx[1]]
             z_bad = self.zpos_arr[bad_idx[0], bad_idx[1]]
             dist = np.linalg.norm(np.stack((self.rpos_arr - r_bad,
@@ -60,7 +59,8 @@ class radial_interpolator():
 
 class plot_ecei_timeslice():
     """Plot a time slice of an ecei view"""
-    def __init__(self, ecei_view, interpolator=None, rpos_arr=None, zpos_arr=None, cmap=plt.cm.RdYlBu):
+    def __init__(self, my_ecei_view, interpolator=None, rpos_arr=None,
+                 zpos_arr=None, cmap=plt.cm.RdYlBu):
         """
         Parameters:
         ===========
@@ -76,11 +76,10 @@ class plot_ecei_timeslice():
         self.cmap = cmap
         self.clevs = None
 
-
-    def set_contour_levels(self, ecei_view, nlevs=64):
+    def set_contour_levels(self, myecei_view, nlevs=64):
         """Automatically determine the contour levels used for plotting."""
 
-        # Slow code: 
+        # Slow code:
         # # If we don't interpolate we just need the global maxima and minima
         # if self.interpolator is None:
         #     all_max = ecei_view.max()
@@ -96,15 +95,13 @@ class plot_ecei_timeslice():
         #             all_max = max(all_max, frame_vals.max())
         #             all_min = min(all_min, frame_vals.min())
 
-
-        ### Alternative code
-        ### Uses that interpolated values are in between old max and min.
+        # Alternative code
+        # Uses that interpolated values are in between old max and min.
         all_max = ecei_view.ecei_data[:, :, :][~ecei_view.bad_data].max()
         all_min = ecei_view.ecei_data[:, :, :][~ecei_view.bad_data].min()
         self.clevs = np.linspace(all_min, all_max, nlevs)
 
         return None
-
 
     def create_plot(self, ecei_view, time):
         tidx = ecei_view.tb.time_to_idx(time)
@@ -125,9 +122,6 @@ class plot_ecei_timeslice():
         mappable = ax.contourf(self.rpos_arr, self.zpos_arr, frame_vals, levels=self.clevs)
         fig.colorbar(mappable, cax=ax_cb)
 
-
         return fig
-
-
 
 # End of file plot_ecei.py

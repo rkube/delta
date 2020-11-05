@@ -20,30 +20,31 @@ from streaming.writer_nompi import writer_gen
 from analysis.channels import channel_range
 
 
-@attr.s 
+@attr.s
 class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to local PoolExecutor"""
     tstep_idx = attr.ib(repr=True)
-    data      = attr.ib(repr=False)
+    data = attr.ib(repr=False)
 
 
 def forward(Q, cfg, timeout):
     """To be executed by a local thread. Pops items from the queue and forwards them."""
     logger = logging.getLogger("middleman")
     writer = writer_gen(cfg["transport_nersc"])
-    dummy_data = np.zeros( (192, cfg["transport_nersc"]["chunk_size"]), dtype=np.float64)
+    dummy_data = np.zeros((192, cfg["transport_nersc"]["chunk_size"]), dtype=np.float64)
     writer.DefineVariable(cfg["transport_nersc"]["channel_range"][0], dummy_data)
     writer.Open()
     logger.info("Starting reader process")
     tx_list = []
 
     while True:
+        msg = None
         try:
             msg = Q.get(timeout=timeout)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
 
-        if msg.tstep_idx == None:
+        if msg.tstep_idx is None:
             Q.task_done()
             logger.info("Received hangup signal")
             break
@@ -62,8 +63,10 @@ def forward(Q, cfg, timeout):
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
 
-    parser = argparse.ArgumentParser(description="Receive data and dispatch analysis tasks to a mpi queue")
-    parser.add_argument('--config', type=str, help='Lists the configuration file', default='configs/config-middle.json')
+    parser = argparse.ArgumentParser(description="Receive data and dispatch" +
+                                     "analysis tasks to a mpi queue")
+    parser.add_argument('--config', type=str, help='Lists the configuration file',
+                        default='configs/config-middle.json')
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
@@ -71,15 +74,15 @@ def main():
         df.close()
     timeout = 30
 
-    # The middleman uses both a reader and a writer. Each is configured with using their respective section 
-    # of the config file. Therefore some keys are duplicated, such as channel_range. Make sure that these
-    # items are the same in both sections
+    # The middleman uses both a reader and a writer. Each is configured with using
+    # their respective section of the config file. Therefore some keys are duplicated,
+    # such as channel_range. Make sure that these items are the same in both sections
 
     assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
 
     with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_cfg)  
+    logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('middleman')
 
     # Create ADIOS reader object
@@ -94,15 +97,17 @@ def main():
     tic = timeit.default_timer()
     nstep = 0
     rx_list = []
+    stream_data = None
     while True:
-        stepStatus = reader.BeginStep()    
+        stepStatus = reader.BeginStep()
         logger.info(f"stepStatus = {stepStatus}, currentStep = {reader.CurrentStep()}")
 
         if stepStatus:
             if reader.CurrentStep() == 0:
                 tic = timeit.default_timer()
             # Read data
-            stream_data = reader.Get(channel_range.from_str(cfg["transport_kstar"]["channel_range"][0]), 
+            stream_data = reader.Get(channel_range.from_str(cfg["transport_kstar"]
+                                                            ["channel_range"][0]),
                                      save=False)
 
             rx_list.append(reader.CurrentStep())
@@ -118,7 +123,7 @@ def main():
             dq.put_nowait(AdiosMessage(tstep_idx=None, data=None))
             break
 
-        last_step = reader.CurrentStep()
+        # last_step = reader.CurrentStep()
 
     logger.info("Exiting main loop")
     worker.join()
@@ -144,6 +149,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 # End of file middleman.py

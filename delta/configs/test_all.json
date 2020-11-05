@@ -45,7 +45,7 @@
   },
  "preprocess": {
    "name": {"param1": "value1", "param2": "value2"},
-   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "method": "soft", "rescale_sigma": false},
+   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "rescale_sigma": false},
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
    "bandpass": {"freq_lo": 5, "freq_hi": 20}
  },

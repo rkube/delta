@@ -5,13 +5,14 @@
 Defines infitnite-impulse bandpass filters.
 """
 
-
 from scipy.signal import iirdesign, butter, sosfilt
 
-def kernel_bandpass_sos(data, params):
-    """Executes bandpass filtering 
 
-    Uses `scipy.signal.sosfilt <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html>`_
+def kernel_bandpass_sos(data, params):
+    """Executes bandpass filtering
+
+    Uses `scipy.signal.sosfilt
+    <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html>`_
     to filter a data sequence.
 
     Args:
@@ -32,11 +33,11 @@ def kernel_bandpass_sos(data, params):
     return(data)
 
 
-
 class pre_bandpass_iir():
     """Implements bandpass filtering using scipy.signal iirdesign and sosfilt.
 
-    Parameters passed to this class are forwarded to `scipy.signal.iirdesign <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirdesign.html>`_
+    Parameters passed to this class are forwarded to `scipy.signal.iirdesign
+    <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirdesign.html>`_
 
     Please note that the pass and stop-band frequency ranges need to be
     provided in units of the Nyquist frequency. That is, to specify the pass band
@@ -56,8 +57,6 @@ class pre_bandpass_iir():
 
         self.params = params
         self.sos = iirdesign(**params)
-        
-
 
     def process(self, data_chunk, executor):
         """Bandpass-filters the time-chunk.
@@ -81,11 +80,11 @@ class pre_bandpass_iir():
         return data_chunk
 
 
-
 class pre_bandpass_fir():
     """Implements bandpass filtering using `scipy.signal.butter` and `sosfilt`.
 
-    Parameters passed to this class are forwarded to `scipy.signal.butter <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html>`_
+    Parameters passed to this class are forwarded to `scipy.signal.butter
+    <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html>`_
 
     Please note that the pass and stop-band frequency ranges need to be
     provided in units of the Nyquist frequency. That is, to specify the pass band
@@ -109,11 +108,9 @@ class pre_bandpass_fir():
         N = params.pop("N")
         Wn = params.pop("Wn")
         self.sos = butter(N, Wn, **params)
-        
 
     def process(self, data_chunk, executor):
         """Bandpass-filters the time-chunk.
-
 
         Args:
             data_chunk (twod_chunk):
@@ -131,6 +128,6 @@ class pre_bandpass_fir():
         fut = executor.submit(kernel_bandpass_sos, data_chunk, params)
         data_chunk = fut.result()
         return data_chunk
-    
-    
+
+
 # End of file pre_bandpass_iir.py
