@@ -9,7 +9,7 @@ import nox
 locations = "delta"
 
 
-@nox.session(python=["3.8"])
+@nox.session()
 def lint(session):
     """Syntax and docstring linting."""
     session.run("flake8", external=True)

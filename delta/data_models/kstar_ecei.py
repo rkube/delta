@@ -106,6 +106,11 @@ class ecei_chunk():
         """Common interface to data."""
         return self.ecei_data
 
+    @property
+    def shape(self):
+        """Forwards to self.ecei_data.shape"""
+        return self.ecei_data.shape
+
     def create_ft(self, fft_data, fft_params):
         """Returns a fourier-transformed object.
 
@@ -162,6 +167,11 @@ class ecei_chunk_ft():
     def data(self):
         """Common interface to data."""
         return self.data_ft
+
+    @property
+    def shape(self):
+        """Forwards to self.ecei_data.shape"""
+        return self.ecei_data.shape
 
 
 class ecei_channel_2d(channel_2d):

@@ -37,9 +37,9 @@ class pre_wavelet():
         # Execute wavelet denoising on the executor
         # fut = executor.submit()
 
-        sigma = estimate_sigma(data_chunk)
-        denoised = denoise_wavelet(sigma)
-        denoised += 0
+        #sigma = estimate_sigma(data_chunk)
+        #denoised = denoise_wavelet(sigma)
+        #denoised += 0
 
         return data_chunk
 

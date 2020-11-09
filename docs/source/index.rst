@@ -51,6 +51,7 @@ Running Delta
    :maxdepth: 2
    :caption: Running Delta
 
+   notes/installing
    notes/configuring
    notes/launching
 
