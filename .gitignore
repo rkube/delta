@@ -9,7 +9,7 @@ worker-*
 *.so
 *.s
 *.log
-*.txt
+outfile*.txt
 *.png
 *.pdf
 delta/analysis/kernels_spectral_cy.c
