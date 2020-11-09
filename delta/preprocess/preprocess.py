@@ -46,16 +46,29 @@ class preprocessor():
                 continue
             self.logger.info(f"Added {key} to preprocessing")
 
-    def submit(self, data):
-        """Launches preprocessing routines on the executor."""
+    def submit(self, timechunk, tb):
+        """Launches preprocessing routines on the executor.
+
+        Args:
+            timechunk (timechunk):
+                A time-chunk of 2D image data.
+
+            tb (timebase_streaming):
+                Timebase for the time chunk
+
+        Returns:
+            timechunk (timechunk)
+                Pre-processed timechunk data
+        """
         tic = time.perf_counter()
         for item in self.preprocess_list:
-            data = item.process(data, self.executor)
+            timechunk = item.process(timechunk, self.executor)
 
         toc = time.perf_counter()
         tictoc = toc - tic
-        self.logger.info(f"Preprocessing took {tictoc:6.4f}s. Returning: {type(data)}")
+        self.logger.info(f"Preprocessing for chunk {tb.chunk_idx:04d} took {tictoc:6.4f}s.\
+             Returning: {type(timechunk)}")
 
-        return data
+        return timechunk
 
 # End of file preprocess.py

@@ -20,7 +20,7 @@ from bson.binary import Binary
 from os import mkdir
 from os.path import isdir, join
 
-from storage import backend, serialize_dispatch_seq
+from storage.helpers import serialize_dispatch_seq
 
 
 class mongo_connection():
@@ -176,7 +176,7 @@ class mongo_storage_gridfs():
         return True
 
 
-class backend_mongodb(backend):
+class backend_mongodb():
     """Storage backend for MongoDB.
 
     Defines the MongoDB storage backend. Note that PyMongo is not fork-safe.

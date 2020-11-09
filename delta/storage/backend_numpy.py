@@ -8,10 +8,11 @@ import numpy as np
 import logging
 import json
 
-from storage import backend, serialize_dispatch_seq
+
+from storage.helpers import  serialize_dispatch_seq
 
 
-class backend_numpy(backend):
+class backend_numpy():
     """Storage class that stores analysis results in numpy arrays."""
     def __init__(self, cfg):
         """Initializes the class.

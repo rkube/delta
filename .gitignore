@@ -22,3 +22,4 @@ mongo_secret
 postgre_secret
 tests_performance/*
 tmp_nersc
+.nox/

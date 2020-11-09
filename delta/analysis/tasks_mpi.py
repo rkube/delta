@@ -14,8 +14,6 @@ The class task_list is a convenience class that stores multiple task_spectral ob
 """
 
 import logging
-# import time
-# import datetime
 
 import more_itertools
 
@@ -27,14 +25,14 @@ import more_itertools
 from analysis.kernels_spectral import kernel_crosscorr
 from analysis.kernels_spectral_cy import kernel_coherence_64_cy
 from analysis.kernels_spectral_cy import kernel_crosspower_64_cy, kernel_crossphase_64_cy
-
 # Import CUDA kernels
 # from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
 
 from data_models.channels_2d import channel_pair
 from data_models.helpers import gen_channel_range, unique_everseen
 
-# import storage
+from storage.backend import get_storage_object
+
 
 # from scipy.signal import stft
 # import cupy as cp
@@ -85,7 +83,7 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
 class task_spectral():
     """Serves as the super-class for analysis methods."""
 
-    def __init__(self, task_config, cfg_diagnostic, storage_config):
+    def __init__(self, task_config, cfg_diagnostic, cfg_storage):
         """Initializes a spectral task.
 
         Fix channel list, analysis type, and parameters for the analysis routine.
@@ -101,7 +99,7 @@ class task_spectral():
         """
         self.task_config = task_config
         self.cfg_diagnostic = cfg_diagnostic
-        self.storage_config = storage_config
+        self.cfg_storage = cfg_storage
         self.logger = logging.getLogger("simple")
 
         # Stores the description of the task. This can be arbitrary
@@ -150,17 +148,9 @@ class task_spectral():
         self.num_chunks = (len(self.unique_channels) +
                            self.channel_chunk_size - 1) // self.channel_chunk_size
 
-        self.storage_backend = None
-        # if self.storage_config["backend"] == "numpy":
-        #     self.storage_backend = backends.backend_numpy(self.storage_config)
-        # elif self.storage_config["backend"] == "mongo":
-        #     self.storage_backend = backends.backend_mongodb(self.storage_config)
-        # elif self.storage_config["backend"] == "null":
-        #     self.storage_backend = backends.backend_null(self.storage_config)
-        # else:
-        #     raise NameError(f"Unknown storage backend requested: {self.storage_config}")
-        #
-        # self.storage_backend.store_metadata(self.task_config, self.get_dispatch_sequence())
+        storage_class = get_storage_object(self.cfg_storage)
+        self.storage_backend = storage_class(self.cfg_storage)
+        self.storage_backend.store_metadata(self.task_config, self.get_dispatch_sequence())
 
     def get_dispatch_sequence(self, niter=None):
         """Returns an a list of iterables that span all unique combinations of ref_ch x cmp_ch.
@@ -231,7 +221,7 @@ class task_spectral():
 class task_list():
     """Defines interface to execute a group of tasks on an PEP-3148 executor."""
 
-    def __init__(self, executor_anl, task_config_list, diag_config, storage_config):
+    def __init__(self, executor_anl, task_config_list, diag_config, cfg_storage):
         """Initialize the object with a list of tasks to be performed.
 
         These tasks share a common channel list.
@@ -242,9 +232,9 @@ class task_list():
             task_list (dict):
                 Defines parameters for the analysis routines
             diag_config (dict):
-                Metadata on diagnostic
-            storage_config (dict,):
-                Metadata for storage backend
+                Diagnostic section of Delta config
+            cfg_storage (dict,):
+                Storage section of the Delta config
 
         Returns:
             None
@@ -254,13 +244,13 @@ class task_list():
         # Don't store fft_config but use fft_params from one of the tasks instead.
         # Do this since we need the sampling frequency, which is calculated from ECEi data.
         self.diag_config = diag_config
-        self.storage_config = storage_config
+        self.cfg_storage = cfg_storage
 
         self.logger = logging.getLogger("simple")
 
         self.task_list = []
         for task_cfg in self.task_config_list:
-            self.task_list.append(task_spectral(task_cfg, self.diag_config, self.storage_config))
+            self.task_list.append(task_spectral(task_cfg, self.diag_config, self.cfg_storage))
 
         # self.fft_params = self.task_list[0].fft_params
 

@@ -12,7 +12,6 @@ locations = "delta"
 @nox.session()
 def lint(session):
     """Syntax and docstring linting."""
-    session.run("flake8", external=True)
-    session.run("flake8", "--docstring-convention google", external=True)
+    session.run("flake8")
 
 # End of file noxfile.py

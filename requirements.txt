@@ -7,6 +7,7 @@ cython
 sphinx-rtd-theme
 pre-commit
 nox
+pymongo>=3.9.0
 flake8>=3.8.3
 flake8-docstrings>=1.5.0
-
+pre-commit

@@ -108,7 +108,7 @@ class ecei_chunk():
 
     @property
     def shape(self):
-        """Forwards to self.ecei_data.shape"""
+        """Forwards to self.ecei_data.shape."""
         return self.ecei_data.shape
 
     def create_ft(self, fft_data, fft_params):
@@ -170,7 +170,7 @@ class ecei_chunk_ft():
 
     @property
     def shape(self):
-        """Forwards to self.ecei_data.shape"""
+        """Forwards to self.ecei_data.shape."""
         return self.ecei_data.shape
 
 

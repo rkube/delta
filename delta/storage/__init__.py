@@ -42,8 +42,8 @@ The down-side of this approach is that it is
 """
 
 # from .backend import backend
-from .backend_numpy import backend_numpy
-from .backend_mongodb import backend_mongodb
-from .backend_null import backend_null
+# from .backend_numpy import backend_numpy
+# from .backend_mongodb import backend_mongodb
+# from .backend_null import backend_null
 
 # End of file backends/__init__.py

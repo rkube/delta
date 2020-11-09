@@ -4,10 +4,10 @@
 
 To run on an interactive node
 srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
+
+Remember to have adios2 included in $PYTHONPATH 
 """
 
-# import sys
-# sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
 from mpi4py import MPI
 
 import logging
@@ -30,6 +30,7 @@ from preprocess.preprocess import preprocessor
 from analysis.tasks_mpi import task_list
 from streaming.reader_mpi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name, data_model_generator
+from storage.backend import get_storage_object
 
 
 def consume(Q, my_task_list, my_preprocessor):
@@ -61,7 +62,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
         # TODO: Should there be a general method to a time index from a data chunk?
         logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}. Got data type {type(msg)}")
-        msg = my_preprocessor.submit(msg)
+        msg = my_preprocessor.submit(msg, msg.tb)
         if(msg.tb.chunk_idx == 1):
             np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data())
 
@@ -113,17 +114,10 @@ def main():
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
-    # # Instantiate a storage backend and store the run configuration and task configuration
-    # if cfg['storage']['backend'] == "numpy":
-    #     store_backend = storage.backend_numpy(cfg['storage'])
-    # elif cfg['storage']['backend'] == "mongo":
-    #     store_backend = storage.backend_mongodb(cfg["storage"])
-    # elif cfg['storage']['backend'] == "null":
-    #     store_backend = storage.backend_null(cfg['storage'])
-    # else:
-    #     raise NameError(f"Unknown storage backend requested: {cfg['storage']['backend']}")
-
-    # store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
+    # Instantiate a storage backend and store the run configuration and task configuration
+    store_type = get_storage_object(cfg["storage"])
+    store_backend = store_type(cfg["storage"])
+    store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
     # logger.info(f"Stored one")
 
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
@@ -178,7 +172,7 @@ def main():
 
     logger.info("Workers have joined")
 
-    # Shotdown the executioner
+    # Shutdown the executioner
     executor_anl.shutdown(wait=True)
     executor_pre.shutdown(wait=True)
     # executor.shutdown(wait=True)
