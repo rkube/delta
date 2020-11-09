@@ -1,8 +1,6 @@
 # -*- Encoding: UTF-8 -*-
 
-"""
-Author: Ralph Kube
-This file contains analysis kernels for spectral (fourier-transformed) data
+"""This file contains analysis kernels for spectral (fourier-transformed) data.
 
 All kernels have a more-or-less uniform interface
 """
@@ -11,7 +9,10 @@ import numpy as np
 
 
 def kernel_null(fft_data, ch_it, fft_config):
-    """Does nothing. Used in performance testing to evaluate framework communication overhead"""
+    """Does nothing.
+
+    Used in performance testing to evaluate framework communication overhead
+    """
     return(None)
 
 
@@ -29,7 +30,6 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
       Axy (float):
         Cross phase
     """
-
     Pxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
         Pxy[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] *
@@ -53,7 +53,6 @@ def kernel_crosspower(fft_data, ch_it, fft_config):
         cross_power (float):
             Cross-power
     """
-
     res = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
     for idx, ch_pair in enumerate(ch_it):
         res[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] *
@@ -76,7 +75,6 @@ def kernel_coherence(fft_data, ch_it, fft_config):
     Returns:
         coherence (float)
     """
-
     Gxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
 
     for idx, ch_pair in enumerate(ch_it):
@@ -105,7 +103,6 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
     Returns:
         cross-correlation (float)
     """
-
     res = np.zeros([len(ch_it), fft_data.shape[1]])
     fft_shifted = np.fft.fftshift(fft_data, axes=1)
 
@@ -132,7 +129,6 @@ def kernel_bicoherence(fft_data, ch_it, fft_params):
     Returns:
         bicoherence (float)
     """
-
     res_list = []
 
     for ch_pair in ch_it:
@@ -190,8 +186,7 @@ def kernel_bicoherence(fft_data, ch_it, fft_params):
 
 
 def kernel_skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
-    """
-    Calculates the conditional spectrum S(k,w).
+    """Calculates the conditional spectrum S(k,w).
 
     Input:
         fft_data (ndarray, cmplx):
@@ -204,11 +199,9 @@ def kernel_skw(fft_data, ch_it, fft_params, ecei_config, kstep=0.01):
         ecei_config (dictionary):
             configuration of ecei diagnostic
 
-
     Returns:
         bicoherence (float)
     """
-
     from analysis.ecei_helper import channel_position
 
     res_list = []

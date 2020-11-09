@@ -1,5 +1,8 @@
 # Encoding: UTF-8 -*-
 
+"""Numpy storage backend."""
+
+
 from os.path import join
 import numpy as np
 import logging
@@ -9,15 +12,16 @@ from storage import backend, serialize_dispatch_seq
 
 
 class backend_numpy(backend):
-    """
-    Author: Ralph Kube
-
-    Defines a method to store results from a task in numpy arrays."""
+    """Storage class that stores analysis results in numpy arrays."""
     def __init__(self, cfg):
-        """
-        Inputs
-        ======
-        datadir, str: Base directory where data is stored
+        """Initializes the class.
+
+        Args:
+            cfg (dict):
+                config.storage part of the Delta config object.
+
+        Returns:
+            None
         """
         super().__init__()
 
@@ -25,18 +29,17 @@ class backend_numpy(backend):
         self.basedir = cfg['basedir']
 
     def store(self, chunk_data, chunk_info):
-        """Stores data and args in numpy file
+        """Stores data and args in numpy file.
 
-        Input:
-        ======
-        chunk_data, ndarray: Data to store in file
-        chunk_info, dict: Info dictionary returned from the future
+        Args:
+            chunk_data (ndarray):
+                Data to store in file
+            chunk_info (dict):
+                Info dictionary returned from the future
 
         Returns:
-        ========
-        None
+            None
         """
-
         fname_fq = join(self.basedir, chunk_info['analysis_name']) +\
             f"_tidx{chunk_info['tidx']:05d}_batch{chunk_info['channel_batch']:02d}.npz"
 
@@ -45,17 +48,20 @@ class backend_numpy(backend):
                  tidx=chunk_info['tidx'], batch=chunk_info['channel_batch'])
 
     def store_metadata(self, cfg, dispatch_seq):
-        """Stores metadta in an numpy file
-
-        Parameters
-        ----------
-        cfg, the json configuration passed into the processor...
-        dispatch_seq: The dispatch sequence from task.
-
+        """Stores metadta in an numpy file.
 
         The dispatch sequence from a task object is returned by task.get_dispatch_sequence()
-        """
 
+        Args:
+            cfg (dict):
+                the json configuration passed into the processor...
+            dispatch_seq (iterable):
+                The dispatch sequence from task.
+
+        Returns:
+            None
+
+        """
         logging.debug("Storing metadata in " + self.basedir)
 
         # # Step 1: Get the list of channel pair chunks from the task object
@@ -84,5 +90,6 @@ class backend_numpy(backend):
         with open(join(self.basedir, "config.json"), "w") as df:
             json.dump(cfg, df)
 
+        return None
 
 # End of file backend_numpy.py

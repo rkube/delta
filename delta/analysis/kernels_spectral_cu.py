@@ -1,29 +1,34 @@
 # -* Encoding: UTF-8 -*-
 
+"""Spectral analysis kernel implementation for cupy."""
+
+
 import numpy as np
 import cupy as cp
 
 
 def kernel_null(fft_data, ch_it, fft_config):
-    """Does nothing. Used in performance testing to evaluate framework communication overhead"""
+    """Does nothing.
+
+    Used in performance testing to evaluate framework communication overhead
+    """
     return(None)
 
 
 def kernel_crossphase_cu(fft_data, ch_it, fft_config):
     """Kernel that calculates the cross-phase between two channels.
-    Parameters:
-    -----------
-    fft_data: ndarray, complex:
-              Holds the fourier-transformed data.
-              dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-    ch_it...: iterable,
-              Iterator over a list of channels we wish to perform our computation on
+
+    Args:
+        fft_data (ndarray, complex):
+                Holds the fourier-transformed data.
+                dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+        ch_it (iterable):
+                Iterator over a list of channels we wish to perform our computation on
 
     Returns:
-    ========
-    Axy: float, the cross phase
+        Axy (array, float):
+            Cross phase
     """
-
     fft_data_cu = cp.asarray(fft_data)
     # Gather results on device, since
     Pxy = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
@@ -41,19 +46,21 @@ def kernel_crossphase_cu(fft_data, ch_it, fft_config):
 
 
 def kernel_crosspower_cu(fft_data, ch_it, fft_config):
-    """Kernel that calculates the cross-power between two channels.
-    Parameters:
-    -----------
-    fft_data: ndarray, float: Contains the fourier-transformed data.
-                dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-    ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
+    """Defines a kernel that calculates the cross-power between two channels.
 
+    Args:
+    fft_data (ndarray, float):
+                Contains the fourier-transformed data.
+                dim0: channel. dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+    ch_it (iterable):
+        Iterator over a list of channels we wish to perform our computation on
+    fft_params (dict):
+        parameters of the fourier-transformed data
 
     Returns:
-    --------
-    cross_power, float.
+        cross-power (ndarray, float):
+            Cross-power
     """
-
     fft_data_cu = cp.asarray(fft_data)
 
     res = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
@@ -72,19 +79,21 @@ def kernel_crosspower_cu(fft_data, ch_it, fft_config):
 
 
 def kernel_coherence_cu(fft_data, ch_it, fft_config):
-    """Kernel that calculates the coherence between two channels.
-    Input:
-    ======
-    fft_data: ndarray, float: Contains the fourier-transformed data.
-                dim0: channel, dim1: Fourier Coefficients. dim2: STFT (bins in fluctana code)
-    ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
+    """Defines a kernel that calculates the coherence between two channels.
 
+    Args:
+    fft_data (ndarray, float):
+                Contains the fourier-transformed data.
+                dim0: channel. dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+    ch_it (iterable):
+        Iterator over a list of channels we wish to perform our computation on
+    fft_params (dict):
+        parameters of the fourier-transformed data
 
     Returns:
-    ========
-    coherence, float.
+        Gxy (ndarray, float):
+            Coherence
     """
-
     fft_data_cu = cp.asarray(fft_data)
 
     Gxy_cu = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
@@ -105,19 +114,19 @@ def kernel_coherence_cu(fft_data, ch_it, fft_config):
 def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
     """Defines a kernel that calculates the cross-correlation between two channels.
 
-    Parameters:
-    ----------
-    fft_data: ndarray, float: Contains the fourier-transformed data.
+    Args:
+    fft_data (ndarray, float):
+                Contains the fourier-transformed data.
                 dim0: channel. dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-    ch_it: iterable, Iterator over a list of channels we wish to perform our computation on
-    fft_params: dict, parameters of the fourier-transformed data
-
+    ch_it (iterable):
+        Iterator over a list of channels we wish to perform our computation on
+    fft_params (dict):
+        parameters of the fourier-transformed data
 
     Returns:
-    --------
-    cross-correlation, float array
+        cross-correlation (ndarray, float):
+            Cross-correlations
     """
-
     # import time
     from cupy.scipy import fft
 

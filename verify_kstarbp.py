@@ -1,19 +1,20 @@
 # -*- Encoding: UTF-8
 
-import sys
+
+"""Verifies that data in bp-file is correct.
+
+Compares the output of the data file written by create_ecei_bpfile.py to
+the original data in the HDF5 file.
+"""
+
+
+# import sys
 import numpy as np
 import h5py
 
-sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
+# sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
 import adios2
 
-"""
-Author: Ralph Kube
-
-Compares the output of the data file written by create_ecei_bpfile.py to
-the original data in the HDF5 file
-
-"""
 varname = "L0101"
 
 

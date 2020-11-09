@@ -1,9 +1,9 @@
 # -*- Encoding: UTF-8 -*-
 
-"""
+"""Contains helper function for working with the ECEI diagnostic.
+
 Author: Minjun Choi (original), Ralph Kube (refactored)
 
-Contains helper function for working with the ECEI diagnostic.
 These are just the member functions from kstarecei.py, copied here
 so that we don't need to instantiate an kstarecei object.
 
@@ -22,12 +22,13 @@ refer to one of the three components.
 import numpy as np
 import json
 
-from .channels_2d import channel_2d, channel_range
+from data_models.channels_2d import channel_2d, channel_range
 
 
 def channel_range_from_str(range_str):
-    """
-    Generates a channel_range from a range, specified as
+    """Generates a channel_range from a range.
+
+    Channel ranges are specified like this:
 
     ..code-block::
         'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
@@ -40,7 +41,6 @@ def channel_range_from_str(range_str):
         channel_range (channel_range):
             Channel range corresponding to range_str
     """
-
     import re
 
     m = re.search('[A-Z]{1,2}', range_str)
@@ -65,11 +65,10 @@ def channel_range_from_str(range_str):
 
 
 class ecei_chunk():
-    """Class that represents a time-chunk of ECEI data"""
+    """Class that represents a time-chunk of ECEI data."""
 
     def __init__(self, data, tb, num_v=24, num_h=8):
-        """
-        Creates an ecei_chunk from a give dataset
+        """Creates an ecei_chunk from a give dataset.
 
         Args:
             data (ndarray, float):
@@ -80,8 +79,10 @@ class ecei_chunk():
                 Number of vertical channels. Defaults to 24.
             num_h (int):
                 Number of horizontal channels. Defaults to 8.
-        """
 
+        Returns:
+            None
+        """
         # Data should have more than 1 dimension, last dimension is time
         assert(data.ndim > 1)
         #
@@ -102,20 +103,31 @@ class ecei_chunk():
         self.axis_t = 1
 
     def data(self):
-        """Common interface to data"""
+        """Common interface to data."""
         return self.ecei_data
 
     def create_ft(self, fft_data, fft_params):
-        """Returns a fourier-transformed object"""
+        """Returns a fourier-transformed object.
+
+        Args:
+            fft_data (ndarray):
+                Numerical data
+            fft_params (dict):
+                Data passed to STFT function
+
+        Returns:
+            ecei_chunk_ft (ecei_chunk_ft):
+                Chunk of Fourier-transformed data
+        """
         return ecei_chunk_ft(fft_data, tb=self.tb,
                              freqs=None, fft_params=fft_params)
 
 
 class ecei_chunk_ft():
-    """Class that represents a fourier-transformed time-chunk of ECEI data"""
+    """Represents a fourier-transformed time-chunk of ECEI data."""
 
     def __init__(self, data_ft, tb, freqs, fft_params, axis_ch=0, axis_t=1, num_v=24, num_h=8):
-        """Creates a fourier-transformed time-chunk of ECEI data
+        """Initializes with data and meta-information.
 
         Args:
             data_ft (ndarray, float):
@@ -134,6 +146,9 @@ class ecei_chunk_ft():
                 Number of vertical channels
             num_h (int):
                 Number of horizontal channels
+
+        Returns:
+            None
         """
         self.data_ft = data_ft
         self.tb = tb
@@ -145,12 +160,13 @@ class ecei_chunk_ft():
         self.num_h = num_h
 
     def data(self):
-        """Common interface to data"""
+        """Common interface to data."""
         return self.data_ft
 
 
 class ecei_channel_2d(channel_2d):
     """Represents an ECEI channel.
+
     The ECEI array has 24 horizontal channels and 8 vertical channels.
 
     They are commonly represented as
@@ -159,7 +175,8 @@ class ecei_channel_2d(channel_2d):
     """
 
     def __init__(self, dev, ch_v, ch_h):
-        """
+        """Initializes the channel.
+
         Args:
             dev (string):
                 must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
@@ -167,6 +184,9 @@ class ecei_channel_2d(channel_2d):
                 Horizontal channel number, between 1 and 24
             ch_v (int):
                 Vertical channel number, between 1 and 8
+
+        Returns:
+            None
         """
         #
         assert(dev in ['L', 'H', 'G', "GT", 'HT', 'GR', 'HR'])
@@ -182,8 +202,11 @@ class ecei_channel_2d(channel_2d):
                 The class object (this is never passed to the method, but akin to self)
             ch_str (string):
                 A channel string, such as L2205 of GT0808
-        """
 
+        Returns:
+            channel1 (ecei_channel_2d):
+                Newly instantiated ecei_channel_2d object
+        """
         import re
         # Define a regular expression that matches a sequence of 1 to 2 characters in [A-Z]
         # This will be our dev.
@@ -205,24 +228,28 @@ class ecei_channel_2d(channel_2d):
         return channel1
 
     def __str__(self):
-        """Prints the channel as a standardized string DDHHVV, where D is dev, H is ch_h and V is ch_v.
-        DD can be 1 or 2 characters, H and V are zero-padded"""
+        """Prints the channel as a standardized string DDHHVV.
+
+        Here D is dev, H is ch_h and V is ch_v.
+        DD can be 1 or 2 characters, H and V are zero-padded.
+        """
         ch_str = "{0:s}{1:02d}{2:02d}".format(self.dev, self.ch_v, self.ch_h)
 
         return(ch_str)
 
     def to_json(self):
         """Returns the class in JSON notation.
-           This method avoids serialization error when using non-standard int types,
-           such as np.int64 etc..."""
+
+        This method avoids serialization error when using non-standard int types,
+        such as np.int64 etc...
+        """
         d = {"ch_v": int(self.ch_v), "ch_h": int(self.ch_h),
              "dev": self.dev, "ch_num": int(self.ch_num)}
         return json.dumps(d, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     @classmethod
     def from_json(cls, str):
-        """Returns a channel instance from a json string"""
-
+        """Returns a channel instance from a json string."""
         j = json.loads(str)
 
         channel1 = cls(j["dev"], int(j["ch_v"]), int(j["ch_h"]))
@@ -230,7 +257,7 @@ class ecei_channel_2d(channel_2d):
 
 
 def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
-    """
+    """Returns ABCD matrix for KSTAR ECEI diagnostic.
 
     Args:
         ch (channel):
@@ -252,7 +279,6 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
         NameError:
             If channel is not one of 'L', 'H', 'G', 'GT', 'GR', 'HT'
     """
-
     # ABCD matrix
     abcd = None
     if channel.dev == 'L':
@@ -387,7 +413,9 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
 
 
 def beam_path(ch, LensFocus, LensZoom, rpos):
-    """Calculates the ray vertical position and angle at rpos ray starting from the array box position.
+    """Calculates the ray vertical position and angle at rpos.
+
+    Starting from the array box position.
 
     Args:
         ch (channel):
@@ -400,8 +428,13 @@ def beam_path(ch, LensFocus, LensZoom, rpos):
             Radial position of the channel view, in meters
         ch_v (int):
             number of vertical channel
-    """
 
+    Returns:
+        zpos (float):
+            Z-coordinate of beam-path
+        apos (float):
+            angle coordinate of beam-path
+    """
     abcd = get_abcd(ch, LensFocus, LensZoom, rpos)
 
     # vertical position from the reference axis (vertical center of all lens, z=0 line)
@@ -419,15 +452,22 @@ def beam_path(ch, LensFocus, LensZoom, rpos):
 
 
 def channel_position(ch, ecei_cfg):
-    """Calculates the position of a channel in configuration space
+    """Calculates the position of a channel in configuration space.
 
     Args:
         ch (channel):
             The channel whos position we want to calculate
         ecei_cfg (dict):
             Parameters of the ECEi diagnostic.
-    """
 
+    Returns:
+        rpos (float):
+            R-position of ECEI channel, in m.
+        zpos (float):
+            Z-position of ECEI channel, in m.
+        apos (float):
+            angle of ECEI channel. In radians, I think?
+    """
     me = 9.1e-31             # electron mass, in kg
     e = 1.602e-19            # charge, in C
     mu0 = 4. * np.pi * 1e-7  # permeability

@@ -1,7 +1,6 @@
 # Encoding: UTF-8 -*-
 
-"""
-Author: Ralph Kube
+"""Storage backend.
 
 Defines a basic interface to the backend-storage classes and helper routines
 """
@@ -10,30 +9,26 @@ from data_models.channels_2d import channel_2d, channel_pair
 
 
 class backend():
+    """Parent class for all backends."""
     def __init__(self):
+        """Initializes."""
         pass
 
     def store(self):
+        """Stores."""
         pass
 
 
 def serialize_dispatch_seq(dispatch_seq):
-    """Serializes the iteration over the channels
+    """Serializes the iteration over the channels.
 
-    Parameters
-    ----------
-    dispatch_seq: list of list, the nested channel iteration list, used by task objects.
-                  This is a list of lists of channel_pairs:
-                  [
-                    [pair1_1, pair1_2, ... pair1_N],
-                    [pair2_1, pair2_2, ... pair2_N],
-                    ...
-                    [pairM_1, pairM_2, ... pairM_N]
-                  ]
-
-    Returns
-    -------
-    j, the json string representation serialization of dispatch_seq
+    This is a list of lists of channel_pairs:
+    [
+    [pair1_1, pair1_2, ... pair1_N],
+    [pair2_1, pair2_2, ... pair2_N],
+    ...
+    [pairM_1, pairM_2, ... pairM_N]
+    ]
 
     The end result will be a JSON nested array with the serialization of each channel pairs,
     i.e. j_str = '[ [ pair1.to_json(), pair2.to_json() ...],
@@ -58,8 +53,15 @@ def serialize_dispatch_seq(dispatch_seq):
 
     >>> len(j["channel_serialization"][0]) == task.channel_chunk_size
     True
-    """
 
+    Args:
+        dispatch_seq (list of list):
+            the nested channel iteration list, used by task objects.
+
+    Returns:
+        j (string):
+            json string representation serialization of dispatch_seq
+    """
     # Step 1: Get the list of channel pair chunks from the task object
     chunk_lists = []
     for ch_it in dispatch_seq:
@@ -86,17 +88,16 @@ def serialize_dispatch_seq(dispatch_seq):
 
 
 def deserialize_dispatch_seq(channel_ser):
-    """Returns a list of list of channel pairs, as created by serialize dispatch_seq
+    """Returns a list of list of channel pairs, as created by serialize dispatch_seq.
 
-    Parameters:
-    ===========
-    channel_ser: JSON serialization of the channel pairs
+    Args:
+        channel_ser (???):
+            JSON serialization of the channel pairs
 
     Returns:
-    ========
-    List of list of channel pairs
+        dispatch_seq (???):
+            List of list of channel pairs
     """
-
     dispatch_seq = []
 
     for pair_list in channel_ser:

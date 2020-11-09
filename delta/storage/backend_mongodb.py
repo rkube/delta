@@ -1,21 +1,18 @@
 # Coding: UTF-8 -*-
 
-# from mpi4py import MPI
-import sys
+
+"""MongoDB backend."""
+
 import datetime
 import numpy as np
 import pickle
-# import string
-# import random
 import logging
 import json
 import uuid
 import time
 import traceback
 
-sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
 import adios2
-
 
 import pymongo
 import gridfs
@@ -27,9 +24,10 @@ from storage import backend, serialize_dispatch_seq
 
 
 class mongo_connection():
-    """Abstraction for mongo_connection using context manager"""
+    """Abstraction for mongo_connection using context manager."""
 
     def __init__(self, cfg_mongo):
+        """Initializes context."""
         # Parse connection info
 
         self.conn_info = {}
@@ -48,7 +46,7 @@ class mongo_connection():
         self.coll_str = "test_analysis_" + cfg_mongo["run_id"]
 
     def __enter__(self):
-        """Instantiate a new MongoClient and return the collection"""
+        """Instantiate a new MongoClient and return the collection."""
         self.client = pymongo.MongoClient(self.conn_info["conn_str"],
                                           username=self.conn_info["username"],
                                           password=self.conn_info["password"])
@@ -59,7 +57,7 @@ class mongo_connection():
         return (self.client, collection)
 
     def __exit__(self, exc_type, exc_value, tb):
-        """Close connection to MongoDB"""
+        """Close connection to MongoDB."""
         if exc_type is not None:
             traceback.print_exception(exc_type, exc_value, tb)
             # return False # uncomment to pass exception through
@@ -73,8 +71,22 @@ class mongo_connection():
 
 
 class mongo_storage_numpy():
-    """Abstraction for numpy storage using context manager used by backend_mongodb"""
+    """Context manager for numpy storage, used by backend_mongodb."""
+
     def __init__(self, cfg_mongo):
+        """Initializes.
+
+        Args:
+            cfg_mongo (dict):
+                Configuration for MongoDB
+
+        Returns:
+            None
+
+        Raises:
+            ValueError
+                When data directory is not found or not accessible.
+        """
         self.datadir = join(cfg_mongo["datadir"], cfg_mongo["run_id"])
         if not isdir(self.datadir):
             try:
@@ -84,27 +96,12 @@ class mongo_storage_numpy():
                 raise ValueError(f"Could not access path {self.datadir}: ", e)
 
     def __enter__(self):
+        """Enter context."""
         fname = join(self.datadir, uuid.uuid1().__str__() + ".npz")
         return fname
 
     def __exit__(self, exc_type, exc_value, tb):
-        if exc_type is not None:
-            traceback.print_exception(exc_type, exc_value, tb)
-            return True
-
-        return True
-
-
-class mongo_storage_gridfs():
-    """Abstraction for gridfs storage using context manager used by backend_mongodb"""
-    def __init__(self, db):
-        self.db = db
-
-    def __enter__(self):
-        fs = gridfs.GridFS(self.db)
-        return fs
-
-    def __exit__(self, exc_type, exc_value, tb):
+        """Exit context."""
         if exc_type is not None:
             traceback.print_exception(exc_type, exc_value, tb)
             return True
@@ -113,8 +110,22 @@ class mongo_storage_gridfs():
 
 
 class mongo_storage_adios2():
-    """Abstraction for gridfs storage using context manager used by backend_mongodb"""
+    """Context manager for adios2 storage, used by backend_mongodb."""
+
     def __init__(self, cfg_mongo):
+        """Initializes.
+
+        Args:
+            cfg_mongo (dict):
+                Configuration for MongoDB
+
+        Returns:
+            None
+
+        Raises:
+            ValueError
+                When data directory is not found or not accessible.
+        """
         self.datadir = join(cfg_mongo["datadir"], cfg_mongo["run_id"])
         if not isdir(self.datadir):
             try:
@@ -124,10 +135,40 @@ class mongo_storage_adios2():
                 raise ValueError(f"Could not access path {self.datadir}: ", e)
 
     def __enter__(self):
+        """Enter context."""
         fname = join(self.datadir, uuid.uuid1().__str__() + ".bp")
         return fname
 
     def __exit__(self, exc_type, exc_value, tb):
+        """Leave context."""
+        if exc_type is not None:
+            traceback.print_exception(exc_type, exc_value, tb)
+            return True
+
+        return True
+
+
+class mongo_storage_gridfs():
+    """Context manager for adios2 storage, used by backend_mongodb."""
+    def __init__(self, db):
+        """Initializes the context manager.
+
+        Args:
+            db (database):
+                MongoDB database to connect to
+
+        Returns:
+            None
+        """
+        self.db = db
+
+    def __enter__(self):
+        """Enter context manager."""
+        fs = gridfs.GridFS(self.db)
+        return fs
+
+    def __exit__(self, exc_type, exc_value, tb):
+        """Leave context."""
         if exc_type is not None:
             traceback.print_exception(exc_type, exc_value, tb)
             return True
@@ -136,8 +177,7 @@ class mongo_storage_adios2():
 
 
 class backend_mongodb(backend):
-    """
-    Author: Ralph Kube
+    """Storage backend for MongoDB.
 
     Defines the MongoDB storage backend. Note that PyMongo is not fork-safe.
     A new MongoClient needs to be instantiated each time store_data is executed on a PoolExecutor
@@ -160,12 +200,16 @@ class backend_mongodb(backend):
     def store_metadata(self, cfg, dispatch_seq):
         """Stores metadata that allows to identify channel pairs with the stored data.
 
-        Parameters
-        ----------
-        cfg: The configuration of the analysis run
-        dispatch_seq: The serialized task dispatch sequence
-        """
+        Args
+            cfg (dict):
+                The configuration of the analysis run
+            dispatch_seq (iterable):
+                The serialized task dispatch sequence
 
+        Returns:
+            inserted_id (ObjectID):
+                MongoDB ObjectID of the inserted object
+        """
         j_str = serialize_dispatch_seq(dispatch_seq)
         # Put the channel serialization in the corresponding key
         j_str = '{"channel_serialization": ' + j_str + '}'
@@ -186,15 +230,18 @@ class backend_mongodb(backend):
         return result.inserted_id
 
     def store_data(self, data, info_dict):
-        """Stores arbitrary data in mongodb
+        """Stores analysis data in mongodb.
 
-        Parameters
-        ----------
-        data: ndarray, float.
-        info_dict: Dictionary with metadata to store
-        cfg: delta configuration object
+        Args
+            data (ndarray, float):
+                Numeric data to store
+            info_dict (dict):
+                Dictionary with metadata to store
+
+        Returns:
+            inserted_id (int):
+                MongoDB ObjectID of the inserted object.
         """
-
         size_in_MB = np.prod(data.shape) * data.dtype.itemsize / 1024 / 1024
 
         with mongo_connection(self.cfg_mongo) as mongo:
@@ -223,7 +270,7 @@ class backend_mongodb(backend):
                     try:
                         mkdir(datadir)
                     except (FileNotFoundError, PermissionError) as e:
-                        self.logger.error(f"Could not access path {datadir}")
+                        self.logger.error(f"Could not access path {datadir}: {e}")
                         raise ValueError(f"Could not access path {datadir}")
 
                 fname = join(datadir, uuid.uuid1().__str__() + ".bp")
@@ -255,7 +302,15 @@ class backend_mongodb(backend):
             return inserted_id
 
     def store_one(self, item):
-        """Wrapper to store an item"""
+        """Store a single item in the database.
+
+        Args:
+            item (anything):
+                Data to store in the database
+
+        Returns:
+            None
+        """
         with mongo_connection(self.cfg_mongo) as mongo:
             client, coll = mongo
             coll.insert_one(item)

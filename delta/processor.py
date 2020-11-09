@@ -1,11 +1,9 @@
+# -*- Encoding: UTF-8 -*-
 
-"""
-This processor implements the one-to-one model using mpi
-
+"""This processor implements the one-to-one model using mpi.
 
 To run on an interactive node
 srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
-
 """
 
 # import sys
@@ -35,9 +33,10 @@ from data_models.helpers import gen_channel_name, gen_var_name, data_model_gener
 
 
 def consume(Q, my_task_list, my_preprocessor):
-    """Executed by a local thread. Dispatch work items from the
-    Queue to the PoolExecutor"""
+    """Dispatch work items from the queue on an executor.
 
+    Executed by a local thread.
+    """
     logger = logging.getLogger('simple')
     global cfg
 
@@ -73,6 +72,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
 
 def main():
+    """Procesess a stream of data chunks on an executor."""
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     # size = comm.Get_size()

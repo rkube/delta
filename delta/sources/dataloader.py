@@ -1,5 +1,7 @@
 # -*- Encoding: UTF-8 -*-
 
+"""General dataloaders."""
+
 import numpy as np
 import h5py
 import logging
@@ -8,13 +10,23 @@ from data_models.kstar_ecei import timebase_streaming, ecei_chunk, channel_range
 from data_models.helpers import normalize_mean
 
 
-def get_loader(cfg):
-    if cfg["diagnostic"]["name"] == "kstarecei":
-        return _loader_ecei(cfg)
-    elif cfg["diagnostic"]["name"] == "nstxgpi":
-        return _loader_gpi(cfg)
+def get_loader(cfg_all):
+    """Returns data loader appropriate for the configured diagnostic.
+
+    Args:
+        cfg_all (dict):
+            Configuration dictionary
+
+    Returns:
+        dataloader (dataloader):
+            Dataloader object
+    """
+    if cfg_all["diagnostic"]["name"] == "kstarecei":
+        return _loader_ecei(cfg_all)
+    elif cfg_all["diagnostic"]["name"] == "nstxgpi":
+        return _loader_gpi(cfg_all)
     else:
-        raise ValueError(cfg["datatype"])
+        raise ValueError("No dataloader for " + cfg_all["diagnostic"]["name"])
 
 
 class _loader_gpi():
@@ -22,43 +34,44 @@ class _loader_gpi():
 
 
 class _loader_ecei():
-    """Loads KSTAR ECEi data time-chunk wise for a specified channel range from an HDF5 file"""
+    """Loads KSTAR ECEi data time-chunk wise for a specified channel range from an HDF5 file."""
 
-    def __init__(self, cfg, cache=True):
+    def __init__(self, cfg_all, cache=True):
+        """Initializes KSTAR ECEI dataloader.
+
+        Args:
+            cfg_all: (dict):
+                Global Delta configuration
+
+        Returns:
+            None
         """
-
-        Old: filename: str, ch_range: channel_range, chunk_size:int):
-        Inputs:
-        =======
-        cfg: Delta configuration with loader and ECEI section.
-
-        """
-
-        self.ch_range = channel_range_from_str(cfg["diagnostic"]["datasource"]["channel_range"][0])
+        self.ch_range = channel_range_from_str(cfg_all["diagnostic"]["datasource"]
+                                               ["channel_range"][0])
         # Create a list of paths in the HDF5 file, corresponding to the specified channels
-        self.filename = cfg["diagnostic"]["datasource"]["source_file"]
+        self.filename = cfg_all["diagnostic"]["datasource"]["source_file"]
         # Number of samples in a chunk
-        self.chunk_size = cfg["diagnostic"]["datasource"]["chunk_size"]
+        self.chunk_size = cfg_all["diagnostic"]["datasource"]["chunk_size"]
         # Total number of chunks
-        self.num_chunks = cfg["diagnostic"]["datasource"]["num_chunks"]
+        self.num_chunks = cfg_all["diagnostic"]["datasource"]["num_chunks"]
         self.current_chunk = 0
 
-        if cfg["diagnostic"]["datasource"]["datatype"] == "int":
+        if cfg_all["diagnostic"]["datasource"]["datatype"] == "int":
             self.dtype = np.int32
-        elif cfg["diagnostic"]["datasource"]["datatype"] == "float":
+        elif cfg_all["diagnostic"]["datasource"]["datatype"] == "float":
             self.dtype = np.float64
 
         # Generate start/stop time for timebase
-        self.f_sample = cfg["diagnostic"]["parameters"]["SampleRate"] * 1e3
+        self.f_sample = cfg_all["diagnostic"]["parameters"]["SampleRate"] * 1e3
         self.dt = 1. / self.f_sample
-        self.t_start = cfg["diagnostic"]["parameters"]["TriggerTime"][0]
-        self.t_end = min(cfg["diagnostic"]["parameters"]["TriggerTime"][1],
+        self.t_start = cfg_all["diagnostic"]["parameters"]["TriggerTime"][0]
+        self.t_end = min(cfg_all["diagnostic"]["parameters"]["TriggerTime"][1],
                          self.t_start + 5_000_000 * self.dt)
 
         # Callable that performs normalization. This is instantiated once data from
         # the time interval t_norm is read in batch_generator
         self.normalize = None
-        self.t_norm = cfg["diagnostic"]["parameters"]["t_norm"]
+        self.t_norm = cfg_all["diagnostic"]["parameters"]["t_norm"]
 
         self.logger = logging.getLogger('simple')
 
@@ -69,9 +82,11 @@ class _loader_ecei():
             self.is_cached = True
 
     def cache(self):
-        """Pre-loads all data from HDF5, calculates normalization and
-        generates a list of arrays."""
+        """Loads data from HDF5 and fills the cache.
 
+        Returns:
+            None
+        """
         self.cache = np.zeros([self.ch_range.length(), self.chunk_size * self.num_chunks],
                               dtype=self.dtype)
 
@@ -86,14 +101,24 @@ class _loader_ecei():
         self.cache = self.cache * 1e-4
 
     def get_chunk_shape(self):
-        """Returns the size of chunks"""
+        """Returns the size of chunks.
+
+        Args:
+            None
+
+        Returns:
+            chunk_shape (tuple [int, int]):
+                (Number of channels, time chunk size)
+        """
         return (self.ch_range.length(), self.chunk_size)
 
     def get_chunk_size_bytes(self):
-        """Returns the size of a chunk, in bytes"""
+        """Returns the size of a chunk, in bytes."""
+        pass
 
     def batch_generator(self):
         """Loads the next time-chunk from the data file.
+
         This implementation works as a generator.
 
         The ECEI data is usually normalized to a fixed offset, calculated using data
@@ -113,11 +138,10 @@ class _loader_ecei():
         >>> for batch in batch_gen():
         >>>    ...
 
-        yields
-        =======
-        chunk : ecei_chunk, data from current time chunk
+        Returns:
+            chunk (ecei_chunk)
+                ECEI data from current time chunk, possibly normalized
         """
-
         # Pre-allocate temp array in case we are running non-cached.
         # See if clause in for-loop below
         if not self.is_cached:

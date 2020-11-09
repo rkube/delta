@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 # -* Encoding: UTF-8 -*-
 
-"""
-Author: Ralph Kube
+"""Load the ECEI data from the HDF5 file and converts it into a bp file."""
 
-Load the ECEI data from the HDF5 file and converts it into a bp file.
-"""
 
 import numpy as np
 import h5py
-import sys
 
 from os.path import join
-
-sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
 import adios2
 
 scratch_dir = "/global/cscratch1/sd/rkube/"

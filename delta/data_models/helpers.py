@@ -1,6 +1,6 @@
 # -*- Encoding: UTF-8 -*-
 
-"""Helper functions common to all data models"""
+"""Helper functions common to all data models."""
 
 
 import numpy as np
@@ -12,7 +12,8 @@ from data_models.timebase import timebase_streaming
 
 
 class data_model_generator():
-    """Returns the data model for a given configuration"""
+    """Callable that wraps a block of data into a data-model object."""
+
     def __init__(self, cfg_diagnostic: dict):
         """Sets up data model generation.
 
@@ -40,10 +41,15 @@ class data_model_generator():
         """Generates a data model from new chunk of streamed data.
 
         Args:
-            stream_data (np.array): New data chunk read from :class: reader_gen.
+            stream_data (np.array):
+                New data chunk read from :class: reader_gen.
+            chunk_idx (int):
+                Sequence index in the stream
 
+
+        Returns:
+            None
         """
-
         # Generate a time-base and a data model
         if self.cfg["name"] == "kstarecei":
             # Adapt configuration file parameters for use in timebase_streaming
@@ -64,8 +70,20 @@ class data_model_generator():
 
 
 def gen_channel_name(cfg_diagnostic: dict) -> str:
-    """Generates a name for the ADIOS channel from the diagnostic configuration"""
+    """Generates a name to be used as the ADIOS channel from diagnostic configuration.
 
+    Args:
+        cfg_diagnostic (dict):
+            "diagnostic" section from the global Delta configuration
+
+    Returns:
+        channel_name (str):
+            String to be used as the ADIOS channel name
+
+    Raises:
+        ValueError:
+            In case the field `name` could not be matched
+    """
     if cfg_diagnostic["name"] == "kstarecei":
         experiment = "KSTAR"
         diagnostic = "ECEI"
@@ -80,9 +98,21 @@ def gen_channel_name(cfg_diagnostic: dict) -> str:
 
 
 def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
-    """Generates channel ranges for the diagnostics"""
+    """Generates channel ranges for the diagnostics.
 
-    print(cfg_diagnostic)
+    Generates a channel_range object for the diagnostic at hand.
+
+    Args:
+        cfg_diagnostic (dict):
+            "diagnostic" section from the global Delta configuration
+        chrg (tuple[int, int, int, int]):
+            ch1_start, ch1_end, ch2_start, ch2_end.
+
+    Returns:
+        channel_range (channel_range):
+            channel_range configured with appropriate bounds and order for either
+            KSTAR ecei or NSTX GPI
+    """
     if cfg_diagnostic["name"] == "kstarecei":
         ch1 = channel_2d(chrg[0], chrg[1], 24, 8, order='horizontal')
         ch2 = channel_2d(chrg[2], chrg[3], 24, 8, order='horizontal')
@@ -96,8 +126,7 @@ def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
 
 
 def gen_var_name(cfg: dict) -> str:
-    """Generates a variable name from the diagnostic configuration"""
-
+    """Generates a variable name from the diagnostic configuration."""
     if cfg["diagnostic"]["name"] == "kstarecei":
         return cfg["diagnostic"]["datasource"]["channel_range"]
 
@@ -107,8 +136,19 @@ def gen_var_name(cfg: dict) -> str:
 
 def unique_everseen(iterable, key=None):
     """List unique elements, preserving order. Remember all elements ever seen.
-    Taken from https://docs.python.org/3/library/itertools.html#itertools-recipes"""
 
+    Taken from https://docs.python.org/3/library/itertools.html#itertools-recipes
+
+    This should be legacy code...
+
+    Args:
+        iterable (iterable):
+            No idea
+
+    Returns:
+        element (thingy):
+            No idea
+    """
     seen = set()
     seen_add = seen.add
     if key is None:
@@ -124,14 +164,22 @@ def unique_everseen(iterable, key=None):
 
 
 class normalize_mean():
-    """Performs normalization"""
+    """Performs normalization.
+
+    TODO: Write a proper normalizer.
+    """
 
     def __init__(self, offlev, offstd):
         """Stores offset and standard deviation of normalization time series.
-        Parameters:
-        -----------
-        offlev....: ndarray, channel-wise offset level
-        offstd....: ndarray, channel-wise offset standard deviation
+
+        Args:
+            offlev (ndarray):
+                channel-wise offset level
+            offstd (ndarray):
+                channel-wise offset standard deviation
+
+        Returns:
+            None
         """
         self.offlev = offlev
         self.offstd = offstd
@@ -140,13 +188,17 @@ class normalize_mean():
         self.sigstd = None
 
     def __call__(self, data):
-        """Normalizes data in-place
+        """Normalizes data in-place.
+
+        TODO: Write me.
 
         Args:
-          data (twod_data):
+          data (2d_data):
              Data that will be normalized to siglev and sigstd
-        """
 
+        Returns:
+            None
+        """
         # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
 
         assert(self.offlev.shape[:-1] == data.shape[data.axis_t])

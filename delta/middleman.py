@@ -1,5 +1,8 @@
 # Endocing: UTF-8 -*-
 
+
+"""Receives data from generator and forwards them to processor."""
+
 import logging
 import logging.config
 import queue
@@ -22,7 +25,7 @@ from analysis.channels import channel_range
 
 @attr.s
 class AdiosMessage:
-    """Storage class used to transfer data from Kstar(Dataman) to local PoolExecutor"""
+    """Storage class used to transfer data from Kstar(Dataman) to local PoolExecuto."""
     tstep_idx = attr.ib(repr=True)
     data = attr.ib(repr=False)
 
@@ -62,7 +65,6 @@ def forward(Q, cfg, timeout):
 
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
-
     parser = argparse.ArgumentParser(description="Receive data and dispatch" +
                                      "analysis tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file',

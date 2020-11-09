@@ -1,8 +1,18 @@
 # coding: UTF-8 -*-
 
-# from mpi4py import MPI
+"""Couple analysis kernels to the MPI launch mechanism.
 
-# import numpy as np
+This file contains methods to launch analysis kernels on the analysis pipeline.
+
+The method calc_and_store is used to wrap kernel execution and store results.
+This is used to glue together data, kernel, and parameters.
+
+The class task_spectral launches code on an executor. It passes the correct analysis
+kernel, parameters and data on the executor.
+
+The class task_list is a convenience class that stores multiple task_spectral objects.
+"""
+
 import logging
 # import time
 # import datetime
@@ -30,67 +40,21 @@ from data_models.helpers import gen_channel_range, unique_everseen
 # import cupy as cp
 # from cusignal.spectral_analysis.spectral import stft
 
-"""
-Author: Ralph Kube
-This file contains the task_spectral class and its derived classes. Each one implements
-an analysis routine from the fluctana package.
-
-The parent class, task_spectral, and implements common methods to all tasks:
-* It handles the range of channels for which any analysis will be performed
-* It defines how this channel range is divided into sub-ranges
-* It defines a storage scheme for results of an analysis
-* It defines a storage scheme for the meta data
-
-Each child class defines a unique analysis routine in the calculate method
-that is applied to a data chunk. For this it uses a poolexecuter model.
-The executor client is called with the tasks analysis method, the data chunk
-and a channel range. The results of this calculation are accessible through its
-future_list.
-"""
-
-
-def calc(kernel, fft_data, ch_it, info_dict):
-    """Dispatches a kernel
-
-    Parameters:
-    -----------
-    fft_data - ece_chunk_ft:
-               Contains the fourier-transformed data.
-               dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-    ch_it - List of channels to iterate over
-    info_dict  - metadata for the fft_data object
-    """
-    from mpi4py import MPI
-    import datetime
-
-    comm = MPI.COMM_WORLD
-    tidx = info_dict['tidx']
-    an_name = info_dict["analysis_name"]
-
-    # Use datetime to count performance so that we can later use isoformat
-    # to write out the log
-    t1 = datetime.datetime.now()
-    result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
-    t2 = datetime.datetime.now()
-    # dt = t2 - t1
-    with open(f"/global/homes/r/rkube/repos/delta/outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " +
-                 t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") + "\n")
-        df.flush()
-
-    return result
-
 
 def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
-    """Dispatches a kernel
+    """Dispatch a kernel and store the result.
 
-    Parameters:
-    -----------
-    fft_data - ecei_chunk_ft:
-               Contains the fourier-transformed data.
-               dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
-    ch_it - List of channels to iterate over
-    info_dict  - metadata for the fft_data object
+    Args:
+        fft_data (ecei_chunk_ft):
+            Contains the fourier-transformed data.
+            dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+        ch_it (iterable):
+            List of channels to iterate over
+        info_dict (dict):
+            Metadata for the fft_data object
+
+    Returns:
+        None
     """
     from mpi4py import MPI
     import datetime
@@ -119,18 +83,22 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
 
 
 class task_spectral():
-    """Serves as the super-class for analysis methods"""
+    """Serves as the super-class for analysis methods."""
 
     def __init__(self, task_config, cfg_diagnostic, storage_config):
-        """Initialize the object with a fixed channel list, a fixed name of the analysis to be performed
-        and a fixed set of parameters for the analysis routine.
+        """Initializes a spectral task.
 
-        Inputs:
-        =======
-        task_config: dict, defines parameters of the analysis to be performed
-        diag_config: dict, information on ecei diagnostic
+        Fix channel list, analysis type, and parameters for the analysis routine.
+
+        Args:
+            task_config (dict):
+                Defines parameters of the analysis to be performed
+            diag_config (dict):
+                Information on ecei diagnostic
+
+        Returns:
+            None
         """
-
         self.task_config = task_config
         self.cfg_diagnostic = cfg_diagnostic
         self.storage_config = storage_config
@@ -195,14 +163,16 @@ class task_spectral():
         # self.storage_backend.store_metadata(self.task_config, self.get_dispatch_sequence())
 
     def get_dispatch_sequence(self, niter=None):
-        """Returns an a list of iterables that together span all unique
-        combinations of ref_ch x cmp_ch.
+        """Returns an a list of iterables that span all unique combinations of ref_ch x cmp_ch.
 
-        Parameters:
-        ===========
-        niter, int: Length of the sub-lists we split the list of channel pairs into.
+        Args:
+            niter (int):
+                Length of the sub-lists we split the list of channel pairs into.
+
+        Returns:
+            all_chunks (???):
+                Chunked dispatch sequence.
         """
-
         if niter is None:
             niter = self.channel_chunk_size
 
@@ -212,11 +182,16 @@ class task_spectral():
     def submit(self, executor, fft_data, tidx):
         """Launches a spectral analysis kernel on an executor.
 
-        Parameters:
-        -----------
-        executor..: PEP-3148-style executor
-        fft_data..: data-model (Fourier transformed)
-        tidx......: time-index
+        Args:
+        executor (PEP-3148-style executor):
+            Executor to use
+        fft_data (data-model):
+            Fourier Coefficients of the data to analyze
+        tidx (int):
+            Sequence index of the time-chunk
+
+        Returns:
+            None
 
         Note: When submitting member functions on the executioner we are losing the
         ability to store future lists.
@@ -239,7 +214,6 @@ class task_spectral():
         self.logger.info(f"tidx={tidx} submitted {self.analysis} as {self.num_chunks} tasks." +
                          f"fft_data: {type(fft_data)}")
 
-
         # for fut, info_dict in zip(fut_list, info_dict_list):
         #     result = fut.result()
         #     tic_io = time.perf_counter()
@@ -255,25 +229,26 @@ class task_spectral():
 
 
 class task_list():
-    """Defines a group of analysis that, together with an FFT, are
-    performed on a PEP-3148 exeecutor"""
+    """Defines interface to execute a group of tasks on an PEP-3148 executor."""
 
     def __init__(self, executor_anl, task_config_list, diag_config, storage_config):
         """Initialize the object with a list of tasks to be performed.
+
         These tasks share a common channel list.
 
-        Inputs:
-        =======
-        executor_anl: PEP-3148 executor
-                      Executor on which analysis tasks are performed
-        task_list   : dict,
-                      Defines parameters for the analysis routines
-        diag_config : dict,
-                      Metadata on diagnostic
-        storage_config: dict,
-                        Metadata for storage backend
-        """
+        Args:
+            executor_anl (PEP-3148 executor):
+                Executor on which analysis tasks are performed
+            task_list (dict):
+                Defines parameters for the analysis routines
+            diag_config (dict):
+                Metadata on diagnostic
+            storage_config (dict,):
+                Metadata for storage backend
 
+        Returns:
+            None
+        """
         self.executor_anl = executor_anl
         self.task_config_list = task_config_list
         # Don't store fft_config but use fft_params from one of the tasks instead.
@@ -292,13 +267,15 @@ class task_list():
     def submit(self, data_chunk, tidx):
         """Launches the analysis pipeline with a data chunk.
 
-        Parameters:
-        ===========
-        data: data_chunk, data_model
-              A time chunk of data. This is a data_model derived class.
-        tidx: int
-        """
+        Args:
+            data (data_chunk, data_model):
+                A time chunk of data. This is a data_model derived class.
+            tidx (int):
+                Sequence number of the data_chunk
 
+        Returns:
+            None
+        """
         # tic_fft = time.perf_counter()
 
         # # # Following 4 lines execute the stft on the GPU

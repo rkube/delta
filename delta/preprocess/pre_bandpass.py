@@ -1,15 +1,13 @@
 # -*- Encoding: UTF-8 -*-
 
 
-"""
-Defines infitnite-impulse bandpass filters.
-"""
+"""Defines infitnite-impulse bandpass filters."""
 
 from scipy.signal import iirdesign, butter, sosfilt
 
 
 def kernel_bandpass_sos(data, params):
-    """Executes bandpass filtering
+    """Executes bandpass filtering.
 
     Uses `scipy.signal.sosfilt
     <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html>`_
@@ -53,14 +51,15 @@ class pre_bandpass_iir():
         Args:
             params (dict):
                 Will be passed to scipy.signal.iirdesign
-        """
 
+        Returns:
+            None
+        """
         self.params = params
         self.sos = iirdesign(**params)
 
     def process(self, data_chunk, executor):
         """Bandpass-filters the time-chunk.
-
 
         Args:
             data_chunk (twod_chunk):
@@ -72,7 +71,6 @@ class pre_bandpass_iir():
             data_chunk (twod_chunk):
                 Time-chunk of data
         """
-
         # Do nothing and return the data
         params = {"sos": self.sos}
         fut = executor.submit(kernel_bandpass_sos, data_chunk, params)
@@ -101,8 +99,10 @@ class pre_bandpass_fir():
         Args:
             params (dict):
                 Will be passed to scipy.signal.iirdesign
-        """
 
+        Returns:
+            None
+        """
         self.params = params
         # Remove unnamed arguments N and Wn before calling butter filter design with params
         N = params.pop("N")
@@ -122,7 +122,6 @@ class pre_bandpass_fir():
             data_chunk (twod_chunk):
                 Time-chunk of data
         """
-
         # Do nothing and return the data
         params = {"sos": self.sos}
         fut = executor.submit(kernel_bandpass_sos, data_chunk, params)

@@ -1,31 +1,30 @@
 # Encoding: UTF-8 -*-
 
+"""Dummy storage that does nothing."""
+
 import logging
 from storage import backend
 
 
 class backend_null(backend):
-    """
-    Author: Ralph Kube
+    """Dummy backend. Stores no data."""
 
-    backend_null mimicks the other backends but doesn't call any store routine.
-    No output is written
-
-    """
     def __init__(self, cfg):
+        """Initializes."""
         super().__init__()
         self.logger = logging.getLogger("simple")
 
     def store_one(self, item):
+        """Does nothing."""
         pass
 
     def store_data(self, data, info_dict):
+        """Logs the function call and exits."""
         self.logger.info("storage finished:", info_dict)
         return None
 
     def store_metadata(self, cfg, dispatch_seq):
-        """Stores nothing"""
-
+        """Stores nothing."""
         self.logger.info("store_metadata finished")
         return None
 

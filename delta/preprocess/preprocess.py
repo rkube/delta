@@ -1,8 +1,11 @@
 # -*- Encoding: UTF-8 -*-
 
+"""Implements pre-processing pipeline."""
+
+
 import logging
 import time
-from .helpers import get_preprocess_routine
+from preprocess.helpers import get_preprocess_routine
 
 
 class preprocessor():
@@ -24,8 +27,10 @@ class preprocessor():
             cfg_preprocess: Dictionary
                 key-value store with which the individual pre-processing functors
                 will be instantiated.
-        """
 
+        Returns:
+            None
+        """
         self.logger = logging.getLogger("simple")
         # Iterate over pre-process routines defined in the configuration
         # For each item, add the appropriate pre-processing routine to the list.
@@ -43,7 +48,6 @@ class preprocessor():
 
     def submit(self, data):
         """Launches preprocessing routines on the executor."""
-
         tic = time.perf_counter()
         for item in self.preprocess_list:
             data = item.process(data, self.executor)

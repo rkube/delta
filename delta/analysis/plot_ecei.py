@@ -1,37 +1,49 @@
 # -*- Encoding: UTF-8 -*-
 
+"""Plotting methods for ECEI data."""
+
+
 import numpy as np
 
-import matplotlib as mpl
+# import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from data_models.kstar_ecei import ecei_view
 
 
 class radial_interpolator():
-    """
-    Defines radial interpolation, based on values of channels close-by.
-    """
+    """Defines radial interpolation, based on values of channels close-by."""
+
     def __init__(self, rpos_arr, zpos_arr):
-        """
-        rpos_arr: ndarray, float: shape=(24, 8): radial position of all ECEI views, in m
-        zpos_arr: ndarray, float: shape=(24, 8): vertical position of all ECEI views, in m
+        """Initializes radial interpolator.
+
+        Args:
+            rpos_arr (ndarray, float)
+                shape=(24, 8): radial position of all ECEI views, in m
+            zpos_arr (ndarray, float):
+                shape=(24, 8): vertical position of all ECEI views, in m
+
+        Returns:
+            None
         """
         self.rpos_arr = rpos_arr
         self.zpos_arr = zpos_arr
 
     def __call__(self, frame, mask=None, cutoff=0.03):
         """Applies radial interpolation on the frame.
-        frame: ndarray(float): Frame values
-        mask: ndarray(bool): True marks channels that have good data. False marks channels
-                             with bad data.
-        cutoff: float, scale-length for mask kernel around bad channels
+
+        Args:
+            frame (ndarray,float):
+                Frame values
+            mask (ndarray,bool):
+                True marks channels that have good data. False marks channels
+                with bad data.
+            cutoff (float):
+                scale-length for mask kernel around bad channels
 
         Returns:
-        --------
-        ndarray(float)
+            ndarray(float):
         """
-
         # frame_up will be the output array
         frame_ip = np.copy(frame)
         # Channels that have bad data are initialized to zero
@@ -58,15 +70,22 @@ class radial_interpolator():
 
 
 class plot_ecei_timeslice():
-    """Plot a time slice of an ecei view"""
+    """Plot a time slice of an ecei view."""
     def __init__(self, my_ecei_view, interpolator=None, rpos_arr=None,
                  zpos_arr=None, cmap=plt.cm.RdYlBu):
-        """
-        Parameters:
-        ===========
-        interpolator:  an interpolator type
-        """
+        """Initializes the plotting class.
 
+        Args:
+            interpolator (???):
+                Interpolator type
+            zpos_arr (???):
+                Z-positions of the ECEI channels
+            rpos_arr (???):
+                R-positions of the ECEI channels
+
+        Returns:
+            None
+        """
         if interpolator is not None:
             self.interpolator = interpolator(rpos_arr, zpos_arr)
 
@@ -77,8 +96,17 @@ class plot_ecei_timeslice():
         self.clevs = None
 
     def set_contour_levels(self, myecei_view, nlevs=64):
-        """Automatically determine the contour levels used for plotting."""
+        """Automatically determine the contour levels used for plotting.
 
+        Args:
+            myecei_view (???):
+                View on the ECEI data
+            nlevs (int):
+                Number of countour levels.
+
+        Returns:
+            None
+        """
         # Slow code:
         # # If we don't interpolate we just need the global maxima and minima
         # if self.interpolator is None:
@@ -104,6 +132,18 @@ class plot_ecei_timeslice():
         return None
 
     def create_plot(self, ecei_view, time):
+        """Creates contour plots in the ecei_view.
+
+        Args:
+            ecei_view (???):
+                View on the ECEI data.
+            time (timebase_streaming):
+                Timebase for the ECEI data
+
+        Returns:
+            fig (mpl.Figure):
+                Matplotlib figure
+        """
         tidx = ecei_view.tb.time_to_idx(time)
         print(f"Creating figure for time {time} - tidx {tidx}")
 

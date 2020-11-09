@@ -1,8 +1,9 @@
 # .flake8
 [flake8]
-select = C,E,F,W
+select = D,C,E,F,W
 max-complexity = 10
 max-line-length = 100
+docstring-convention = google
 ignore = W504
 exclude = 
     .nox
@@ -14,3 +15,5 @@ exclude =
     generator_adios2.py
     generator_brute.py
     receiver_brute.py
+    __init__.py
+    docs/source/conf.py

@@ -1,11 +1,14 @@
 # -*- Encoding: UTF-8 -*-
 
+"""Short-Time Fourier Transform methods."""
+
+
 import numpy as np
 from scipy.signal import stft
 
 
 class pre_stft():
-    """Implements short-time Fourier transformation"""
+    """Implements short-time Fourier transformation."""
 
     def __init__(self, params):
         """Instantiates the STFT class as a callable.
@@ -15,12 +18,15 @@ class pre_stft():
                 Provides keywords that are passed to `scipy.signal.stft
                 <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.stft.html>`_
 
+        Returns:
+            None
+
         """
         self.params = params
         self.params["noverlap"] = int(self.params["overlap"] * self.params["nfft"])
 
     def process(self, data_chunk, executor):
-        """Performs STFT preprocessing on an executor
+        """Performs short-time Fourier Transform on an executor.
 
         Args:
             data_chunk (twod_chunk):
@@ -32,7 +38,6 @@ class pre_stft():
             data_chunk_ft (twod_chunk_f):
                 Fourier-transformed image-data chunk
         """
-
         fut = executor.submit(stft, data_chunk.data(), axis=data_chunk.axis_t,
                               fs=self.params["fs"], nperseg=self.params["nfft"],
                               window=self.params["window"],
@@ -54,7 +59,7 @@ class pre_stft():
         return data_chunk_ft
 
     def build_fft_window(self, tnum, nfft, window, overlap):
-        """Builds the window used in the STFTs. Taken from KSTAR/specs.py
+        """Builds the window used in the STFTs. Taken from KSTAR/specs.py.
 
         Args:
             tnum (int):
@@ -72,7 +77,6 @@ class pre_stft():
             win (ndarray):
                 The window function applied to input-segments of the FFT
         """
-
         assert((overlap > 0.0) & (overlap < 1.0))
 
         # use overlapping

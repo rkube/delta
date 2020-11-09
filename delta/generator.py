@@ -1,5 +1,12 @@
 # -*- coding: UTF-8 -*-
 
+"""Stages fusion diagnostic data for streaming.
+
+Reads diagnostic data and stages it chunk-wise for transport.
+Data stream can be received with middleman or processor.
+"""
+
+
 from mpi4py import MPI
 # import sys
 
@@ -18,13 +25,6 @@ import logging.config
 from streaming.writers import writer_gen
 from sources.dataloader import get_loader
 from data_models.helpers import gen_channel_name, gen_var_name
-
-
-"""
-Author: R. Kube
-
-Reads diagnostic data and stages it chunk-wise for transport.
-"""
 
 
 # Initialize MPI

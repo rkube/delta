@@ -1,23 +1,32 @@
 # -*- Encoding: UTF-8 -*-
 
+"""Defines time-base classes to be used in streaming settings."""
+
+
 import numpy as np
 
 
 class timebase_streaming():
-    """Defines a timebase for a data chunk in the stream"""
+    """Defines a timebase for a data chunk in the stream."""
 
     def __init__(self, t_start: float, t_end: float, f_sample: float,
                  samples_per_chunk: int, chunk_idx: int):
-        """
-        Defines a timebase for a data chunk in the stream
+        """Defines a timebase for a data chunk in the stream.
 
-        Parameters:
-        -----------
-        t_start............: float, Start time of the data stream, in seconds
-        t_end..............: float, End time of the data stream, in seconds
-        f_sample...........: float, Sampling frequency, in Hz
-        samples_per_chunk..: int, Number of samples per chunk
-        chunk_idx..........: int, Index of the chunk that this timebase is used used
+        Args:
+            t_start (float):
+                Start time of the data stream, in seconds
+            t_end (float):
+                End time of the data stream, in seconds
+            f_sample (float):
+                Sampling frequency, in Hz
+            samples_per_chunk (int):
+                Number of samples per chunk
+            chunk_idx (int):
+                Index of the chunk that this timebase is used used
+
+        Returns:
+            None
         """
         assert(t_start < t_end)
         assert(f_sample > 0)
@@ -36,12 +45,15 @@ class timebase_streaming():
         self.samples_per_chunk = samples_per_chunk
 
     def time_to_idx(self, time: float):
-        """Generates an index suitable to index the current data chunk for
-        the time
+        """Generates an index suitable to index the current data chunk in time.
 
-        Parameters:
-        -----------
-        time.......: float, Absolute time we wish to get an index for
+        Args:
+            time (float):
+                Absolute time we wish to get an index for
+
+        Returns:
+            tidx_rel (int):
+                Relative index in the current time chunk
         """
         assert(time >= self.t_start)
         assert(time <= self.t_end)
@@ -55,21 +67,27 @@ class timebase_streaming():
         return tidx_rel
 
     def gen_full_timebase(self):
-        """Generates an array of times associated with the samples in the current chunk"""
-
+        """Generates an array of times associated with the samples in the current chunk."""
         return np.arange(self.chunk_idx * self.samples_per_chunk,
                          (self.chunk_idx + 1) * self.samples_per_chunk) * self.dt + self.t_start
 
 
 class timebase():
+    """Defines a time base for ECEI channel data."""
+
     def __init__(self, t_start, t_end, f_sample):
-        """
-        Defines a time base for ECEI channel data
-        Parameters
-        ----------
-            t_trigger: float,
-            t_offset: float,
-            f_sample: float, sampling frequency of the ECEI data
+        """Initializes the timebase class.
+
+        Args:
+            t_trigger (float):
+                Trigger time? in seconds
+            t_offset (float):
+                No idea, in seconds.
+            f_sample (float):
+                Sampling frequency of the ECEI data, in Hz.
+
+        Returns:
+            None
         """
         # Assume that 0 <= t_start < t_end
         assert(t_end >= 0.0)
@@ -83,11 +101,15 @@ class timebase():
         self.num_samples = int((self.t_end - self.t_start) / self.dt)
 
     def time_to_idx(self, t0):
-        """
-        Given a timestamp, returns the index where the timebase is closest.
+        """Given a timestamp, returns the index where the timebase is closest.
 
-        Parameters:
-        t0: float - Time stamps that we want to calculate the index for
+        Args:
+            t0 (float):
+                Time stamps that we want to calculate the index for
+
+        Returns:
+            idx (int):
+                Index for timestamp.
         """
         # Ensure that the time we are looking for is inside the domain
         assert(t0 >= self.t_start)
@@ -99,8 +121,14 @@ class timebase():
         return idx
 
     def get_fulltime(self):
-        """
-        Returns an array with the full timebase
+        """Returns an array with the full timebase.
+
+        Args:
+            None
+
+        Returns:
+            trange (ndarray):
+                np.arange spanning start and end time using sample spacing dt.
 
         """
         return np.arange(self.t_start, self.t_end, self.dt)

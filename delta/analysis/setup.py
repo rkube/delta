@@ -1,4 +1,11 @@
-#  CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
+# Coding: UTF-8 -*-
+
+"""Setup.py file for cython analysis kernels.
+
+To build on cori:
+$ CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
+"""
+
 
 from distutils.core import setup
 from distutils.extension import Extension
