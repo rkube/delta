@@ -62,7 +62,7 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     tidx = info_dict['tidx']
     an_name = info_dict["analysis_name"]
     t1 = datetime.datetime.now()
-    result = kernel(fft_data.data(), ch_it, fft_data.fft_params)
+    result = kernel(fft_data.data, ch_it, fft_data.fft_params)
     t2 = datetime.datetime.now()
     # dt_calc = t2 - t1
     # #
@@ -169,7 +169,7 @@ class task_spectral():
         all_chunks = more_itertools.chunked(self.unique_channels, niter)
         return(all_chunks)
 
-    def submit(self, executor, fft_data, tidx):
+    def submit(self, executor, fft_data):
         """Launches a spectral analysis kernel on an executor.
 
         Args:
@@ -177,8 +177,6 @@ class task_spectral():
             Executor to use
         fft_data (data-model):
             Fourier Coefficients of the data to analyze
-        tidx (int):
-            Sequence index of the time-chunk
 
         Returns:
             None
@@ -191,8 +189,8 @@ class task_spectral():
         self.logger.info("Entering submit.")
 
         info_dict_list = [{"analysis_name": self.analysis,
-                           "tidx": tidx,
-                           "channel_batch": chunk_idx} for chunk_idx in range(self.num_chunks)]
+                           "chunk_idx": fft_data.tb.chunk_idx,
+                           "channel_batch": batch_idx} for batch_idx in range(self.num_chunks)]
 
         _ = [executor.submit(calc_and_store,
                              self.kernel,
@@ -201,8 +199,8 @@ class task_spectral():
                              ch_it,
                              info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(),
                                                                     info_dict_list)]
-        self.logger.info(f"tidx={tidx} submitted {self.analysis} as {self.num_chunks} tasks." +
-                         f"fft_data: {type(fft_data)}")
+        self.logger.info(f"chunk_idxidx={fft_data.tb.chunk_idx} submitted {self.analysis} " +
+                         "as {self.num_chunks} tasks.  fft_data: {type(fft_data)}")
 
         # for fut, info_dict in zip(fut_list, info_dict_list):
         #     result = fut.result()
@@ -254,14 +252,12 @@ class task_list():
 
         # self.fft_params = self.task_list[0].fft_params
 
-    def submit(self, data_chunk, tidx):
+    def submit(self, data_chunk):
         """Launches the analysis pipeline with a data chunk.
 
         Args:
             data (data_chunk, data_model):
                 A time chunk of data. This is a data_model derived class.
-            tidx (int):
-                Sequence number of the data_chunk
 
         Returns:
             None
@@ -269,7 +265,7 @@ class task_list():
         # tic_fft = time.perf_counter()
 
         # # # Following 4 lines execute the stft on the GPU
-        # data_gpu = cp.asarray(data_chunk.data())
+        # data_gpu = cp.asarray(data_chunk.data)
         # res = self.executor_fft.submit(stft,
         #                                data_gpu,
         #                                axis=data_chunk.axis_t,
@@ -285,7 +281,7 @@ class task_list():
         # fft_data = cp.asnumpy(fft_data_tmp[2])
 
         # res = self.executor_fft.submit(stft,
-        #                                data_chunk.data(),
+        #                                data_chunk.data,
         #                                axis=1,
         #                                fs=self.fft_params["fs"],
         #                                nperseg=self.fft_params["nfft"],
@@ -304,10 +300,10 @@ class task_list():
         # if tidx == 1:
         #    np.savez(f"test_data/fft_array_s{tidx:04d}.npz", fft_data = fft_data)
 
-        self.logger.info(f"task_list: Received type {type(data_chunk)} for tidx {tidx}")
+        self.logger.info(f"task_list: Received type {type(data_chunk)} for chunk_idx {data_chunk.tb.chunk_idx}")
 
         for task in self.task_list:
-            task.submit(self.executor_anl, data_chunk, tidx)
+            task.submit(self.executor_anl, data_chunk)
         # #    #task.submit(self.executor, fft_data, tidx)
 
 # End of file tasks_mpi.py

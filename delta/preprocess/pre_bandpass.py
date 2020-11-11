@@ -25,8 +25,8 @@ def kernel_bandpass_sos(data, params):
             Time-chunk with filtered data
 
     """
-    y = sosfilt(params["sos"], data.data(), axis=data.axis_t)
-    data.data()[:] = y[:]
+    y = sosfilt(params["sos"], data.data, axis=data.axis_t)
+    data.data[:] = y[:]
 
     return(data)
 
@@ -92,7 +92,6 @@ class pre_bandpass_fir():
 
 
     """
-
     def __init__(self, params):
         """Instantiates bandpass filter object.
 

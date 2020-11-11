@@ -69,8 +69,10 @@ logger.info("Start sending on channel:")
 
 batch_gen = dataloader.batch_generator()
 for nstep, chunk in enumerate(batch_gen):
-    if rank == 0:
-        logger.info(f"Filtering time_chunk {nstep} / {dataloader.num_chunks}")
+    # TODO: Do we want to place filtering in the generator? This would allow us to
+    # send fewer data to the processor.
+    # if rank == 0:
+    #     logger.info(f"Filtering time_chunk {nstep} / {dataloader.num_chunks}")
 
     if rank == 0:
         logger.info(f"Sending time_chunk {nstep} / {dataloader.num_chunks}")

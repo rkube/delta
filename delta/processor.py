@@ -52,21 +52,16 @@ def consume(Q, my_task_list, my_preprocessor):
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
-        # If we get our special break message, we exit
-        # if msg.tstep_idx == None:
-        #     Q.task_done()
-        #     break
 
-        if(msg.tb.chunk_idx == 1):
-            np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data())
+        np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data)
 
         # TODO: Should there be a general method to a time index from a data chunk?
-        logger.info(f"Rank {rank}: Consumed tidx={msg.tb.chunk_idx}. Got data type {type(msg)}")
-        msg = my_preprocessor.submit(msg, msg.tb)
-        if(msg.tb.chunk_idx == 1):
-            np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data())
+        logger.info(f"Rank {rank}: Consumed: {msg.tb} Got data type {type(msg)}")
+        msg = my_preprocessor.submit(msg)
+        # if(msg.tb.chunk_idx == 1):
+        np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data)
 
-        my_task_list.submit(msg, msg.tb.chunk_idx)
+        my_task_list.submit(msg)
 
         Q.task_done()
     logger.info("Task done")
@@ -122,7 +117,7 @@ def main():
 
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
-    my_preprocessor = preprocessor(executor_pre, cfg["preprocess"])
+    my_preprocessor = preprocessor(executor_pre, cfg)
     my_task_list = task_list(executor_anl, cfg["task_list"], cfg["diagnostic"], cfg["storage"])
 
     dq = queue.Queue()
@@ -159,7 +154,7 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 10:
+        if reader.CurrentStep() > 5:
             logger.info("End of the line. Exiting")
             break
 

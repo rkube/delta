@@ -12,6 +12,7 @@
       "datatype": "float"
     },
     "parameters": {
+      "Device": "GT",
       "TriggerTime": [-0.12, 61.2, 60],
       "t_norm": [-0.119, -0.109],
       "SampleRate": 500,
@@ -44,11 +45,11 @@
     "backend": "null"
   },
  "preprocess": {
-   "name": {"param1": "value1", "param2": "value2"},
+   "plot": {"time_range": [0.0, 0.00002], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
    "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "rescale_sigma": false},
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
-   "bandpass": {"freq_lo": 5, "freq_hi": 20}
- },
+   "no_bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"}
+   },
  "task_list": [{
                 "task_description" : "cross_correlation",
                 "analysis": "cross_correlation",

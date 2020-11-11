@@ -2,13 +2,14 @@
 
 """Plotting methods for ECEI data."""
 
+import logging
 
 import numpy as np
 
-# import matplotlib as mpl
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from data_models.kstar_ecei import ecei_view
+# from data_models.kstar_ecei import ecei_chunk
 
 
 class radial_interpolator():
@@ -30,7 +31,7 @@ class radial_interpolator():
         self.zpos_arr = zpos_arr
 
     def __call__(self, frame, mask=None, cutoff=0.03):
-        """Applies radial interpolation on the frame.
+        """Applies radial interpolation on a frame.
 
         Args:
             frame (ndarray,float):
@@ -56,8 +57,6 @@ class radial_interpolator():
         frame_zeros[mask] = 0.0
 
         for bad_idx in np.argwhere(mask):
-            print(bad_idx)
-
             r_bad = self.rpos_arr[bad_idx[0], bad_idx[1]]
             z_bad = self.zpos_arr[bad_idx[0], bad_idx[1]]
             dist = np.linalg.norm(np.stack((self.rpos_arr - r_bad,
@@ -71,36 +70,37 @@ class radial_interpolator():
 
 class plot_ecei_timeslice():
     """Plot a time slice of an ecei view."""
-    def __init__(self, my_ecei_view, interpolator=None, rpos_arr=None,
-                 zpos_arr=None, cmap=plt.cm.RdYlBu):
+    def __init__(self, rpos_arr=None, zpos_arr=None, cmap=plt.cm.RdYlBu):
         """Initializes the plotting class.
 
         Args:
-            interpolator (???):
-                Interpolator type
-            zpos_arr (???):
-                Z-positions of the ECEI channels
             rpos_arr (???):
                 R-positions of the ECEI channels
+            zpos_arr (???):
+                Z-positions of the ECEI channels
+            interpolator (???):
+                Interpolator type
 
         Returns:
             None
         """
-        if interpolator is not None:
-            self.interpolator = interpolator(rpos_arr, zpos_arr)
+        self.logger = logging.getLogger("simple")
 
         self.clevs = np.linspace(-0.15, 0.15, 64)
-        self.zpos_arr = zpos_arr
         self.rpos_arr = rpos_arr
+        self.zpos_arr = zpos_arr
         self.cmap = cmap
         self.clevs = None
+        self.interpolator = None
 
-    def set_contour_levels(self, myecei_view, nlevs=64):
+        mpl.use("AGG")
+
+    def set_contour_levels(self, chunk, nlevs=64):
         """Automatically determine the contour levels used for plotting.
 
         Args:
-            myecei_view (???):
-                View on the ECEI data
+            chunk (???):
+                Time-chunk of ECEI data
             nlevs (int):
                 Number of countour levels.
 
@@ -110,8 +110,8 @@ class plot_ecei_timeslice():
         # Slow code:
         # # If we don't interpolate we just need the global maxima and minima
         # if self.interpolator is None:
-        #     all_max = ecei_view.max()
-        #     all_min = ecei_view.min()
+        #     all_max = chunk.data.max()
+        #     all_min = chunk.data.min()
 
         # # Find max an min after interpolation
         # else:
@@ -125,41 +125,46 @@ class plot_ecei_timeslice():
 
         # Alternative code
         # Uses that interpolated values are in between old max and min.
-        all_max = ecei_view.ecei_data[:, :, :][~ecei_view.bad_data].max()
-        all_min = ecei_view.ecei_data[:, :, :][~ecei_view.bad_data].min()
+        all_max = chunk.data[:, :][~chunk.bad_data].max()
+        all_min = chunk.data[:, :][~chunk.bad_data].min()
         self.clevs = np.linspace(all_min, all_max, nlevs)
 
         return None
 
-    def create_plot(self, ecei_view, time):
-        """Creates contour plots in the ecei_view.
+    def create_plot(self, chunk, tidx):
+        """Creates contour plots in the time-chunk of ECEI data.
 
         Args:
-            ecei_view (???):
-                View on the ECEI data.
-            time (timebase_streaming):
+            chunk (???):
+                Time-chunk ECEI data.
+            tb (timebase_streaming):
                 Timebase for the ECEI data
 
         Returns:
             fig (mpl.Figure):
                 Matplotlib figure
         """
-        tidx = ecei_view.tb.time_to_idx(time)
-        print(f"Creating figure for time {time} - tidx {tidx}")
+        #self.set_contour_levels(chunk)
 
-        if self.clevs is None:
-            self.set_contour_levels(ecei_view)
-
-        frame_vals = ecei_view.ecei_data[:, :, tidx]
+        frame_vals = chunk.data[:, tidx]
 
         if self.interpolator is not None:
-            frame_vals = self.interpolator(frame_vals, mask=ecei_view.bad_data)
+            frame_vals = self.interpolator(frame_vals, mask=chunk.bad_data)
 
         fig = plt.figure()
         ax = fig.add_axes([0.2, 0.2, 0.46, 0.75])
         ax_cb = fig.add_axes([0.7, 0.2, 0.05, 0.75])
 
-        mappable = ax.contourf(self.rpos_arr, self.zpos_arr, frame_vals, levels=self.clevs)
+        if self.rpos_arr is not None and self.zpos_arr is not None:
+            self.logger.info(f"Plotting data: {frame_vals.reshape(24, 8)}")
+            # TODO: Fix hard-coded dimensions
+            mappable = ax.contourf(self.rpos_arr.reshape(24, 8), 
+                                   self.zpos_arr.reshape(24, 8), 
+                                   frame_vals.reshape(24, 8), levels=self.clevs)
+            ax.set_xlabel("R / m")
+            ax.set_ylabel("Z / m")
+        #else:
+        #   mappable = ax.contourf(self.rpos_arr, self.zpos_arr, frame_vals)#, levels=self.clevs)
         fig.colorbar(mappable, cax=ax_cb)
 
         return fig

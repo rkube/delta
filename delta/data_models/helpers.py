@@ -2,11 +2,11 @@
 
 """Helper functions common to all data models."""
 
-
+import logging
 import numpy as np
 from itertools import filterfalse
 
-from data_models.kstar_ecei import ecei_chunk
+from data_models.kstar_ecei import ecei_chunk, get_geometry
 from data_models.channels_2d import channel_2d, channel_range
 from data_models.timebase import timebase_streaming
 
@@ -28,10 +28,23 @@ class data_model_generator():
 
 
         """
+        self.logger = logging.getLogger("simple")
         self.cfg = cfg_diagnostic
+
+        # Generate start/stop time for timebase
+        self.chunk_size = cfg_diagnostic["datasource"]["chunk_size"]
+        self.f_sample = cfg_diagnostic["parameters"]["SampleRate"] * 1e3
+        self.dt = 1. / self.f_sample
+        self.t_start, self.t_end, _ = cfg_diagnostic["parameters"]["TriggerTime"]
+        # Callable that performs normalization. This is instantiated once data from
+        # the time interval t_norm is read
+        self.normalize = None
+        self.t_norm = self.cfg["parameters"]["t_norm"]
 
         if self.cfg["name"] == "kstarecei":
             self.data_type = ecei_chunk
+            self.rarr, self.zarr, _ = get_geometry(cfg_diagnostic["parameters"])
+
         elif self["name"] == "nstxgpi":
             self.data_type = None
         else:
@@ -46,21 +59,36 @@ class data_model_generator():
             chunk_idx (int):
                 Sequence index in the stream
 
-
         Returns:
             None
         """
         # Generate a time-base and a data model
         if self.cfg["name"] == "kstarecei":
-            # Adapt configuration file parameters for use in timebase_streaming
-            # constructor
-            t_start, t_end, _ = self.cfg["parameters"]["TriggerTime"]
-            f_sample = 1e3 * self.cfg["parameters"]["SampleRate"]
-            samples_per_chunk = self.cfg["datasource"]["chunk_size"]
+            # Adapt configuration file parameters for use in timebase_streaming constructor
+            tb_chunk = timebase_streaming(self.t_start, self.t_end, self.f_sample, self.chunk_size, chunk_idx)
+            chunk = self.data_type(stream_data, tb_chunk, rarr=self.rarr, zarr=self.zarr)
 
-            tb = timebase_streaming(t_start, t_end, f_sample, samples_per_chunk, chunk_idx)
+            # Determine whether we need to normalize the data
+            tidx_norm = [tb_chunk.time_to_idx(t) for t in self.t_norm]
 
-            return ecei_chunk(stream_data, tb)
+            if tidx_norm[0] is not None:
+                # TODO: Here we create a normalization object using explicit values for the
+                # normalization It may be better to just pass the data and let the normalization
+                # object figure out how to calculate the needed constants. This would be the best
+                # way to allow different normalization.
+                data_norm = stream_data[:, tidx_norm[0]:tidx_norm[1]]
+                self.normalize = normalize_mean(data_norm)
+                self.logger.info(f"Calculated normalization using\
+                                 {tidx_norm[1] - tidx_norm[0]} samples.")
+
+
+            if self.normalize is not None:
+                self.logger.info("Normalizing current_chunk")
+                self.normalize(chunk)
+            else:
+                self.logger.info("dropping current_chunk: self.normalize has not been initialized")
+
+            return chunk
 
         elif self.cfg["name"] == "nstxgpi":
             raise NotImplementedError("NSTX chunk generation not implemented")
@@ -169,31 +197,32 @@ class normalize_mean():
     TODO: Write a proper normalizer.
     """
 
-    def __init__(self, offlev, offstd):
+    def __init__(self, data_norm, axis=-1):
         """Stores offset and standard deviation of normalization time series.
 
         Args:
-            offlev (ndarray):
-                channel-wise offset level
-            offstd (ndarray):
-                channel-wise offset standard deviation
+            data_norm (ndarray):
+                Data from which we calculate normalization constants
+            axis (int):
+                Time-axis.
 
         Returns:
             None
         """
-        self.offlev = offlev
-        self.offstd = offstd
 
+        self.offlev = np.median(data_norm, axis=-1, keepdims=True)
+        self.offstd = data_norm.std(axis=-1, keepdims=True)
         self.siglev = None
         self.sigstd = None
+        # np.savez("data_norm", data_norm=data_norm, offlev=self.offlev, offstd=self.offstd)
 
-    def __call__(self, data):
+    def __call__(self, chunk):
         """Normalizes data in-place.
 
         TODO: Write me.
 
         Args:
-          data (2d_data):
+          chunk (2d_data):
              Data that will be normalized to siglev and sigstd
 
         Returns:
@@ -201,16 +230,20 @@ class normalize_mean():
         """
         # For these asserts to hold we need to calculate offlev,offstd with keepdims=True
 
-        assert(self.offlev.shape[:-1] == data.shape[data.axis_t])
-        assert(self.offstd.shape[:-1] == data.shape[data.axis_t])
-        assert(self.offlev.ndim == data.ndim)
-        assert(self.offstd.ndim == data.ndim)
+        assert(self.offlev.shape[0] == chunk.shape[chunk.axis_ch])
+        assert(self.offstd.shape[0] == chunk.shape[chunk.axis_ch])
+        assert(self.offlev.ndim == chunk.data.ndim)
+        assert(self.offstd.ndim == chunk.data.ndim)
 
-        data[:] = data - self.offlev
-        self.siglev = np.median(data, axis=data.axis_t, keepdims=True)
-        self.sigstd = data.std(axis=data.axis_t, keepdims=True)
+        # Attach offlev and offstd to the chunk
+        chunk.offlev = self.offlev
+        chunk.offstd = self.offstd
 
-        data[:] = data / data.mean(axis=data.axis_t, keepdims=True) - 1.0
+        chunk.data[:] = chunk.data - self.offlev
+        chunk.siglev = np.median(chunk.data, axis=chunk.axis_t, keepdims=True)
+        chunk.sigstd = chunk.data.std(axis=chunk.axis_t, keepdims=True)
+        chunk.data[:] = chunk.data / chunk.data.mean(axis=chunk.axis_t, keepdims=True) - 1.0
+        chunk.is_normalized = True
 
         return None
 

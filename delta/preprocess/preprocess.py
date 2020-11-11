@@ -15,7 +15,7 @@ class preprocessor():
     processor.
     """
 
-    def __init__(self, executor, cfg_preprocess):
+    def __init__(self, executor, cfg):
         """Configures the pre-processing pipeline from a dictionary.
 
         For each key-value pairs in `cfg_preprocess`, a pre-processing callable
@@ -24,9 +24,8 @@ class preprocessor():
         Args:
             executor (PEP-3148-style executor):
                 Executor on which all pre-processing will be performed
-            cfg_preprocess: Dictionary
-                key-value store with which the individual pre-processing functors
-                will be instantiated.
+            cfg_preprocess 
+                Delta configuration
 
         Returns:
             None
@@ -37,24 +36,21 @@ class preprocessor():
 
         self.executor = executor
         self.preprocess_list = []
-        for key, params in cfg_preprocess.items():
+        for key, params in cfg["preprocess"].items():
             try:
-                pre_task = get_preprocess_routine(key, params)
+                pre_task = get_preprocess_routine(key, params, cfg["diagnostic"])
                 self.preprocess_list.append(pre_task)
             except NameError as e:
                 self.logger.error(f"Could not find suitable pre-processing routine: {e}")
                 continue
             self.logger.info(f"Added {key} to preprocessing")
 
-    def submit(self, timechunk, tb):
+    def submit(self, timechunk):
         """Launches preprocessing routines on the executor.
 
         Args:
             timechunk (timechunk):
                 A time-chunk of 2D image data.
-
-            tb (timebase_streaming):
-                Timebase for the time chunk
 
         Returns:
             timechunk (timechunk)
@@ -66,7 +62,7 @@ class preprocessor():
 
         toc = time.perf_counter()
         tictoc = toc - tic
-        self.logger.info(f"Preprocessing for chunk {tb.chunk_idx:04d} took {tictoc:6.4f}s.\
+        self.logger.info(f"Preprocessing for chunk {timechunk.tb.chunk_idx:03d} took {tictoc:6.4f}s.\
              Returning: {type(timechunk)}")
 
         return timechunk

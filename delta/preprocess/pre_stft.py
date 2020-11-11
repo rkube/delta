@@ -38,7 +38,7 @@ class pre_stft():
             data_chunk_ft (twod_chunk_f):
                 Fourier-transformed image-data chunk
         """
-        fut = executor.submit(stft, data_chunk.data(), axis=data_chunk.axis_t,
+        fut = executor.submit(stft, data_chunk.data, axis=data_chunk.axis_t,
                               fs=self.params["fs"], nperseg=self.params["nfft"],
                               window=self.params["window"],
                               detrend=self.params["detrend"],
@@ -50,7 +50,7 @@ class pre_stft():
         data_fft = np.fft.fftshift(data_fft[2], axes=data_chunk.axis_t)
 
         # Calculate the windowing factor and add it to the parameters
-        _, win = self.build_fft_window(data_chunk.data().shape[data_chunk.axis_t],
+        _, win = self.build_fft_window(data_chunk.data.shape[data_chunk.axis_t],
                                        self.params["nfft"],
                                        self.params["window"], self.params["overlap"])
         self.params["win_factor"] = (win ** 2.0).mean()

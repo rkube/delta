@@ -6,8 +6,8 @@ import numpy as np
 import h5py
 import logging
 
-from data_models.kstar_ecei import timebase_streaming, ecei_chunk, channel_range_from_str
-from data_models.helpers import normalize_mean
+from data_models.kstar_ecei import ecei_chunk, channel_range_from_str
+from data_models.timebase import timebase_streaming
 
 
 def get_loader(cfg_all):
@@ -68,11 +68,6 @@ class _loader_ecei():
         self.t_end = min(cfg_all["diagnostic"]["parameters"]["TriggerTime"][1],
                          self.t_start + 5_000_000 * self.dt)
 
-        # Callable that performs normalization. This is instantiated once data from
-        # the time interval t_norm is read in batch_generator
-        self.normalize = None
-        self.t_norm = cfg_all["diagnostic"]["parameters"]["t_norm"]
-
         self.logger = logging.getLogger('simple')
 
         # Whether we use caching for loading data
@@ -124,16 +119,6 @@ class _loader_ecei():
         The ECEI data is usually normalized to a fixed offset, calculated using data
         at the beginning of the stream.
 
-        The time interval where the data we normalize to is taken from is given in
-        ECEI_config, t_norm. As long as this data is not seen by the reader, raw
-        data is returned.
-
-        Once the data we normalize to is seen, the normalization values are calculated.
-        After that, the data from the current and all subsequent chunks is normalized.
-
-        The flag self.is_data_normalized is set to false if raw data is returned.
-        It is set to true if normalized data is returned.
-
         >>> batch_gen = loader.batch_generator()
         >>> for batch in batch_gen():
         >>>    ...
@@ -172,28 +157,6 @@ class _loader_ecei():
                 _chunk_data = _chunk_data * 1e-4
 
             current_chunk = ecei_chunk(_chunk_data, tb_chunk)
-            # Determine whether we need to normalize the data
-            tidx_norm = [tb_chunk.time_to_idx(t) for t in self.t_norm]
-
-            if tidx_norm[0] is not None:
-                # TODO: Here we create a normalization object using explicit values for the
-                # normalization It may be better to just pass the data and let the normalization
-                # object figure out how to calculate the needed constants. This would be the best
-                # way to allow different normalization.
-                data_norm = current_chunk.data()[:, tidx_norm[0]:tidx_norm[1]]
-                offlev = np.median(data_norm, axis=-1, keepdims=True)
-                offstd = data_norm.std(axis=-1, keepdims=True)
-                self.normalize = normalize_mean(offlev, offstd)
-
-                self.logger.info(f"Calculated normalization using\
-                                 {tidx_norm[1] - tidx_norm[0]} samples ")
-
-            if self.normalize is not None:
-                self.logger.info("Normalizing current_chunk")
-                self.normalize(current_chunk.data())
-            else:
-                self.logger.info("dropping current_chunk: self.normalize has not been initialized")
-                continue
 
             yield current_chunk
 

@@ -92,19 +92,19 @@ class writer_base():
         attrs: dictionary: Additional meta-data
         """
 
-        assert(data_class.data().shape == self.shape)
+        assert(data_class.data.shape == self.shape)
 
         if self.writer is not None:
-            assert(data_class.data().flags.contiguous)
-            # if not data_class.data().flags.contiguous:
-            #     data = np.array(data_class.data(), copy=True)
+            assert(data_class.data.flags.contiguous)
+            # if not data_class.data.flags.contiguous:
+            #     data = np.array(data_class.data, copy=True)
             #     self.writer.Put(self.variable, data, adios2.Mode.Sync)
             # else:
             tic = time.perf_counter()
-            self.writer.Put(self.variable, data_class.data(), adios2.Mode.Sync)
+            self.writer.Put(self.variable, data_class.data, adios2.Mode.Sync)
             toc = time.perf_counter()
 
-            num_bytes = np.product(data_class.data().shape) * data_class.data().itemsize
+            num_bytes = np.product(data_class.data.shape) * data_class.data.itemsize
             dt = toc - tic
             self.stats.add_transfer(num_bytes, dt)
 

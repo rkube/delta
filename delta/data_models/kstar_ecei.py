@@ -18,9 +18,8 @@ refer to the horizontal channel number (H). In delta we ue the format DDVVHH, wh
 refer to one of the three components.
 """
 
-
+import logging
 import numpy as np
-import json
 
 from data_models.channels_2d import channel_2d, channel_range
 
@@ -67,14 +66,22 @@ def channel_range_from_str(range_str):
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data."""
 
-    def __init__(self, data, tb, num_v=24, num_h=8):
+    def __init__(self, data, tb, rarr=None, zarr=None, num_v=24, num_h=8):
         """Creates an ecei_chunk from a give dataset.
+
+        The first dimension indices channels, the second dimension indices time.
+        Channels are ordered 
+
 
         Args:
             data (ndarray, float):
                 Raw data for the ECEI voltages
             tb (timebase_streaming):
                 timebase for ECEI voltages
+            rarr (ndarray, float):
+                Radial position of individual channels, in m.
+            zarr (ndarray, float):
+                Vertical position of individual channels, in m.
             num_v (int):
                 Number of vertical channels. Defaults to 24.
             num_h (int):
@@ -83,25 +90,46 @@ class ecei_chunk():
         Returns:
             None
         """
+        self.logger = logging.getLogger("simple")
         # Data should have more than 1 dimension, last dimension is time
         assert(data.ndim > 1)
         #
         self.num_v, self.num_h = num_v, num_h
-        # Data can be 2 or 3 dimensional
-        assert(np.prod(data.shape[:-1]) == self.num_h * self.num_v)
+
 
         # We should ensure that the data is contiguous so that we can remove this from
         # if not data.flags.contiguous:
-        # self.ecei_data = np.array(data, copy=True)
         self.ecei_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
         assert(self.ecei_data.flags.contiguous)
 
+        # Time-base for the chunk
         self.tb = tb
         # Axis that indexes channels
         self.axis_ch = 0
         # Axis that indexes time
         self.axis_t = 1
+        # Data can be 2 or 3 dimensional
+        assert(data.shape[self.axis_ch] == self.num_h * self.num_v)
 
+
+        # Coordinate arrays give the radial and vertical coordinate of each channel
+        if rarr is not None:
+            self.rarr = rarr
+            assert(rarr.size == self.num_h * self.num_v)
+        
+        if zarr is not None:
+            assert(zarr.size == self.num_h * self.num_v)
+            self.zarr = zarr
+
+        # True if data is normalized, False if not.
+        self.is_normalized = False
+        self.offlev = None
+        self.offstd = None
+        self.siglev = None
+        self.sigstd = None
+        self.bad_data = np.zeros((self.num_h * self.num_v), dtype=np.bool)
+
+    @property
     def data(self):
         """Common interface to data."""
         return self.ecei_data
@@ -110,6 +138,42 @@ class ecei_chunk():
     def shape(self):
         """Forwards to self.ecei_data.shape."""
         return self.ecei_data.shape
+
+    def mark_bad_channels(self, verbose=False):
+        """Mark bad channels.
+
+        These are channels with either
+        * Low signal level: std(offset) / siglev > 0.3
+        * Saturated signal data(bottom saturation): std(offset) < 0.001
+        * Saturated offset data(top saturation): std(signal) < 0.001
+        """
+        # Check for low signal level
+        ref = 100. * self.offstd / self.siglev
+        ref[self.siglev < 0.01] = 100
+
+        if verbose:
+            for item in np.argwhere(ref > 30.0):
+                self.logger.info(f"LOW SIGNAL: channel({item[0] + 1:d},{item[1] + 1:d}):\
+                    {ref[tuple(item)]*1e2:4.2f}")
+        self.bad_data[ref > 30.0] = True
+
+        # Mark bottom saturated channels
+        self.bad_data[self.offstd < 1e-3] = True
+        if verbose:
+            for item in np.argwhere(self.offstd < 1e-3):
+                os = self.offstd[tuple(item)]
+                ol = self.offlev[tuple(item)]
+                self.logger.info(f"SAT offset data channel ({item[0] + 1:d}, {item[1] + 1:d})\
+                    offstd = {os} offlevel = {ol}")
+
+        # Mark top saturated channels
+        self.bad_data[self.sigstd < 1e-3] = True
+        if verbose:
+            for item in np.argwhere(self.sigstd < 1e-3):
+                os = self.offstd[tuple(item)]
+                ol = self.offlev[tuple(item)]
+                self.logger.info(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d})\
+                    offstd = {os} offlevel = {ol}")
 
     def create_ft(self, fft_data, fft_params):
         """Returns a fourier-transformed object.
@@ -164,6 +228,7 @@ class ecei_chunk_ft():
         self.num_v = num_v
         self.num_h = num_h
 
+    @property
     def data(self):
         """Common interface to data."""
         return self.data_ft
@@ -174,110 +239,18 @@ class ecei_chunk_ft():
         return self.ecei_data.shape
 
 
-class ecei_channel_2d(channel_2d):
-    """Represents an ECEI channel.
-
-    The ECEI array has 24 horizontal channels and 8 vertical channels.
-
-    They are commonly represented as
-    L2203
-    where L denotes ???, 22 is the horizontal channel and 08 is the vertical channel.
-    """
-
-    def __init__(self, dev, ch_v, ch_h):
-        """Initializes the channel.
-
-        Args:
-            dev (string):
-                must be in 'L' 'H' 'G' 'GT' 'GR' 'HR'
-            ch_h (int):
-                Horizontal channel number, between 1 and 24
-            ch_v (int):
-                Vertical channel number, between 1 and 8
-
-        Returns:
-            None
-        """
-        #
-        assert(dev in ['L', 'H', 'G', "GT", 'HT', 'GR', 'HR'])
-        self.dev = dev
-        super().__init__(ch_v, ch_h, 24, 8)
-
-    @classmethod
-    def from_str(cls, ch_str):
-        """Generates a channel object from a string, such as L2204 or GT1606.
-
-        Args:
-            cls:
-                The class object (this is never passed to the method, but akin to self)
-            ch_str (string):
-                A channel string, such as L2205 of GT0808
-
-        Returns:
-            channel1 (ecei_channel_2d):
-                Newly instantiated ecei_channel_2d object
-        """
-        import re
-        # Define a regular expression that matches a sequence of 1 to 2 characters in [A-Z]
-        # This will be our dev.
-        m = re.search('[A-Z]{1,2}', ch_str)
-        try:
-            dev = m.group(0)
-        except NameError:
-            raise AttributeError("Could not parse channel string " + ch_str)
-
-        # Define a regular expression that matches 4 consecutive digits
-        # These will be used to calculate ch_h and ch_v
-        m = re.search('[0-9]{4}', ch_str)
-        ch_num = int(m.group(0))
-
-        ch_h = (ch_num % 100)
-        ch_v = int(ch_num // 100)
-
-        channel1 = cls(dev, ch_v, ch_h)
-        return channel1
-
-    def __str__(self):
-        """Prints the channel as a standardized string DDHHVV.
-
-        Here D is dev, H is ch_h and V is ch_v.
-        DD can be 1 or 2 characters, H and V are zero-padded.
-        """
-        ch_str = "{0:s}{1:02d}{2:02d}".format(self.dev, self.ch_v, self.ch_h)
-
-        return(ch_str)
-
-    def to_json(self):
-        """Returns the class in JSON notation.
-
-        This method avoids serialization error when using non-standard int types,
-        such as np.int64 etc...
-        """
-        d = {"ch_v": int(self.ch_v), "ch_h": int(self.ch_h),
-             "dev": self.dev, "ch_num": int(self.ch_num)}
-        return json.dumps(d, default=lambda o: o.__dict__, sort_keys=True, indent=4)
-
-    @classmethod
-    def from_json(cls, str):
-        """Returns a channel instance from a json string."""
-        j = json.loads(str)
-
-        channel1 = cls(j["dev"], int(j["ch_v"]), int(j["ch_h"]))
-        return(channel1)
-
-
-def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
+def get_abcd(LensFocus, LensZoom, Rinit, dev, new_H=True):
     """Returns ABCD matrix for KSTAR ECEI diagnostic.
 
     Args:
-        ch (channel):
-            channel
         LensZoom (float):
             LensZoom
         LensFocus (float):
             LensFocus
         Rinit (float):
             Radial position of the channel, in meter
+        dev (char):
+            Name ECEI device. Either one of 'L', 'H', 'G', 'GT', 'GR', 'HT'
         new_H (bool):
             If true, use new values for H-dev, shot > 12957
 
@@ -287,11 +260,14 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
 
     Raises:
         NameError:
-            If channel is not one of 'L', 'H', 'G', 'GT', 'GR', 'HT'
+            If dev is not one of 'L', 'H', 'G', 'GT', 'GR', 'HT'
     """
+    if dev not in ['L', 'H', 'G', 'GT', 'GR', 'HT']:
+        raise NameError(f"Device is {dev:s}, but needs to be 'L', 'H', 'G', 'GT', 'GR', or 'HT'.")
+
     # ABCD matrix
     abcd = None
-    if channel.dev == 'L':
+    if dev == 'L':
         sp = 3350 - Rinit * 1000  # [m] -> [mm]
         abcd = np.array([[1, 250 + sp], [0, 1]]).dot(
             np.array([[1, 0], [(1.52 - 1) / (-730), 1.52]])).dot(
@@ -311,7 +287,7 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
             np.array([[1, 0], [(1 - 1.52) / (1270 * 1.52), 1 / 1.52]])).dot(
             np.array([[1, 539 + 35 + LensFocus], [0, 1]]))
 
-    elif channel.dev == 'H':
+    elif dev == 'H':
         sp = 3350 - Rinit * 1000
         abcd = np.array([[1, 250 + sp], [0, 1]]).dot(
             np.array([[1, 0], [(1.52 - 1) / (- 730), 1.52]])).dot(
@@ -341,7 +317,7 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
                 np.array([[1, 0], [(1 - 1.52) / (1400 * 1.52), 1 / 1.52]])).dot(
                 np.array([[1, 446 + 35 + LensFocus], [0, 1]]))
 
-    elif channel.dev == 'G':
+    elif dev == 'G':
         sp = 3150 - Rinit * 1000
         abcd = np.array([[1, 1350 - LensZoom + sp], [0, 1]]).dot(
             np.array([[1, 0], [0, 1.545]])).dot(
@@ -357,7 +333,7 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
             np.array([[1, 0], [(1 - 1.545) / (800 * 1.545), 1 / 1.545]])).dot(
             np.array([[1, 390], [0, 1]]))
 
-    elif channel.dev == 'GT':
+    elif dev == 'GT':
         sp = 2300 - Rinit * 1000
         abcd = np.array([[1, sp + (1954 - LensZoom)], [0, 1]]).dot(
             np.array([[1, 0], [(1.52 - 1) / (- 1000), 1.52]])).dot(
@@ -377,7 +353,7 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
             np.array([[1, 0], [0, 1 / 1.52]])).dot(
             np.array([[1, 4940 - (4520 + 30)], [0, 1]]))
 
-    elif channel.dev == 'GR':
+    elif dev == 'GR':
         sp = 2300 - Rinit * 1000
         abcd = np.array([[1, sp + (1954 - LensZoom)], [0, 1]]).dot(
             np.array([[1, 0], [(1.52 - 1) / (-1000), 1.52]])).dot(
@@ -397,7 +373,7 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
             np.array([[1, 0], [0, 1 / 1.52]])).dot(
             np.array([[1, 4940 - (4520 + 30)], [0, 1]]))
 
-    elif channel.dev == 'HT':
+    elif dev == 'HT':
         sp = 2300 - Rinit * 1000
         abcd = np.array([[1, sp + 2586], [0, 1]]).dot(
             np.array([[1, 0], [0, 1.52]])).dot(
@@ -416,67 +392,22 @@ def get_abcd(channel, LensFocus, LensZoom, Rinit, new_H=True):
             np.array([[1, 25.62], [0, 1]])).dot(
             np.array([[1, 0], [0, 1 / 1.52]])).dot(
             np.array([[1, 7094.62 - (6489 + 25.62)], [0, 1]]))
-    else:
-        raise ValueError("Channel needs to be either 'L', 'H', 'G', 'GT', 'GR', or 'HT'. ")
 
     return abcd
 
 
-def beam_path(ch, LensFocus, LensZoom, rpos):
-    """Calculates the ray vertical position and angle at rpos.
-
-    Starting from the array box position.
+def get_geometry(cfg_diagnostic):
+    """Builds channel geometry arrays.
 
     Args:
-        ch (channel):
-            Channel for which to calculate the beam path
-        LensFocus (float):
-            LensFocus factor
-        LensZoom (float):
-            LensZoom factor.
-        rpos (float):
-            Radial position of the channel view, in meters
-        ch_v (int):
-            number of vertical channel
+        cfg_diagnostic (dict):
+            Parameters section of diagnostic configuration
 
     Returns:
-        zpos (float):
-            Z-coordinate of beam-path
-        apos (float):
-            angle coordinate of beam-path
-    """
-    abcd = get_abcd(ch, LensFocus, LensZoom, rpos)
-
-    # vertical position from the reference axis (vertical center of all lens, z=0 line)
-    zz = (np.arange(24, 0, -1) - 12.5) * 14  # [mm]
-    # angle against the reference axis at ECEI array box
-    aa = np.zeros(np.size(zz))
-
-    # vertical posistion and angle at rpos
-    za = np.dot(abcd, [zz, aa])
-    zpos = za[0][ch.ch_v - 1] * 1e-3  # zpos [m]
-    # angle [rad] positive means the (z+) up-directed (divering from array to plasma)
-    apos = za[1][ch.ch_v - 1]
-
-    return zpos, apos
-
-
-def channel_position(ch, ecei_cfg):
-    """Calculates the position of a channel in configuration space.
-
-    Args:
-        ch (channel):
-            The channel whos position we want to calculate
-        ecei_cfg (dict):
-            Parameters of the ECEi diagnostic.
-
-    Returns:
-        rpos (float):
-            R-position of ECEI channel, in m.
-        zpos (float):
-            Z-position of ECEI channel, in m.
-        apos (float):
-            angle of ECEI channel. In radians, I think?
+        rarr (ndarray):
+            Array containing radial coordinate of channels in m.
+        zarr (ndarray):
+            Array containing vertical coordinate of channels in m.
     """
     me = 9.1e-31             # electron mass, in kg
     e = 1.602e-19            # charge, in C
@@ -485,26 +416,48 @@ def channel_position(ch, ecei_cfg):
 
     # Unpack ecei_cfg
     # Instead of TFcurrent multiplying by 1e3, put this in the config file
-    TFcurrent = ecei_cfg["TFcurrent"]
-    LoFreq = ecei_cfg["LoFreq"]
-    LensFocus = ecei_cfg["LensFocus"]
-    LensZoom = ecei_cfg["LensZoom"]
+    TFcurrent = cfg_diagnostic["TFcurrent"]
+    LoFreq = cfg_diagnostic["LoFreq"]
+    LensFocus = cfg_diagnostic["LensFocus"]
+    LensZoom = cfg_diagnostic["LensZoom"]
     # Set hn, depending on mode. If mode is undefined, set X-mode as default.
+    hn = 2
     try:
-        if ecei_cfg["Mode"] == 'O':
+        if cfg_diagnostic["Mode"] == 'O':
             hn = 1
-        elif ecei_cfg["Mode"] == 'X':
+        elif cfg_diagnostic["Mode"] == 'X':
             hn = 2
 
     except KeyError as k:
         print("ecei_cfg: key {0:s} not found. Defaulting to 2nd X-mode".format(k.__str__()))
-        ecei_cfg["Mode"] = 'X'
+        cfg_diagnostic["Mode"] = 'X'
         hn = 2
+  
+    # To vectorize calculation of the channel positions we flatten out
+    # horizontal and vertical channel indices in horizontal order.
+    arr_ch_hv = np.zeros([24 * 8, 2], dtype=int)
+    for idx_v in range(1, 25):
+        for idx_h in range(1, 9):
+            ch = channel_2d(idx_v, idx_h, 24, 8, "horizontal")
+            arr_ch_hv[ch.get_idx(), 0] = ch.ch_h
+            arr_ch_hv[ch.get_idx(), 1] = ch.ch_v
 
-    rpos = hn * e * mu0 * ttn * TFcurrent /\
-        (4. * np.pi * np.pi * me * ((ch.ch_h - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
-    zpos, apos = beam_path(ch, LensFocus, LensZoom, rpos)
-    return (rpos, zpos, apos)
+    rpos_arr = hn * e * mu0 * ttn * TFcurrent /\
+        (4. * np.pi * np.pi * me * ((arr_ch_hv[:, 0] - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
+    
+    # With radial positions at hand, continue the calculations from beam_path
+    # This is an (192, 2, 2) array, where the first dimension indices each individual channel
+    abcd_array = np.array([get_abcd(LensFocus, LensZoom, rpos, cfg_diagnostic["Device"]) for rpos in rpos_arr])
+    # vertical position from the reference axis (vertical center of all lens, z=0 line)
+    zz = (np.arange(24, 0, -1) - 12.5) * 14  # [mm]
+    # angle against the reference axis at ECEI array box
+    aa = np.zeros_like(zz)
 
+    # vertical posistion and angle at rpos
+    za_array = np.dot(abcd_array, [zz, aa])
 
+    zpos_arr = np.array([za_array[i, 0, v - 1] for i, v in zip(np.arange(192), arr_ch_hv[:, 1])]) * 1e-3
+    apos_arr = np.array([za_array[i, 1, v - 1] for i, v in zip(np.arange(192), arr_ch_hv[:, 1])])
+
+    return(rpos_arr, zpos_arr, apos_arr)
 # End of file kstar_ecei.py

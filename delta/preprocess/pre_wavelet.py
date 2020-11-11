@@ -27,6 +27,7 @@ class pre_wavelet():
         Args:
             data_chunk (2d image):
                 Data chunk to be wavelet transformed.
+
             executor (PEP-3148-style executor):
                 Executor on which to execute.
 
