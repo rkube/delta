@@ -34,12 +34,12 @@ def gen_dummy_data():
 
 def test_normalization(gen_dummy_data, caplog):
     """Verify normaliation procedure."""
+    import sys
+    import os
+    sys.path.append(os.path.abspath('delta'))
     import numpy as np
-
-
     from data_models.kstar_ecei import ecei_chunk
     from data_models.helpers import normalize_mean
-    #dummy_data = gen_dummy_data
 
     my_chunk = ecei_chunk(gen_dummy_data, tb=None)
     norm = normalize_mean(my_chunk.data)

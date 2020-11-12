@@ -11,7 +11,11 @@ def init_timebase():
 
     See introduction to fixtures: https://docs.pytest.org/en/stable/fixture.html#fixtures
     """
-    from data_models.timebase import timebase_streaming
+    import sys
+    import os
+    sys.path.append(os.path.abspath('delta'))
+
+    from delta.data_models.timebase import timebase_streaming
     # Time-range starts at -0.1s and goes until 9.9s
     # Sampling frequency is 5e5 Hz -> dt = 2e-6
     # 10_000 samples per chunk.
