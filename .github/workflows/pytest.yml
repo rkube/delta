@@ -43,4 +43,4 @@ jobs:
         with:
           name: pytest-results
           path: test_results.xml 
-        if: ${{ always }}
+        if: ${{ always() }}
