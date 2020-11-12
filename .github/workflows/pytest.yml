@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: pytest
 
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the master branch
@@ -37,4 +37,10 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: pytest
-        run: pytest --cov=delta tests
+        run: pytest --cov=delta --junitxml=test_results.xml tests
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: pytest-results
+          path: test_results.xml 
+        if: ${{ always }}

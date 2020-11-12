@@ -1,8 +1,10 @@
 [docs-image]: https://readthedocs.org/projects/delta-fusion/badge/?version=latest
 [docs-url]: https://delta-fusion.readthedocs.io/en/latest/?badge=latest
+[pytest-url]: https://github.com/rkube/delta/workflows/pytest/badge.svg
 
 -------------------------------------------------------------------------------
 [![Documentation Status][docs-image]][docs-url]
+[![Unit Tests][pytest-url]]
 
 **[Documentation](https://delta-fusion.readthedocs.io/en/latest/index.html)
 
