@@ -239,18 +239,11 @@ class task_list():
         """
         self.executor_anl = executor_anl
         self.task_config_list = task_config_list
-        # Don't store fft_config but use fft_params from one of the tasks instead.
-        # Do this since we need the sampling frequency, which is calculated from ECEi data.
-        self.diag_config = diag_config
-        self.cfg_storage = cfg_storage
-
         self.logger = logging.getLogger("simple")
 
         self.task_list = []
         for task_cfg in self.task_config_list:
-            self.task_list.append(task_spectral(task_cfg, self.diag_config, self.cfg_storage))
-
-        # self.fft_params = self.task_list[0].fft_params
+            self.task_list.append(task_spectral(task_cfg, diag_config, cfg_storage))
 
     def submit(self, data_chunk):
         """Launches the analysis pipeline with a data chunk.
@@ -280,31 +273,10 @@ class task_list():
         # fft_data_tmp = res.result()
         # fft_data = cp.asnumpy(fft_data_tmp[2])
 
-        # res = self.executor_fft.submit(stft,
-        #                                data_chunk.data,
-        #                                axis=1,
-        #                                fs=self.fft_params["fs"],
-        #                                nperseg=self.fft_params["nfft"],
-        #                                window=self.fft_params["window"],
-        #                                detrend=self.fft_params["detrend"],
-        #                                noverlap=self.fft_params["noverlap"],
-        #                                padded=False,
-        #                                return_onesided=False,
-        #                                boundary=None)
-        # fft_data = res.result()
-        # fft_data = np.fft.fftshift(fft_data[2], axes=1)
-
-        # toc_fft = time.perf_counter()
-        # self.logger.info(f"tidx {tidx}: FFT took {(toc_fft - tic_fft):6.4f}s. ")
-
-        # if tidx == 1:
-        #    np.savez(f"test_data/fft_array_s{tidx:04d}.npz", fft_data = fft_data)
-
         self.logger.info(f"task_list: Received type {type(data_chunk)}\
             for chunk_idx {data_chunk.tb.chunk_idx}")
 
         for task in self.task_list:
             task.submit(self.executor_anl, data_chunk)
-        # #    #task.submit(self.executor, fft_data, tidx)
 
 # End of file tasks_mpi.py
