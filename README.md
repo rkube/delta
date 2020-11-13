@@ -4,7 +4,7 @@
 
 -------------------------------------------------------------------------------
 [![Documentation Status][docs-image]][docs-url]
-[![Unit Tests][pytest-url]]
+![Unit Tests][pytest-url]
 
 **[Documentation](https://delta-fusion.readthedocs.io/en/latest/index.html)
 

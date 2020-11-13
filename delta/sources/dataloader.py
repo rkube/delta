@@ -67,6 +67,7 @@ class _loader_ecei():
         self.t_start = cfg_all["diagnostic"]["parameters"]["TriggerTime"][0]
         self.t_end = min(cfg_all["diagnostic"]["parameters"]["TriggerTime"][1],
                          self.t_start + 5_000_000 * self.dt)
+        self.dev = cfg_all["diagnostic"]["parameters"]["Device"]
 
         self.logger = logging.getLogger('simple')
 
@@ -76,6 +77,29 @@ class _loader_ecei():
             self.cache()
             self.is_cached = True
 
+    def _read_from_hdf5(self, array, idx_start, idx_end):
+        """Reads data from HDF5 into array.
+
+        Values in array are changed in-place.
+
+        Args:
+            array (np.ndarray):
+                Array where we store HDF5 data
+            idx_start (int):
+                First index to read
+            idx_end (int):
+                Last index to read
+
+        Returns:
+            None
+        """
+        # Cache the data in memory
+        with h5py.File(self.filename, "r",) as df:
+            for ch in self.ch_range:
+                chname_h5 = f"/ECEI/ECEI_{self.dev}{ch.ch_v:02d}{ch.ch_h:02d}/Voltage"
+                array[ch.get_idx(), :] = df[chname_h5][idx_start:idx_end].astype(self.dtype)
+        array[:] = array[:] * 1e-4
+
     def cache(self):
         """Loads data from HDF5 and fills the cache.
 
@@ -84,16 +108,10 @@ class _loader_ecei():
         """
         self.cache = np.zeros([self.ch_range.length(), self.chunk_size * self.num_chunks],
                               dtype=self.dtype)
-
         assert(self.cache.flags.contiguous)
 
-        # Cache the data in memory
-        with h5py.File(self.filename, "r",) as df:
-            for ch in self.ch_range:
-                chname_h5 = f"/ECEI/ECEI_L{ch.ch_v:02d}{ch.ch_h:02d}/Voltage"
-                self.cache[ch.get_idx(), :] =\
-                    df[chname_h5][:self.chunk_size * self.num_chunks].astype(self.dtype)
-        self.cache = self.cache * 1e-4
+        # Load contents of entire HDF5 file into self.cache
+        self._read_from_hdf5(self.cache, 0, self.chunk_size * self.num_chunks)
 
     def get_chunk_shape(self):
         """Returns the size of chunks.
@@ -106,10 +124,6 @@ class _loader_ecei():
                 (Number of channels, time chunk size)
         """
         return (self.ch_range.length(), self.chunk_size)
-
-    def get_chunk_size_bytes(self):
-        """Returns the size of a chunk, in bytes."""
-        pass
 
     def batch_generator(self):
         """Loads the next time-chunk from the data file.
@@ -147,17 +161,10 @@ class _loader_ecei():
 
             # If we haven't cached, load from HDF5
             else:
-                with h5py.File(self.filename, "r",) as df:
-                    for ch in self.ch_range:
-                        chname_h5 = f"/ECEI/ECEI_{ch}/Voltage"
-                        _chunk_data[ch.get_idx(), :] = df[chname_h5][current_chunk *
-                                                                     self.chunk_size:
-                                                                     (current_chunk + 1) *
-                                                                     self.chunk_size]
-                _chunk_data = _chunk_data * 1e-4
+                self._read_from_hdf5(_chunk_data, current_chunk * self.chunk_size,
+                                     (current_chunk + 1) * self.chunk_size)
 
             current_chunk = ecei_chunk(_chunk_data, tb_chunk)
-
             yield current_chunk
 
 

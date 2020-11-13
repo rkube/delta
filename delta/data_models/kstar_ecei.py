@@ -70,8 +70,7 @@ class ecei_chunk():
         """Creates an ecei_chunk from a give dataset.
 
         The first dimension indices channels, the second dimension indices time.
-        Channels are ordered 
-
+        Channels are ordered
 
         Args:
             data (ndarray, float):
@@ -96,7 +95,6 @@ class ecei_chunk():
         #
         self.num_v, self.num_h = num_v, num_h
 
-
         # We should ensure that the data is contiguous so that we can remove this from
         # if not data.flags.contiguous:
         self.ecei_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
@@ -111,12 +109,11 @@ class ecei_chunk():
         # Data can be 2 or 3 dimensional
         assert(data.shape[self.axis_ch] == self.num_h * self.num_v)
 
-
         # Coordinate arrays give the radial and vertical coordinate of each channel
         if rarr is not None:
             self.rarr = rarr
             assert(rarr.size == self.num_h * self.num_v)
-        
+
         if zarr is not None:
             assert(zarr.size == self.num_h * self.num_v)
             self.zarr = zarr
@@ -432,7 +429,7 @@ def get_geometry(cfg_diagnostic):
         print("ecei_cfg: key {0:s} not found. Defaulting to 2nd X-mode".format(k.__str__()))
         cfg_diagnostic["Mode"] = 'X'
         hn = 2
-  
+
     # To vectorize calculation of the channel positions we flatten out
     # horizontal and vertical channel indices in horizontal order.
     arr_ch_hv = np.zeros([24 * 8, 2], dtype=int)
@@ -444,10 +441,11 @@ def get_geometry(cfg_diagnostic):
 
     rpos_arr = hn * e * mu0 * ttn * TFcurrent /\
         (4. * np.pi * np.pi * me * ((arr_ch_hv[:, 0] - 1) * 0.9 + 2.6 + LoFreq) * 1e9)
-    
+
     # With radial positions at hand, continue the calculations from beam_path
     # This is an (192, 2, 2) array, where the first dimension indices each individual channel
-    abcd_array = np.array([get_abcd(LensFocus, LensZoom, rpos, cfg_diagnostic["Device"]) for rpos in rpos_arr])
+    abcd_array = np.array([get_abcd(LensFocus, LensZoom, rpos,
+                                    cfg_diagnostic["Device"]) for rpos in rpos_arr])
     # vertical position from the reference axis (vertical center of all lens, z=0 line)
     zz = (np.arange(24, 0, -1) - 12.5) * 14  # [mm]
     # angle against the reference axis at ECEI array box
@@ -456,7 +454,8 @@ def get_geometry(cfg_diagnostic):
     # vertical posistion and angle at rpos
     za_array = np.dot(abcd_array, [zz, aa])
 
-    zpos_arr = np.array([za_array[i, 0, v - 1] for i, v in zip(np.arange(192), arr_ch_hv[:, 1])]) * 1e-3
+    zpos_arr = np.array([za_array[i, 0, v - 1] for
+                         i, v in zip(np.arange(192), arr_ch_hv[:, 1])]) * 1e-3
     apos_arr = np.array([za_array[i, 1, v - 1] for i, v in zip(np.arange(192), arr_ch_hv[:, 1])])
 
     return(rpos_arr, zpos_arr, apos_arr)

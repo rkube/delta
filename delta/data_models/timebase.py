@@ -3,9 +3,6 @@
 """Defines time-base classes to be used in streaming settings."""
 
 
-import numpy as np
-
-
 class timebase_streaming():
     """Defines a timebase for a data chunk in the stream."""
 
@@ -92,7 +89,5 @@ class timebase_streaming():
         print_str += f"chunk_idx={self.chunk_idx}"
         print_str += f" local t0={t0:6.4f}s, t1={t1:6.4f}s"
         return print_str
-
-
 
 # End of file timebases.py

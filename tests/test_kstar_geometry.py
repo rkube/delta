@@ -210,7 +210,7 @@ class kstarecei_mockup():
         return abcd
 
 
-def test_ecei_channel_geom():
+def test_ecei_channel_geom(config_all):
     """Verify calculated ECEI channel positions are the same as in fluctana."""
     import sys
     import os
@@ -226,24 +226,9 @@ def test_ecei_channel_geom():
     # ch_str = f"ECEI_L{ch_v:02d}{ch_h:02d}"
     ch_2d = channel_2d(ch_v, ch_h, 24, 8, order="horizontal")
 
-    # Manually provide ECEI configuration dictionary for Delta
-    cfg_diagnostic = {"name": "kstarecei", "shotnr": 18431,
-                      "datasource": {
-                          "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/ECEI.018431.LFS.h5",
-                          "chunk_size": 10000,
-                          "num_chunks": 500,
-                          "channel_range": ["L0101-2408"],
-                          "datatype": "float"},
-                      "parameters": {
-                          "Device": "L",
-                          "TriggerTime": [-0.12, 61.2, 60],
-                          "t_norm": [-0.119, -0.109],
-                          "SampleRate": 500,
-                          "TFcurrent": 23000.0,
-                          "Mode": "O",
-                          "LoFreq": 81,
-                          "LensFocus": 80,
-                          "LensZoom": 340}}
+    # Use the config_all fixture to get Delta configuration
+    config = config_all
+    cfg_diagnostic = config["diagnostic"]
 
     # Calcuate channel position using FluctAna and Delta
     K = kstarecei_mockup(ch_h, ch_v, "L")

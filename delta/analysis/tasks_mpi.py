@@ -300,7 +300,8 @@ class task_list():
         # if tidx == 1:
         #    np.savez(f"test_data/fft_array_s{tidx:04d}.npz", fft_data = fft_data)
 
-        self.logger.info(f"task_list: Received type {type(data_chunk)} for chunk_idx {data_chunk.tb.chunk_idx}")
+        self.logger.info(f"task_list: Received type {type(data_chunk)}\
+            for chunk_idx {data_chunk.tb.chunk_idx}")
 
         for task in self.task_list:
             task.submit(self.executor_anl, data_chunk)

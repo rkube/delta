@@ -24,7 +24,7 @@ class preprocessor():
         Args:
             executor (PEP-3148-style executor):
                 Executor on which all pre-processing will be performed
-            cfg_preprocess 
+            cfg_preprocess
                 Delta configuration
 
         Returns:

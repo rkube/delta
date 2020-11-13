@@ -65,7 +65,8 @@ class data_model_generator():
         # Generate a time-base and a data model
         if self.cfg["name"] == "kstarecei":
             # Adapt configuration file parameters for use in timebase_streaming constructor
-            tb_chunk = timebase_streaming(self.t_start, self.t_end, self.f_sample, self.chunk_size, chunk_idx)
+            tb_chunk = timebase_streaming(self.t_start, self.t_end, self.f_sample,
+                                          self.chunk_size, chunk_idx)
             chunk = self.data_type(stream_data, tb_chunk, rarr=self.rarr, zarr=self.zarr)
 
             # Determine whether we need to normalize the data
@@ -80,7 +81,6 @@ class data_model_generator():
                 self.normalize = normalize_mean(data_norm)
                 self.logger.info(f"Calculated normalization using\
                                  {tidx_norm[1] - tidx_norm[0]} samples.")
-
 
             if self.normalize is not None:
                 self.logger.info("Normalizing current_chunk")
@@ -209,7 +209,6 @@ class normalize_mean():
         Returns:
             None
         """
-
         self.offlev = np.median(data_norm, axis=-1, keepdims=True)
         self.offstd = data_norm.std(axis=-1, keepdims=True)
         self.siglev = None

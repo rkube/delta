@@ -44,7 +44,6 @@ class pre_plot():
             data_chunk (2d_image):
                 Wavelet-filtered images
         """
-
         tidx_plot = [data_chunk.tb.time_to_idx(t) for t in self.time_range]
 
         if tidx_plot[0] is not None:
@@ -55,7 +54,6 @@ class pre_plot():
             for tidx in range(tidx_plot[0], tidx_plot[1]):
                 fig = self.plotter.create_plot(data_chunk, tidx)
                 fig.savefig(join(self.plot_dir, f"chunk_{data_chunk.tb.chunk_idx}_{tidx:04d}.png"))
-
 
         return data_chunk
 

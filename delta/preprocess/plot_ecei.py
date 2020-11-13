@@ -144,7 +144,7 @@ class plot_ecei_timeslice():
             fig (mpl.Figure):
                 Matplotlib figure
         """
-        #self.set_contour_levels(chunk)
+        # self.set_contour_levels(chunk)
 
         frame_vals = chunk.data[:, tidx]
 
@@ -158,12 +158,12 @@ class plot_ecei_timeslice():
         if self.rpos_arr is not None and self.zpos_arr is not None:
             self.logger.info(f"Plotting data: {frame_vals.reshape(24, 8)}")
             # TODO: Fix hard-coded dimensions
-            mappable = ax.contourf(self.rpos_arr.reshape(24, 8), 
-                                   self.zpos_arr.reshape(24, 8), 
+            mappable = ax.contourf(self.rpos_arr.reshape(24, 8),
+                                   self.zpos_arr.reshape(24, 8),
                                    frame_vals.reshape(24, 8), levels=self.clevs)
             ax.set_xlabel("R / m")
             ax.set_ylabel("Z / m")
-        #else:
+        # else:
         #   mappable = ax.contourf(self.rpos_arr, self.zpos_arr, frame_vals)#, levels=self.clevs)
         fig.colorbar(mappable, cax=ax_cb)
 

@@ -66,8 +66,8 @@ class channel_pair:
     This is just a tuple with an overloaded equality operator. It's also hashable so one can
     use it in conjunction with sets.
 
-    >>> ch1 = channel(13, 7, 24, 8, 'horizontal')
-    >>> ch2 = channel(12, 7, 24, 8, 'horizontal')
+    >>> ch1 = channel_2d(13, 7, 24, 8, 'horizontal')
+    >>> ch2 = channel_2d(12, 7, 24, 8, 'horizontal')
     >>> ch_pair = channel_pair(ch1, c2)
 
     >>> channel_pair(ch1, ch2) == channel_pair(ch2, c1)
@@ -161,8 +161,8 @@ class channel_range:
             ch_end (:py:class:`channel_2d`): Stop channel for iteration
         """
         assert(ch_start.get_num() <= ch_end.get_num())
-        assert(ch_start.chnum_v == ch_end.chnum_v)
-        assert(ch_start.chnum_h == ch_end.chnum_h)
+        assert(ch_start.chnum_v <= ch_end.chnum_v)
+        assert(ch_start.chnum_h <= ch_end.chnum_h)
         assert(ch_start.order == ch_end.order)
 
         self.ch_start = ch_start
@@ -221,7 +221,7 @@ class channel_range:
         Returns:
             int: Number of channels in the range
         """
-        return(self.ch_end.get_num() - self.ch_start.get_num() + 1)
+        return((self.ch_hf - self.ch_hi + 1) * (self.ch_vf - self.ch_vi + 1))
 
 
 class num_to_vh():
@@ -309,12 +309,15 @@ class vh_to_num:
             ch_num (int):
                 Linear, one-based channel number
         """
-    # We usually want to check that we are within the bounds.
-    # But sometimes it is helpful to avoid this.
-    # if debug:
+        # We usually want to check that we are within the bounds.
+        # But sometimes it is helpful to avoid this.
+        # if debug:
         assert((ch_v > 0) & (ch_v < self.chnum_v + 1))
         assert((ch_h > 0) & (ch_h < self.chnum_h + 1))
 
-        return((ch_v - 1) * self.chnum_h + ch_h)
+        if (self.order == "horizontal"):
+            return((ch_v - 1) * self.chnum_h + ch_h)
+        elif (self.order == "vertical"):
+            return((ch_h - 1) * self.chnum_v + ch_v)
 
 # End of file channels_2d.py

@@ -9,7 +9,7 @@ import logging
 import json
 
 
-from storage.helpers import  serialize_dispatch_seq
+from storage.helpers import serialize_dispatch_seq
 
 
 class backend_numpy():

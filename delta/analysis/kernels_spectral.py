@@ -82,11 +82,9 @@ def kernel_coherence(fft_data, ch_it, fft_config):
         Y = fft_data[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
-        Gxy[idx, :] = ((X * Y.conj()) / np.sqrt(Pxx * Pyy)).mean(axis=1)
+        Gxy[idx, :] = np.abs(((X * Y.conj()) / np.sqrt(Pxx * Pyy))).mean(axis=1)
 
-    Gxy = np.abs(Gxy)
     Gxy = Gxy.real
-
     return(Gxy)
 
 
