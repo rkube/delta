@@ -199,8 +199,8 @@ class task_spectral():
                              ch_it,
                              info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(),
                                                                     info_dict_list)]
-        self.logger.info(f"chunk_idxidx={fft_data.tb.chunk_idx} submitted {self.analysis} " +
-                         "as {self.num_chunks} tasks.  fft_data: {type(fft_data)}")
+        self.logger.info(f"chunk_idx={fft_data.tb.chunk_idx} submitted {self.analysis} " +
+                         f"as {self.num_chunks} tasks.  fft_data: {type(fft_data)}")
 
         # for fut, info_dict in zip(fut_list, info_dict_list):
         #     result = fut.result()

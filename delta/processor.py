@@ -53,13 +53,13 @@ def consume(Q, my_task_list, my_preprocessor):
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
 
-        np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data)
+        #np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data)
 
         # TODO: Should there be a general method to a time index from a data chunk?
         logger.info(f"Rank {rank}: Consumed: {msg.tb} Got data type {type(msg)}")
         msg = my_preprocessor.submit(msg)
         # if(msg.tb.chunk_idx == 1):
-        np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data)
+        #np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data)
 
         my_task_list.submit(msg)
 
@@ -143,21 +143,21 @@ def main():
         if stepStatus:
             # Read data
             stream_data = reader.Get(stream_varname, save=False)
-            rx_list.append(reader.CurrentStep())
+            if reader.CurrentStep() in [0, 1, 2, 139, 140, 141]:
+                rx_list.append(reader.CurrentStep())
 
-            # Create a datamodel instance from the raw data and push into the queue
-            msg = data_model_gen.new_chunk(stream_data, reader.CurrentStep())
-            dq.put_nowait(msg)
-            logger.info(f"Published tidx {reader.CurrentStep()}")
+                # Create a datamodel instance from the raw data and push into the queue
+                msg = data_model_gen.new_chunk(stream_data, reader.CurrentStep())
+                dq.put_nowait(msg)
+                logger.info(f"Published tidx {reader.CurrentStep()}")
             reader.EndStep()
         else:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 5:
+        if reader.CurrentStep() > 150:
             logger.info("End of the line. Exiting")
             break
-
     dq.join()
     logger.info("Queue joined")
 

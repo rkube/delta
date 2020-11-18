@@ -83,7 +83,6 @@ class data_model_generator():
                                  {tidx_norm[1] - tidx_norm[0]} samples.")
 
             if self.normalize is not None:
-                self.logger.info("Normalizing current_chunk")
                 self.normalize(chunk)
             else:
                 self.logger.info("dropping current_chunk: self.normalize has not been initialized")
@@ -209,6 +208,7 @@ class normalize_mean():
         Returns:
             None
         """
+        self.logger = logging.getLogger("simple")
         self.offlev = np.median(data_norm, axis=-1, keepdims=True)
         self.offstd = data_norm.std(axis=-1, keepdims=True)
         self.siglev = None
@@ -233,6 +233,7 @@ class normalize_mean():
         assert(self.offstd.shape[0] == chunk.shape[chunk.axis_ch])
         assert(self.offlev.ndim == chunk.data.ndim)
         assert(self.offstd.ndim == chunk.data.ndim)
+        self.logger.info("Normalizing current_chunk")
 
         # Attach offlev and offstd to the chunk
         chunk.offlev = self.offlev
@@ -243,6 +244,7 @@ class normalize_mean():
         chunk.sigstd = chunk.data.std(axis=chunk.axis_t, keepdims=True)
         chunk.data[:] = chunk.data / chunk.data.mean(axis=chunk.axis_t, keepdims=True) - 1.0
         chunk.is_normalized = True
+        chunk.mark_bad_channels(verbose=True)
 
         return None
 

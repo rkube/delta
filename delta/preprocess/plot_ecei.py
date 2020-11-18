@@ -128,6 +128,7 @@ class plot_ecei_timeslice():
         all_max = chunk.data[:, :][~chunk.bad_data].max()
         all_min = chunk.data[:, :][~chunk.bad_data].min()
         self.clevs = np.linspace(all_min, all_max, nlevs)
+        self.logger.info(f"Setting contour levels to {self.clevs[0]}, {self.clevs[-1]}")
 
         return None
 
@@ -144,7 +145,7 @@ class plot_ecei_timeslice():
             fig (mpl.Figure):
                 Matplotlib figure
         """
-        # self.set_contour_levels(chunk)
+        self.set_contour_levels(chunk)
 
         frame_vals = chunk.data[:, tidx]
 
@@ -155,12 +156,15 @@ class plot_ecei_timeslice():
         ax = fig.add_axes([0.2, 0.2, 0.46, 0.75])
         ax_cb = fig.add_axes([0.7, 0.2, 0.05, 0.75])
 
+        mappable = None
         if self.rpos_arr is not None and self.zpos_arr is not None:
-            self.logger.info(f"Plotting data: {frame_vals.reshape(24, 8)}")
+            self.logger.info(f"Plotting data")  #: {frame_vals.reshape(24, 8)}")
+            self.logger.info(f"Using contour levels {self.clevs[0]}, {self.clevs[-1]}")
             # TODO: Fix hard-coded dimensions
             mappable = ax.contourf(self.rpos_arr.reshape(24, 8),
                                    self.zpos_arr.reshape(24, 8),
                                    frame_vals.reshape(24, 8), levels=self.clevs)
+
             ax.set_xlabel("R / m")
             ax.set_ylabel("Z / m")
         # else:

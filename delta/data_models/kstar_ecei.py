@@ -120,10 +120,13 @@ class ecei_chunk():
 
         # True if data is normalized, False if not.
         self.is_normalized = False
+        # offlev, offstd, siglev and sigstd have shape=(nchannels, 1)
+        # This allows for broadcase operations
         self.offlev = None
         self.offstd = None
         self.siglev = None
         self.sigstd = None
+        # bad_data is used as a mask and has shape=(nchannels)
         self.bad_data = np.zeros((self.num_h * self.num_v), dtype=np.bool)
 
     @property
@@ -144,33 +147,33 @@ class ecei_chunk():
         * Saturated signal data(bottom saturation): std(offset) < 0.001
         * Saturated offset data(top saturation): std(signal) < 0.001
         """
+        self.logger.info(f"offlev: {self.offlev.shape}, offstd: {self.offstd.shape}, siglev: {self.siglev.shape}, sigstd: {self.sigstd.shape}")
         # Check for low signal level
         ref = 100. * self.offstd / self.siglev
         ref[self.siglev < 0.01] = 100
+        # Squeeze singleton dimensions so that we can do indexing with ref
+        ref = np.squeeze(ref)
 
         if verbose:
             for item in np.argwhere(ref > 30.0):
-                self.logger.info(f"LOW SIGNAL: channel({item[0] + 1:d},{item[1] + 1:d}):\
-                    {ref[tuple(item)]*1e2:4.2f}")
+                self.logger.info(f"LOW SIGNAL: channel({item[0]:d})")
         self.bad_data[ref > 30.0] = True
 
         # Mark bottom saturated channels
-        self.bad_data[self.offstd < 1e-3] = True
+        self.bad_data[np.squeeze(self.offstd < 1e-3)] = True
         if verbose:
             for item in np.argwhere(self.offstd < 1e-3):
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
-                self.logger.info(f"SAT offset data channel ({item[0] + 1:d}, {item[1] + 1:d})\
-                    offstd = {os} offlevel = {ol}")
+                self.logger.info(f"SAT offset channel {item[0]}: offstd = {os} offlevel = {ol}")
 
         # Mark top saturated channels
-        self.bad_data[self.sigstd < 1e-3] = True
+        self.bad_data[np.squeeze(self.sigstd < 1e-3)] = True
         if verbose:
             for item in np.argwhere(self.sigstd < 1e-3):
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
-                self.logger.info(f"SAT signal data channel ({item[0] + 1:d}, {item[1] + 1:d})\
-                    offstd = {os} offlevel = {ol}")
+                self.logger.info(f"SAT signal channel {item[0]}: offstd = {os} offlevel = {ol}")
 
     def create_ft(self, fft_data, fft_params):
         """Returns a fourier-transformed object.

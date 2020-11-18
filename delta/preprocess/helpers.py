@@ -16,7 +16,7 @@ def get_preprocess_routine(key, params, cfg_diagnostic):
         key (string):
             Name of the pre-processing routine
         params (dictionary):
-            Delta configuration dictionary
+            Dictionary containig kwargs for pre-processing routines.
         cfg_diagnostic (dictionary):
             Diagnostic configuration section
 
