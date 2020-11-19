@@ -21,7 +21,7 @@ refer to one of the three components.
 import logging
 import numpy as np
 
-from data_models.channels_2d import channel_2d, channel_range
+from data_models.channels_2d import channel_2d, channel_range, num_to_vh
 
 
 def channel_range_from_str(range_str):
@@ -154,9 +154,11 @@ class ecei_chunk():
         # Squeeze singleton dimensions so that we can do indexing with ref
         ref = np.squeeze(ref)
 
+        my_num_to_vh = num_to_vh(24, 8, "horizontal")
+
         if verbose:
             for item in np.argwhere(ref > 30.0):
-                self.logger.info(f"LOW SIGNAL: channel({item[0]:d})")
+                self.logger.info(f"LOW SIGNAL: channel({my_num_to_vh(item[0] + 1)}) ref = {ref[item[0]]:f}")
         self.bad_data[ref > 30.0] = True
 
         # Mark bottom saturated channels
@@ -165,7 +167,7 @@ class ecei_chunk():
             for item in np.argwhere(self.offstd < 1e-3):
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
-                self.logger.info(f"SAT offset channel {item[0]}: offstd = {os} offlevel = {ol}")
+                self.logger.info(f"SAT offset channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
 
         # Mark top saturated channels
         self.bad_data[np.squeeze(self.sigstd < 1e-3)] = True
@@ -173,7 +175,7 @@ class ecei_chunk():
             for item in np.argwhere(self.sigstd < 1e-3):
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
-                self.logger.info(f"SAT signal channel {item[0]}: offstd = {os} offlevel = {ol}")
+                self.logger.info(f"SAT signal channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
 
     def create_ft(self, fft_data, fft_params):
         """Returns a fourier-transformed object.

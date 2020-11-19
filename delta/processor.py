@@ -126,7 +126,7 @@ def main():
 
     tic_main = time.perf_counter()
     workers = []
-    for _ in range(4):
+    for _ in range(1):
         worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
         worker.start()
         workers.append(worker)
@@ -143,7 +143,7 @@ def main():
         if stepStatus:
             # Read data
             stream_data = reader.Get(stream_varname, save=False)
-            if reader.CurrentStep() in [0, 1, 2, 139, 140, 141]:
+            if reader.CurrentStep() in [0, 140]:
                 rx_list.append(reader.CurrentStep())
 
                 # Create a datamodel instance from the raw data and push into the queue
@@ -155,9 +155,9 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
 
-        if reader.CurrentStep() > 150:
-            logger.info("End of the line. Exiting")
-            break
+        # if reader.CurrentStep() > 5:
+        #     logger.info("End of the line. Exiting")
+        #     break
     dq.join()
     logger.info("Queue joined")
 

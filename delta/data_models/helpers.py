@@ -72,7 +72,7 @@ class data_model_generator():
             # Determine whether we need to normalize the data
             tidx_norm = [tb_chunk.time_to_idx(t) for t in self.t_norm]
 
-            if tidx_norm[0] is not None:
+            if (tidx_norm[0] is not None) and (tidx_norm[1] is not None) and self.normalize is None:
                 # TODO: Here we create a normalization object using explicit values for the
                 # normalization It may be better to just pass the data and let the normalization
                 # object figure out how to calculate the needed constants. This would be the best
@@ -82,7 +82,7 @@ class data_model_generator():
                 self.logger.info(f"Calculated normalization using\
                                  {tidx_norm[1] - tidx_norm[0]} samples.")
 
-            if self.normalize is not None:
+            elif self.normalize is not None:
                 self.normalize(chunk)
             else:
                 self.logger.info("dropping current_chunk: self.normalize has not been initialized")
@@ -213,6 +213,9 @@ class normalize_mean():
         self.offstd = data_norm.std(axis=-1, keepdims=True)
         self.siglev = None
         self.sigstd = None
+        # self.logger.info(f"Calculating normalization using {data_norm.shape[-1]} samples")
+        # self.logger.info(f"Calculated offlev: {self.offlev}")
+        # self.logger.info(f"Calculated offstd: {self.offstd}")
         # np.savez("data_norm", data_norm=data_norm, offlev=self.offlev, offstd=self.offstd)
 
     def __call__(self, chunk):

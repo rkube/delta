@@ -5,7 +5,7 @@
     "shotnr": 22289,
     "datasource":
     {
-      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
+      "source_file": "/scratch/gpfs/rkube/KSTAR/022289/ECEI.022289.GT.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["L0101-2408"],
@@ -45,10 +45,10 @@
     "backend": "null"
   },
  "preprocess": {
-   "plot": {"time_range": [2.7177, 2.7178], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
+   "bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"},
+   "plot": {"time_range": [2.7175, 2.7178], "plot_dir": "/home/rkube/delta_runs/plots/"},
    "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "rescale_sigma": false},
-   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
-   "no_bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"}
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
    },
  "task_list": [{
                 "task_description" : "cross_correlation",
