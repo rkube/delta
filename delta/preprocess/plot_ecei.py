@@ -99,34 +99,6 @@ class plot_ecei_timeslice():
         mpl.use("AGG")
 
 
-    # def _set_contour_levels(self, chunk, tidx=None, nlevs=64):
-    #     """Automatically determine the contour levels used for plotting.
-
-    #     Args:
-    #         chunk (???):
-    #             Time-chunk of ECEI data
-    #         nlevs (int):
-    #             Number of countour levels.
-
-    #     Returns:
-    #         None
-    #     """
-    #     self.logger.info(f"Bad data: {chunk.bad_data}")
-
-    #     if tidx == None:
-    #         tidx = np.arange(0, chunk.data.shape[-1], dtype=int)
-    #     # Use that interpolated values are in between old max and min.
-    #     if (~chunk.bad_data).sum() == 0:
-    #         all_max = chunk.data.max()
-    #         all_min = chunk.data.min()
-    #     else:
-    #         all_max = chunk.data[~chunk.bad_data, tidx].max()
-    #         all_min = chunk.data[~chunk.bad_data, tidx].min()
-    #     self.clevs = np.linspace(all_min, all_max, nlevs)
-    #     self.logger.info(f"Setting contour levels to {self.clevs[0]:6.4f}, {self.clevs[-1]:6.4f}. {chunk.bad_data.sum()} dead px")
-
-    #     return None
-
     def create_plot(self, chunk, tidx):
         """Creates contour plots in the time-chunk of ECEI data.
 
@@ -148,7 +120,8 @@ class plot_ecei_timeslice():
         else:
             all_max = chunk.data[~chunk.bad_data, tidx].max()
             all_min = chunk.data[~chunk.bad_data, tidx].min()
-        self.clevs = np.linspace(all_min, all_max, 64)        
+        #self.clevs = np.linspace(all_min, all_max, 64)
+        self.clevs = np.linspace(-0.3, 0.3, 64)
 
         if self.interpolator is not None:
             self.logger.info("Interpolating frames for plotting")

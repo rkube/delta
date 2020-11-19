@@ -55,7 +55,7 @@ def config_all():
   },
  "preprocess": {
    "plot": {"time_range": [0.0, 0.00002], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
-   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "rescale_sigma": false},
+   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 4},
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
    "no_bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"}
    },
