@@ -8,7 +8,6 @@ def test_pre_wavelet(config_all):
     """Verify that wavelet pre-processing works fine."""
     import sys
     import os
-    from google_drive_downloader import GoogleDriveDownloader as gdd
     sys.path.append(os.path.abspath('delta'))
 
     from concurrent.futures import ThreadPoolExecutor
