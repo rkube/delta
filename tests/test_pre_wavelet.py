@@ -28,7 +28,6 @@ def test_pre_wavelet(config_all):
     # Download the blob(s).
     # Add '_DOWNLOADED' as prefix to '.txt' so you can see both files in Documents.
     full_path_to_file2 = os.path.join(os.getcwd(), str.replace(local_file_name, '.npz', '_DOWNLOADED.npz'))
-    print("\nDownloading blob to " + full_path_to_file2)
     blob_service_client.get_blob_to_path(container_name, local_file_name, full_path_to_file2)
 
     with np.load("ch_data2_DOWNLOADED.npz") as df:
