@@ -17,12 +17,25 @@ def test_pre_wavelet(config_all):
 
     from data_models.kstar_ecei import ecei_chunk
     from preprocess.pre_wavelet import pre_wavelet
+    from azure.storage.blob import BlockBlobService
 
-    
-    gdd.download_file_from_google_drive(file_id='1TDfi-gLLphzXsp4BGoiWUFVT8Kt3KXPp', 
-                                        dest_path="./test_pre_wavelet_data.npz")
-    with np.load("test_pre_wavelet_data.npz") as df:
+    # Create the BlockBlobService that is used to call the Blob service for the storage account
+    blob_service_client = BlockBlobService(account_name="deltafiles")
+    # Files are stored in testfiles
+    container_name = 'testfiles'
+    local_file_name = "ch_data2.npz"
+
+    # Download the blob(s).
+    # Add '_DOWNLOADED' as prefix to '.txt' so you can see both files in Documents.
+    full_path_to_file2 = os.path.join(os.getcwd(), str.replace(local_file_name, '.npz', '_DOWNLOADED.npz'))
+    print("\nDownloading blob to " + full_path_to_file2)
+    blob_service_client.get_blob_to_path(container_name, local_file_name, full_path_to_file2)
+
+    with np.load("ch_data2_DOWNLOADED.npz") as df:
         ch_data2 = df["ch_data2"]
+
+    # Clean up the temp file
+    os.remove(full_path_to_file2)
 
     data_chunk = ecei_chunk(ch_data2.reshape(192, 1000), None)
     my_pre_wavelet = pre_wavelet(config_all["preprocess"]["wavelet"])
