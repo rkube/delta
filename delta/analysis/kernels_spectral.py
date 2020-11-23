@@ -8,12 +8,19 @@ All kernels have a more-or-less uniform interface
 import numpy as np
 
 
-def kernel_null(fft_data, ch_it, fft_config):
+def kernel_null(data, ch_it, fft_config):
     """Does nothing.
 
-    Used in performance testing to evaluate framework communication overhead
+    Used for performance testing.
     """
-    return(None)
+    import numpy as np
+
+    with open("null.txt", "a") as df:
+        df.write("kernel_null executed\n")
+        df.flush()
+
+    np.savez("kernel_null.npz", data=data)
+    return(data)
 
 
 def kernel_crossphase(fft_data, ch_it, fft_config):
@@ -113,6 +120,10 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
         _tmp = np.fft.ifft(X * Y.conj(), axis=0).mean(axis=1) / fft_params['win_factor']
 
         res[idx, :] = np.fft.fftshift(_tmp.real)
+
+    with open("/global/homes/r/rkube/repos/delta/delta/xcorr.txt", "a") as df:
+        df.write("kernel_crosscorr executed\n")
+        df.flush()
 
     return(res)
 

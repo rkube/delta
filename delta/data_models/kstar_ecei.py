@@ -66,7 +66,7 @@ def channel_range_from_str(range_str):
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data."""
 
-    def __init__(self, data, tb, rarr=None, zarr=None, num_v=24, num_h=8):
+    def __init__(self, data, tb, params=None, rarr=None, zarr=None, num_v=24, num_h=8):
         """Creates an ecei_chunk from a give dataset.
 
         The first dimension indices channels, the second dimension indices time.
@@ -77,6 +77,8 @@ class ecei_chunk():
                 Raw data for the ECEI voltages
             tb (timebase_streaming):
                 timebase for ECEI voltages
+            params:
+                Additional parameters
             rarr (ndarray, float):
                 Radial position of individual channels, in m.
             zarr (ndarray, float):
@@ -117,6 +119,8 @@ class ecei_chunk():
         if zarr is not None:
             assert(zarr.size == self.num_h * self.num_v)
             self.zarr = zarr
+
+        self.params = None
 
         # True if data is normalized, False if not.
         self.is_normalized = False
@@ -177,13 +181,13 @@ class ecei_chunk():
                 ol = self.offlev[tuple(item)]
                 self.logger.info(f"SAT signal channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
 
-    def create_ft(self, fft_data, fft_params):
+    def create_ft(self, fft_data, params):
         """Returns a fourier-transformed object.
 
         Args:
             fft_data (ndarray):
                 Numerical data
-            fft_params (dict):
+            params (dict):
                 Data passed to STFT function
 
         Returns:
@@ -191,13 +195,13 @@ class ecei_chunk():
                 Chunk of Fourier-transformed data
         """
         return ecei_chunk_ft(fft_data, tb=self.tb,
-                             freqs=None, fft_params=fft_params)
+                             freqs=None, params=params)
 
 
 class ecei_chunk_ft():
     """Represents a fourier-transformed time-chunk of ECEI data."""
 
-    def __init__(self, data_ft, tb, freqs, fft_params, axis_ch=0, axis_t=1, num_v=24, num_h=8):
+    def __init__(self, data_ft, tb, freqs, params=None, axis_ch=0, axis_t=1, num_v=24, num_h=8):
         """Initializes with data and meta-information.
 
         Args:
@@ -224,7 +228,7 @@ class ecei_chunk_ft():
         self.data_ft = data_ft
         self.tb = tb
         self.freqs = freqs
-        self.fft_params = fft_params
+        self.params = params
         self.axis_ch = axis_ch
         self.axis_t = axis_t
         self.num_v = num_v

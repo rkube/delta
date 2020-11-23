@@ -22,7 +22,7 @@ import more_itertools
 # from analysis.kernels_spectral import kernel_crossphase, kernel_coherence kernel_crosscorr
 # from analysis.kernels_spectral import kernel_bicoherence, kernel_skw
 # Import cython kernels
-from analysis.kernels_spectral import kernel_crosscorr
+from analysis.kernels_spectral import kernel_null, kernel_crosscorr
 from analysis.kernels_spectral_cy import kernel_coherence_64_cy
 from analysis.kernels_spectral_cy import kernel_crosspower_64_cy, kernel_crossphase_64_cy
 # Import CUDA kernels
@@ -59,22 +59,22 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     from socket import gethostname
 
     comm = MPI.COMM_WORLD
-    tidx = info_dict['tidx']
+    chunk_idx = info_dict['chunk_idx']
     an_name = info_dict["analysis_name"]
-    t1 = datetime.datetime.now()
-    result = kernel(fft_data.data, ch_it, fft_data.fft_params)
-    t2 = datetime.datetime.now()
-    # dt_calc = t2 - t1
-    # #
-    # t1 = datetime.datetime.now()
-    # #storage_backend.store_data(result, info_dict)
-    # t2 = datetime.datetime.now()
-    dt_io = -1.0   # t2 - t1
+    t1_calc = datetime.datetime.now()
+    result = kernel(fft_data.data, ch_it, fft_data.params)
+    t2_calc = datetime.datetime.now()
+    dt_calc = t2_calc - t1_calc
+    
+    t1_io = datetime.datetime.now()
+    storage_backend.store_data(result, info_dict)
+    t2_io = datetime.datetime.now()
+    dt_io = t2_io - t1_io
 
     with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={tidx} {an_name} start " +
-                 t1.isoformat(sep=" ") + " end " + t2.isoformat(sep=" ") +
-                 f" Storage: {dt_io} " + f" {gethostname()}\n")
+        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +\
+                t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
+                f" Storage: {dt_io} " + f" {gethostname()}\n")
         df.flush()
 
     return result
@@ -119,8 +119,8 @@ class task_spectral():
         #     self.kernel = kernel_skw
         # elif self.analysis == "bicoherence":
         #     self.kernel = kernel_bicoherence
-        # elif self.analysis == "null":
-        #     self.kernel = kernel_null
+        elif self.analysis == "null":
+            self.kernel = kernel_null
         else:
             raise NameError(f"Unknown analysis task {self.analysis}")
 
@@ -200,7 +200,7 @@ class task_spectral():
                              info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(),
                                                                     info_dict_list)]
         self.logger.info(f"chunk_idx={fft_data.tb.chunk_idx} submitted {self.analysis} " +
-                         f"as {self.num_chunks} tasks.  fft_data: {type(fft_data)}")
+                         f"as {self.num_chunks} tasks: {self.kernel}.  fft_data: {type(fft_data)}")
 
         # for fut, info_dict in zip(fut_list, info_dict_list):
         #     result = fut.result()
@@ -262,19 +262,25 @@ class task_list():
         # res = self.executor_fft.submit(stft,
         #                                data_gpu,
         #                                axis=data_chunk.axis_t,
-        #                                fs=self.fft_params["fs"],
-        #                                nperseg=self.fft_params["nfft"],
-        #                                window=self.fft_params["window"],
-        #                                detrend=self.fft_params["detrend"],
-        #                                noverlap=self.fft_params["noverlap"],
+        #                                fs=data_chunk.params["fs"],
+        #                                nperseg=data_chunk.params["nfft"],
+        #                                window=data_chunk.params["window"],
+        #                                detrend=data_chunk.params["detrend"],
+        #                                noverlap=data_chunk.params["noverlap"],
         #                                padded=False,
         #                                return_onesided=False,
         #                                boundary=None)
         # fft_data_tmp = res.result()
         # fft_data = cp.asnumpy(fft_data_tmp[2])
+        # from mpi4py import MPI
+        # comm = MPI.COMM_WORLD
 
         self.logger.info(f"task_list: Received type {type(data_chunk)}\
             for chunk_idx {data_chunk.tb.chunk_idx}")
+
+        # with open(f"outfile_t{data_chunk.tb.chunk_idx}_{comm.rank:03d}.txt", "w") as df:
+        #     df.write("test\n")
+        #     df.flush()
 
         for task in self.task_list:
             task.submit(self.executor_anl, data_chunk)

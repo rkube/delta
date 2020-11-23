@@ -47,7 +47,7 @@
  "preprocess": {
    "no_bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"},
    "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "rescale_sigma": false},
-   "plot": {"time_range": [2.7175, 2.7178], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
+   "no_splot": {"time_range": [2.7175, 2.7178], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
    },
  "task_list": [{
