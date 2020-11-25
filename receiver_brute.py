@@ -130,6 +130,7 @@ logging.info(f"Time drift: {time_drift}")
 with open(args.config, "r") as df:
     cfg = json.load(df)
     df.close()
+logging.info("transport_nersc_middleman.engine: %s"%cfg["transport_nersc_middleman"]["engine"])
 
 #TODO: Remove for non-debug
 if args.debug:
@@ -181,6 +182,7 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
     #writer = writer_gen(shotnr, gen_id, cfg["middleman_engine"], cfg["middleman_params"])
 
     ## For DataMan, assign different port number
+    logging.info("transport_nersc_middleman.engine: %s"%cfg["transport_nersc_middleman"]["engine"])
     if cfg["transport_nersc_middleman"]["engine"].lower() == "dataman":
         ## (2020/10) jyc: hardcode port num for now
         cfg["transport_nersc_middleman"]["params"].update(Port = str(5001 + 10*worker_id))
