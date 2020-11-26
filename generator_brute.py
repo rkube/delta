@@ -29,6 +29,7 @@ args = parser.parse_args()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
+expinfo = {}
 
 datapath = cfg["datapath"]
 shotnr = cfg["shotnr"]
@@ -55,7 +56,7 @@ num_batches = data_pts // batch_size
 
 # Get a data_loader
 dobj = KstarEcei(shot=shotnr,data_path=datapath,clist=my_channel_range,verbose=False)
-info = dict({'TriggerTime':dobj.tt.tolist(),'SampleRate':[dobj.fs/1e3],
+expinfo.update({'TriggerTime':dobj.tt.tolist(),'SampleRate':[dobj.fs/1e3],
             'TFcurrent':dobj.itf/1e3,'Mode':dobj.mode, 
             'LoFreq':dobj.lo,'LensFocus':dobj.sf,'LensZoom':dobj.sz})
 
@@ -75,7 +76,7 @@ data_arr = data_all[0]
 writer.DefineVariable("tstep",np.array(0))
 writer.DefineVariable("floats",data_arr)
 writer.DefineVariable("trange",np.array([0.0,0.0]))
-writer.DefineAttributes("cfg",info)
+writer.DefineAttributes("expinfo",expinfo)
 writer.Open()
 
 print("Start sending:")

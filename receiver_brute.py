@@ -129,7 +129,7 @@ logging.info(f"Time drift: {time_drift}")
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
-    df.close()
+expinfo = {}
 
 #TODO: Remove for non-debug
 if args.debug:
@@ -171,7 +171,7 @@ if args.debug:
     shot = 18431; nchunk=10000
     reader = read_stream(shot=shot,nchunk=nchunk,data_path=cfg["datapath"])
     #merge into cfg dict
-    cfg.update({'shot':shot,'nfft':1000,'window':'hann','overlap':0.0,'detrend':1, 
+    expinfo.update({'shot':shot,'nfft':1000,'window':'hann','overlap':0.0,'detrend':1, 
             'TriggerTime':reader.dobj.tt,'SampleRate':[reader.dobj.fs/1e3], 
             'TFcurrent':reader.dobj.itf/1e3,'Mode':reader.dobj.mode, 
             'LoFreq':reader.dobj.lo,'LensFocus':reader.dobj.sf,'LensZoom':reader.dobj.sz})
@@ -190,7 +190,7 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
     writer.DefineVariable("tstep",np.array(0))
     writer.DefineVariable("floats",data_arr)
     writer.DefineVariable("trange",np.array([0.0,0.0]))
-    writer.DefineAttributes("cfg",cfg)
+    writer.DefineAttributes("expinfo",expinfo)
     # Multi-channel streaming when worker_id is not None
     writer.Open(multi_channel_id=worker_id)
     return writer
@@ -453,7 +453,6 @@ if __name__ == "__main__":
             # Main loop is here
             # Reading data (from KSTAR) and save in the queue (dq) as soon as possible.
             # Dispatcher (a helper thread) will asynchronously fetch data in the queue and distribute to other workers.
-            cfg_update = False
             logging.info(f"Start data reading loop: pid={os.getpid()}")
             t0 = time.time()
             isfirst = True
@@ -464,15 +463,14 @@ if __name__ == "__main__":
                     ## Set a timer when we receive the first chunk
                     if isfirst:
                         t1 = time.time()
+                        expinfo = reader.get_attrs("expinfo")
+                        cfg.update(expinfo)
                         isfirst = False                    
                     #currentStep = reader.CurrentStep()
                     currentStep = reader.get_data("tstep")
                     logging.info(f"Step {currentStep} started")
                     trange = list(reader.get_data("trange"))
                     channel_data = reader.get_data("floats")
-                    if not cfg_update:
-                        cfg.update(reader.get_attrs("cfg"))
-                        cfg_update = True
                         
                     reader.EndStep()
                 else:
