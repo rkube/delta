@@ -40,10 +40,10 @@ def forward(Q, cfg, timeout):
     
     # Instantiate a dataloader
     dataloader = get_loader(cfg)
-    logger.info(f"Creating writer_gen: engine={cfg['transport_nersc']['engine']}")
+    logger.info(f"Creating writer_gen: engine={cfg['transport_nersc_middleman']['engine']}")
 
     suffix = '' if not args.debug else '-MM'
-    writer = writer_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"])+suffix)
+    writer = writer_gen(cfg["transport_nersc_middleman"], gen_channel_name(cfg["diagnostic"])+suffix)
     logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
     # Give the writer hints on what kind of data to transfer
 
