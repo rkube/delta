@@ -3,6 +3,8 @@
 
 """Receives data from generator and forwards them to processor."""
 
+from mpi4py import MPI
+
 import logging
 import logging.config
 import queue
@@ -18,26 +20,39 @@ import argparse
 import timeit
 import time
 
-from streaming.reader_nompi import reader_gen
-from streaming.writer_nompi import writer_gen
-from analysis.channels import channel_range
-
+from sources.dataloader import get_loader
+from streaming.writers import writer_gen
+from streaming.reader_mpi import reader_gen
+from data_models.helpers import gen_channel_name, gen_var_name
 
 @attr.s
 class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to local PoolExecuto."""
     tstep_idx = attr.ib(repr=True)
+    # (2020/11) jyc: Good place to wrap numpy data with ecei_chunk?
     data = attr.ib(repr=False)
 
 
 def forward(Q, cfg, timeout):
+    global comm, rank, args
     """To be executed by a local thread. Pops items from the queue and forwards them."""
     logger = logging.getLogger("middleman")
-    writer = writer_gen(cfg["transport_nersc"])
-    dummy_data = np.zeros((192, cfg["transport_nersc"]["chunk_size"]), dtype=np.float64)
-    writer.DefineVariable(cfg["transport_nersc"]["channel_range"][0], dummy_data)
+    
+    # Instantiate a dataloader
+    dataloader = get_loader(cfg)
+    logger.info(f"Creating writer_gen: engine={cfg['transport_nersc']['engine']}")
+
+    suffix = '' if not args.debug else '-MM'
+    writer = writer_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"])+suffix)
+    logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
+    # Give the writer hints on what kind of data to transfer
+
+    writer.DefineVariable(gen_var_name(cfg)[rank],
+                        dataloader.get_chunk_shape(),
+                        dataloader.dtype)
     writer.Open()
-    logger.info("Starting reader process")
+    logger.info("Starting forwarding process")
+
     tx_list = []
 
     while True:
@@ -53,7 +68,8 @@ def forward(Q, cfg, timeout):
             break
 
         writer.BeginStep()
-        writer.put_data(msg.data)
+        # (2020/11) jyc: This is a hack. Need to wrap as ecei_chunk object
+        writer.put_data_np(msg.data, {"tidx": msg.tstep_idx})
         writer.EndStep()
         time.sleep(0.1)
         tx_list.append(msg.tstep_idx)
@@ -65,22 +81,26 @@ def forward(Q, cfg, timeout):
 
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
+    global comm, rank, args
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
     parser = argparse.ArgumentParser(description="Receive data and dispatch" +
                                      "analysis tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file',
                         default='configs/config-middle.json')
+    parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
         cfg = json.load(df)
-        df.close()
     timeout = 30
 
     # The middleman uses both a reader and a writer. Each is configured with using
     # their respective section of the config file. Therefore some keys are duplicated,
     # such as channel_range. Make sure that these items are the same in both sections
 
-    assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
+    # assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
 
     with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
@@ -88,8 +108,10 @@ def main():
     logger = logging.getLogger('middleman')
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport_kstar"])
+    reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
+    stream_varname = gen_var_name(cfg)[rank]
+    logger.info(f"Stream varname: {stream_varname}")
 
     dq = queue.Queue()
     msg = None
@@ -108,9 +130,7 @@ def main():
             if reader.CurrentStep() == 0:
                 tic = timeit.default_timer()
             # Read data
-            stream_data = reader.Get(channel_range.from_str(cfg["transport_kstar"]
-                                                            ["channel_range"][0]),
-                                     save=False)
+            stream_data = reader.Get(stream_varname, save=False)
 
             rx_list.append(reader.CurrentStep())
 
