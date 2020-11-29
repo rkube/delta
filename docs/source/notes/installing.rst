@@ -87,5 +87,26 @@ The kernels are to be compiled with OpenMP. The file `setup.py` includes OpenMP 
 options, hard-coded for GCC. If you plan to use another compiler you may need to change them.
 
 
+Running pymongo in an MPI environment
+#####################################
 
+We observed that pymongo segfaults when executed by mpi4py, see this 
+`bug report <https://jira.mongodb.org/projects/PYTHON/issues/PYTHON-2438>`_
+
+Fix: replace all occurances of 'buffer_new' in the pymongo source code with
+something that doesn't collide with other libraries, such as 'buffer_new_mongo':
+
+
+.. code-block:: shell
+
+    git clone https://github.com/mongodb/mongo-python-driver.git
+    cd mongo-python-driver/
+    module swap PrgEnv-intel PrgEnv-gnu
+    module unload craype-hugepages2M
+    vi bson/_cbsonmodule.c
+    vi bson/buffer.c
+    vi bson/buffer.h
+    vi pymongo/_cmessagemodule.c
+    python setup.py build
+    python setup.py install --user
 

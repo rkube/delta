@@ -89,7 +89,7 @@ class plot_ecei_timeslice():
         self.clevs = np.linspace(-0.15, 0.15, 64)
         self.rpos_arr = chunk.rarr
         self.zpos_arr = chunk.zarr
-        self.bad_data = chunk.bad_data
+        self.bad_channels = chunk.bad_channels
         self.cmap = cmap
         self.clevs = None
         self.interpolator = None
@@ -114,18 +114,18 @@ class plot_ecei_timeslice():
         """
         frame_vals = chunk.data[:, tidx]
 
-        if (~chunk.bad_data).sum() == 0:
+        if (~chunk.bad_channels).sum() == 0:
             all_max = chunk.data[:, tidx].max()
             all_min = chunk.data[:, tdx].min()
         else:
-            all_max = chunk.data[~chunk.bad_data, tidx].max()
-            all_min = chunk.data[~chunk.bad_data, tidx].min()
+            all_max = chunk.data[~chunk.bad_channels, tidx].max()
+            all_min = chunk.data[~chunk.bad_channels, tidx].min()
         #self.clevs = np.linspace(all_min, all_max, 64)
         self.clevs = np.linspace(-0.3, 0.3, 64)
 
         if self.interpolator is not None:
             self.logger.info("Interpolating frames for plotting")
-            frame_vals = self.interpolator(frame_vals, mask=chunk.bad_data)
+            frame_vals = self.interpolator(frame_vals, mask=chunk.bad_channels)
 
         fig = plt.figure()
         ax = fig.add_axes([0.2, 0.2, 0.46, 0.75])

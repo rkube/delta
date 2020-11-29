@@ -59,18 +59,20 @@ def serialize_dispatch_seq(dispatch_seq):
     # json_str = "[channel_pair(L0101, L0101).to_json() + ", " +\
     #  channel_pair(L0102, L0101).to_json(), ...)]"
 
-    j_lists = []
-    for sub_list in chunk_lists:
-        j_lists.append("[" + ", ".join([c.to_json() for c in sub_list]) + "]")
-    j_str = "[" + ", ".join(j_lists) + "]"
+    # j_lists = []
+    # for sub_list in chunk_lists:
+    #     j_lists.append("[" + ", ".join([c.to_json() for c in sub_list]) + "]")
+    # j_str = "[" + ", ".join(j_lists) + "]"
 
-    return j_str
+    # return j_str
 
     # Put the channel serialization in the corresponding key
     # j_str = '{"channel_serialization": ' + j_str + '}'
     #
     #
     # j = json.loads(j_str)
+
+    return ""
 
 
 def deserialize_dispatch_seq(channel_ser):
@@ -84,20 +86,22 @@ def deserialize_dispatch_seq(channel_ser):
         dispatch_seq (???):
             List of list of channel pairs
     """
-    dispatch_seq = []
+    # dispatch_seq = []
 
-    for pair_list in channel_ser:
-        new_list = []
-        for pair in pair_list:
-            ch1 = channel_2d(pair["ch1"]["dev"],
-                             pair["ch1"]["ch_v"],
-                             pair["ch1"]["ch_h"])
-            ch2 = channel_2d(pair["ch2"]["dev"],
-                             pair["ch2"]["ch_v"],
-                             pair["ch2"]["ch_h"])
-            new_list.append(channel_pair(ch1, ch2))
-        dispatch_seq.append(new_list)
+    # for pair_list in channel_ser:
+    #     new_list = []
+    #     for pair in pair_list:
+    #         ch1 = channel_2d(pair["ch1"]["dev"],
+    #                          pair["ch1"]["ch_v"],
+    #                          pair["ch1"]["ch_h"])
+    #         ch2 = channel_2d(pair["ch2"]["dev"],
+    #                          pair["ch2"]["ch_v"],
+    #                          pair["ch2"]["ch_h"])
+    #         new_list.append(channel_pair(ch1, ch2))
+    #     dispatch_seq.append(new_list)
 
-    return dispatch_seq
+    # return dispatch_seq
+
+    return None
 
 # End of file storage/helpers.py

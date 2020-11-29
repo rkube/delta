@@ -1,7 +1,11 @@
 # Endocing: UTF-8 -*-
 
 
-"""Receives data from generator and forwards them to processor."""
+"""Receives data from generator and forwards them to processor.
+
+Run the middleman on the Data Transfer Node like this:
+$ python middleman.py --config configs/test_3node_all.json
+"""
 
 import logging
 import logging.config
@@ -88,7 +92,7 @@ def main():
     logger = logging.getLogger('middleman')
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport_kstar"])
+    reader = reader_gen(cfg["transport_kstar"], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
 
     dq = queue.Queue()

@@ -22,7 +22,6 @@ from os.path import isdir, join
 
 from storage.helpers import serialize_dispatch_seq
 
-
 class mongo_connection():
     """Abstraction for mongo_connection using context manager."""
 
@@ -190,7 +189,7 @@ class backend_mongodb():
     def __init__(self, cfg_mongo):
         """Connect to MongoDB and, if necessary, initializes gridFS."""
         # Connect to mongodb
-        self.logger = logging.getLogger("DB")
+        self.logger = logging.getLogger("simple")
         self.cfg_mongo = cfg_mongo
 
         # Parse location for binary data storage
@@ -210,12 +209,12 @@ class backend_mongodb():
             inserted_id (ObjectID):
                 MongoDB ObjectID of the inserted object
         """
-        j_str = serialize_dispatch_seq(dispatch_seq)
+        # j_str = serialize_dispatch_seq(dispatch_seq)
         # Put the channel serialization in the corresponding key
-        j_str = '{"channel_serialization": ' + j_str + '}'
-        j = json.loads(j_str)
+        # j_str = '{"channel_serialization": ' + j_str + '}'
+        # j = json.loads(j_str)
         # Adds the channel_serialization key to cfg
-        cfg.update(j)
+        # cfg.update(j)
         cfg.update({"timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%d %X UTC")})
         cfg.update({"description": "metadata"})
 
@@ -287,17 +286,23 @@ class backend_mongodb():
 
             # Calculate performance metric
             MB_per_sec = size_in_MB / (toc_io - tic_io)
-            info_dict.update({"Performance": MB_per_sec})
-
+            info_dict.update({"Write performance: MB/sec": MB_per_sec})
             info_dict.update({"timestamp":
                              datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")})
             info_dict.update({"description": "analysis results"})
+
+            # TODO: Write helper functions that decide for each data-type
+            # what to add to the info_dict. For now, hard-code to write
+            # rarr, zarr, and the bad pixel mask.
 
             try:
                 inserted_id = coll.insert_one(info_dict)
             except pymongo.errors.PyMongoError as e:
                 self.logger.error(f"An error has occurred in store_data: {e}")
                 raise ValueError(e)
+
+            for key in info_dict.keys():
+                self.logger.info(key)
 
             return inserted_id
 

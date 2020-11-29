@@ -6,6 +6,8 @@ To run on an interactive node
 srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
 
 Remember to have adios2 included in $PYTHONPATH
+
+This is the streaming_attrs branch.
 """
 
 from mpi4py import MPI
@@ -105,7 +107,7 @@ def main():
     stream_varname = gen_var_name(cfg)[rank]
 
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    cfg["run_id"] = "ABC128"
+    cfg["run_id"] = "ABC234"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
