@@ -112,24 +112,16 @@ def main():
     # Instantiate a storage backend and store the run configuration and task configuration
     store_type = get_storage_object(cfg["storage"])
     store_backend = store_type(cfg["storage"])
-    store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
     # logger.info(f"Stored one")
 
+    #TODO: (RMC)  Should this be moved to where cfg updated? (would allow updating channels to process remotely)
+    #(would need to 
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
-
-    my_preprocessor = preprocessor(executor_pre, cfg)
-    my_task_list = task_list(executor_anl, cfg["task_list"], cfg["diagnostic"], cfg["storage"])
 
     dq = queue.Queue()
     msg = None
-    data_model_gen = data_model_generator(cfg["diagnostic"])
 
     tic_main = time.perf_counter()
-    workers = []
-    for _ in range(1):
-        worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
-        worker.start()
-        workers.append(worker)
 
     # reader.Open() is blocking until it opens the data file or receives the
     # data stream. Put this right before entering the main loop
@@ -138,10 +130,27 @@ def main():
     logger.info("Starting main loop")
 
     rx_list = []
+    cfg_update = False
     while True:
         stepStatus = reader.BeginStep()
         if stepStatus:
             # Read data
+            if not cfg_update:
+                cfg.update(reader.get_attrs("cfg"))
+                cfg_update = True
+                #TODO: (RMC)  The following taken from above
+                store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
+                data_model_gen = data_model_generator(cfg["diagnostic"])
+
+                my_preprocessor = preprocessor(executor_pre, cfg)
+                my_task_list = task_list(executor_anl, cfg["task_list"], cfg["diagnostic"], cfg["storage"])
+
+                workers = []
+                for _ in range(1):
+                    worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
+                    worker.start()
+                    workers.append(worker)
+
             stream_data = reader.Get(stream_varname, save=False)
             if reader.CurrentStep() in [0, 140]:
                 rx_list.append(reader.CurrentStep())
