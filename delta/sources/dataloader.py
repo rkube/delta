@@ -63,7 +63,7 @@ class _loader_ecei():
         
         #update config file with the ECEI HDF5 file attributes
         #(these changes will be reflected in cfg_all in generator.py)
-        self._read_atrributes_from_hdf5(cfg_all)
+        self._read_attributes_from_hdf5(cfg_all)
 
         # Generate start/stop time for timebase
         self.f_sample = cfg_all["diagnostic"]["parameters"]["SampleRate"] * 1e3
