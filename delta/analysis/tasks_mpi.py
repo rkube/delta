@@ -14,7 +14,7 @@ The class task_list is a convenience class that stores multiple task_spectral ob
 """
 
 import logging
-
+import numpy as np
 import more_itertools
 
 # Import plain python kernels
@@ -65,16 +65,24 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     result = kernel(fft_data.data, ch_it, fft_data.params)
     t2_calc = datetime.datetime.now()
     dt_calc = t2_calc - t1_calc
-    
+
     t1_io = datetime.datetime.now()
+    # TODO: We do not want these hard-coded changes to info_dict here.
+    try:
+        info_dict["rarr"] = list(fft_data.rarr)
+        info_dict["zarr"] = list(fft_data.zarr)
+        info_dict["bad_channels"] = [bool(c) for c in fft_data.bad_channels]
+    except:
+        None
+
     storage_backend.store_data(result, info_dict)
     t2_io = datetime.datetime.now()
     dt_io = t2_io - t1_io
 
     with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +\
-                t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
-                f" Storage: {dt_io} " + f" {gethostname()}\n")
+        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
+                 t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
+                 f" Storage: {dt_io} " + f" {gethostname()}\n")
         df.flush()
 
     return result

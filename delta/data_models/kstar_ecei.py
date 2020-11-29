@@ -130,8 +130,8 @@ class ecei_chunk():
         self.offstd = None
         self.siglev = None
         self.sigstd = None
-        # bad_data is used as a mask and has shape=(nchannels)
-        self.bad_data = np.zeros((self.num_h * self.num_v), dtype=np.bool)
+        # bad_channels is used as a mask and has shape=(nchannels)
+        self.bad_channels = np.zeros((self.num_h * self.num_v), dtype=np.bool)
 
     @property
     def data(self):
@@ -163,10 +163,10 @@ class ecei_chunk():
         if verbose:
             for item in np.argwhere(ref > 30.0):
                 self.logger.info(f"LOW SIGNAL: channel({my_num_to_vh(item[0] + 1)}) ref = {ref[item[0]]:f}")
-        self.bad_data[ref > 30.0] = True
+        self.bad_channels[ref > 30.0] = True
 
         # Mark bottom saturated channels
-        self.bad_data[np.squeeze(self.offstd < 1e-3)] = True
+        self.bad_channels[np.squeeze(self.offstd < 1e-3)] = True
         if verbose:
             for item in np.argwhere(self.offstd < 1e-3):
                 os = self.offstd[tuple(item)]
@@ -174,7 +174,7 @@ class ecei_chunk():
                 self.logger.info(f"SAT offset channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
 
         # Mark top saturated channels
-        self.bad_data[np.squeeze(self.sigstd < 1e-3)] = True
+        self.bad_channels[np.squeeze(self.sigstd < 1e-3)] = True
         if verbose:
             for item in np.argwhere(self.sigstd < 1e-3):
                 os = self.offstd[tuple(item)]

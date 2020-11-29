@@ -2,17 +2,17 @@
   "diagnostic":
   {
     "name": "kstarecei",
-    "shotnr": 22289,
+    "shotnr": 18431,
     "datasource":
     {
-      "source_file": "/scratch/gpfs/rkube/KSTAR/022289/ECEI.022289.GT.h5",
+      "source_file": "/scratch/gpfs/rkube/KSTAR/018431/ECEI.018431.LFS.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["L0101-2408"],
       "datatype": "float"
     },
     "parameters": {
-      "Device": "GT",
+      "Device": "L",
       "TriggerTime": [-0.1, 61.1, 60],
       "t_norm": [-0.099, -0.089],
       "SampleRate": 500,

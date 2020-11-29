@@ -15,11 +15,6 @@ def kernel_null(data, ch_it, fft_config):
     """
     import numpy as np
 
-    with open("null.txt", "a") as df:
-        df.write("kernel_null executed\n")
-        df.flush()
-
-    np.savez("kernel_null.npz", data=data)
     return(data)
 
 

@@ -105,7 +105,7 @@ def main():
     stream_varname = gen_var_name(cfg)[rank]
 
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    cfg["run_id"] = "ABC128"
+    cfg["run_id"] = "ABC234"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -113,7 +113,7 @@ def main():
     store_type = get_storage_object(cfg["storage"])
     store_backend = store_type(cfg["storage"])
     store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
-    # logger.info(f"Stored one")
+    logger.info(f"Stored one")
 
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
