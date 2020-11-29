@@ -63,6 +63,7 @@ logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
 writer.DefineVariable(gen_var_name(cfg)[rank],
                       dataloader.get_chunk_shape(),
                       dataloader.dtype)
+writer.DefineAttributes("cfg",cfg)
 writer.Open()
 
 logger.info("Start sending on channel:")
