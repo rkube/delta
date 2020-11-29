@@ -6,6 +6,8 @@ To run on an interactive node
 srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
 
 Remember to have adios2 included in $PYTHONPATH
+
+This is the streaming_attrs branch.
 """
 
 from mpi4py import MPI
