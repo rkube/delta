@@ -60,6 +60,10 @@ class _loader_ecei():
             self.dtype = np.int32
         elif cfg_all["diagnostic"]["datasource"]["datatype"] == "float":
             self.dtype = np.float64
+        
+        #update config file with the ECEI HDF5 file attributes
+        #(these changes will be reflected in cfg_all in generator.py)
+        self._read_atrributes_from_hdf5(cfg_all)
 
         # Generate start/stop time for timebase
         self.f_sample = cfg_all["diagnostic"]["parameters"]["SampleRate"] * 1e3
@@ -76,6 +80,25 @@ class _loader_ecei():
         if cache:
             self.cache()
             self.is_cached = True
+
+    def _read_attributes_from_hdf5(self,cfg_all):
+        """ attributes from HDF5 into array.
+            updates cfg_all input, which is reflected on output since mutable
+        """
+        with h5py.File(self.filename,'r') as df:
+            dset = df["ECEI"].attrs
+            cfg_all["diagnostic"]["parameters"].update({'SampleRate':dset['SampleRate'][0]})
+            cfg_all["diagnostic"]["parameters"].update({'TriggerTime':dset['TriggerTime']})
+            cfg_all["diagnostic"]["parameters"].update({'TFcurrent':dset['TFcurrent']}) #TODO: Does this need to be converted to [A] here?
+            try:
+                cfg_all["diagnostic"]["parameters"].update({dset['Mode'].strip().decode()})
+            except:
+                if self.verbose: print('#### no Mode attribute in file, default: 2nd X-mode ####')
+                cfg_all["diagnostic"]["parameters"].update({"Mode":'X'})
+            cfg_all["diagnostic"]["parameters"].update({'LoFreq':dset['LoFreq']})
+            cfg_all["diagnostic"]["parameters"].update({'LensFocus':dset['LensFocus']})
+            cfg_all["diagnostic"]["parameters"].update({'LensZoom':dset['LensZoom']})
+
 
     def _read_from_hdf5(self, array, idx_start, idx_end):
         """Reads data from HDF5 into array.
