@@ -20,7 +20,6 @@ def test_dataloader_ecei_cached(config_all):
     import os
     sys.path.append(os.path.abspath('delta'))
     import numpy as np
-    # # Import packages as delta.... so that we can run pytest as 
     from delta.sources.dataloader import _loader_ecei
 
     cfg_all = config_all
@@ -52,7 +51,6 @@ def test_dataloader_ecei_nocache(config_all):
         for batch in my_loader.batch_generator():
             # Mean should be roughly 3.5, depending on what use as dummy data
             assert(np.abs(np.mean(batch.data) - 3.5) < 1e-2)
-
 
 
 # End of file test_dataloader_kstar.py

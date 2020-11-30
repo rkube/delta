@@ -3,7 +3,7 @@
 """This processor implements the one-to-one model using mpi.
 
 To run on an interactive node
-srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py  --config configs/test_all.json
+srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py --config configs/test_all.json
 
 Remember to have adios2 included in $PYTHONPATH
 
@@ -112,7 +112,8 @@ def main():
     store_backend = store_type(cfg["storage"])
     store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
-    #TODO: (RMC)  Should this be moved to where cfg updated? (would allow updating channels to process remotely)
+    # TODO: (RMC)  Should this be moved to where cfg updated? 
+    # (would allow updating channels to process remotely)
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
     dq = queue.Queue()
@@ -124,9 +125,7 @@ def main():
     # # data stream. Put this right before entering the main loop
     logger.info(f"{rank} Waiting for generator")
     reader.Open()
-    stream_attrs = reader.get_attrs("cfg")
-    # TODO: Fix this somehow.
-    stream_attrs["SampleRate"] = stream_attrs["SampleRate"] * 1e3
+    stream_attrs = reader.get_attrs("stream_attrs")
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
     my_preprocessor = preprocessor(executor_pre, cfg)

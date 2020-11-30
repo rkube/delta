@@ -10,6 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # from data_models.kstar_ecei import ecei_chunk
+from data_models.kstar_ecei import get_geometry
 
 
 class radial_interpolator():
@@ -87,8 +88,7 @@ class plot_ecei_timeslice():
         self.logger = logging.getLogger("simple")
 
         self.clevs = np.linspace(-0.15, 0.15, 64)
-        self.rpos_arr = chunk.rarr
-        self.zpos_arr = chunk.zarr
+        self.rpos_arr, self.zpos_arr, _ = get_geometry(chunk.params)
         self.bad_channels = chunk.bad_channels
         self.cmap = cmap
         self.clevs = None
@@ -116,7 +116,7 @@ class plot_ecei_timeslice():
 
         if (~chunk.bad_channels).sum() == 0:
             all_max = chunk.data[:, tidx].max()
-            all_min = chunk.data[:, tdx].min()
+            all_min = chunk.data[:, tidx].min()
         else:
             all_max = chunk.data[~chunk.bad_channels, tidx].max()
             all_min = chunk.data[~chunk.bad_channels, tidx].min()

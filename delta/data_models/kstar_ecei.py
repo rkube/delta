@@ -75,7 +75,7 @@ class ecei_chunk():
 
         Parameters under which the data was measured needs to be passed in the params dict.
         Keys need to include:
-            * Device: String identifier of the ECEI device: L, G, H, GT, or GR
+            * dev: String identifier of the ECEI device: L, G, H, GT, or GR
             * TriggerTime: 
             * t_norm: Vector of 2 floats, defining the time interval used for normalization.
             * SampleRate: Rate at which each channels samples Te
@@ -406,9 +406,17 @@ def get_abcd(LensFocus, LensZoom, Rinit, dev, new_H=True):
 def get_geometry(cfg_diagnostic):
     """Builds channel geometry arrays.
 
+    To re-construct the view, the following keys are extracted from the passed dictionary:
+    * TFcurrent - Toroidal Field Coil current
+    * LoFreq - ???
+    * LensFocus - ???
+    * LensZoom - ???
+    * Mode - Either 'O' or 'X', ordinary/extra-ordinary
+    * dev - In ['L', 'H', 'G', 'GT', 'GR', 'HT']
+
     Args:
         cfg_diagnostic (dict):
-            Parameters section of diagnostic configuration
+            Parameters section of diagnostic configuration.
 
     Returns:
         rarr (ndarray):
@@ -455,7 +463,7 @@ def get_geometry(cfg_diagnostic):
     # With radial positions at hand, continue the calculations from beam_path
     # This is an (192, 2, 2) array, where the first dimension indices each individual channel
     abcd_array = np.array([get_abcd(LensFocus, LensZoom, rpos,
-                                    cfg_diagnostic["Device"]) for rpos in rpos_arr])
+                                    cfg_diagnostic["dev"]) for rpos in rpos_arr])
     # vertical position from the reference axis (vertical center of all lens, z=0 line)
     zz = (np.arange(24, 0, -1) - 12.5) * 14  # [mm]
     # angle against the reference axis at ECEI array box

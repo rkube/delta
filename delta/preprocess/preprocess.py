@@ -36,9 +36,9 @@ class preprocessor():
 
         self.executor = executor
         self.preprocess_list = []
-        for key, params in cfg["preprocess"].items():
+        for key, pre_params in cfg["preprocess"].items():
             try:
-                pre_task = get_preprocess_routine(key, params, cfg["diagnostic"])
+                pre_task = get_preprocess_routine(key, pre_params)
                 self.preprocess_list.append(pre_task)
             except NameError as e:
                 self.logger.error(f"Could not find suitable pre-processing routine: {e}")
@@ -56,6 +56,7 @@ class preprocessor():
             timechunk (timechunk)
                 Pre-processed timechunk data
         """
+        self.logger.info(f"Start pre-processing of chunk. attrs={timechunk.params}")
         tic = time.perf_counter()
         for item in self.preprocess_list:
             timechunk = item.process(timechunk, self.executor)

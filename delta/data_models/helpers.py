@@ -8,7 +8,7 @@ from itertools import filterfalse
 
 import more_itertools
 
-from data_models.kstar_ecei import ecei_chunk, get_geometry
+from data_models.kstar_ecei import ecei_chunk
 from data_models.channels_2d import channel_2d, channel_range, channel_pair
 from data_models.timebase import timebase_streaming
 
@@ -64,12 +64,12 @@ class data_model_generator():
         # Generate a time-base and a data model
         if self.cfg["name"] == "kstarecei":
             # Adapt configuration file parameters for use in timebase_streaming constructor
-            self.logger.info(f"New chunk. t0 = {stream_attrs}")
+            self.logger.info(f"New chunk: attrs = {stream_attrs}, chunk_idx = {chunk_idx}")
             tb_chunk = timebase_streaming(stream_attrs["TriggerTime"][0],
                                           stream_attrs["TriggerTime"][1],
                                           stream_attrs["SampleRate"],
                                           self.chunk_size, chunk_idx)
-            chunk = self.data_type(stream_data, tb_chunk)
+            chunk = self.data_type(stream_data, tb_chunk, stream_attrs)
 
             # Determine whether we need to normalize the data
             tidx_norm = [tb_chunk.time_to_idx(t) for t in self.t_norm]

@@ -107,11 +107,16 @@ class reader_base():
             all_cfg["diagnostics"]["parameters"] (dict):
                 Named section of the all_cfg
         """
-        attrs = self.IO.InquireAttribute(attrsname)
-        all_cfg = json.loads(attrs.DataString()[0])
-        self.logger.info(f"Loaded attributes: {all_cfg}")
+        try:
+            attrs = self.IO.InquireAttribute(attrsname)
+            stream_attrs = json.loads(attrs.DataString()[0])
+        except ValueError as e:
+            self.logger.error(f"Could not load attributes from stream: {e}")
+            raise ValueError(f"Failed to load attributes {attrsname} from {self.stream_name}")
+
+        self.logger.info(f"Loaded attributes: {stream_attrs}")
         # TODO: Clean up naming conventions for stream attributes
-        return all_cfg["diagnostic"]["parameters_old"]
+        return stream_attrs
 
     def Get(self, varname: str, save: bool=False):
         """Get data from varname at current step. This is diagnostic-independent code.

@@ -9,7 +9,7 @@ from preprocess.pre_wavelet import pre_wavelet
 from preprocess.pre_plot import pre_plot
 
 
-def get_preprocess_routine(key, params, cfg_diagnostic):
+def get_preprocess_routine(key, params):
     """Returns a instance of a callable pre-processing objects for each key.
 
     Args:
@@ -17,8 +17,6 @@ def get_preprocess_routine(key, params, cfg_diagnostic):
             Name of the pre-processing routine
         params (dictionary):
             Dictionary containig kwargs for pre-processing routines.
-        cfg_diagnostic (dictionary):
-            Diagnostic configuration section
 
     Returns:
         obj (callable):
@@ -38,7 +36,7 @@ def get_preprocess_routine(key, params, cfg_diagnostic):
     elif key == "bandpass_iir":
         return pre_bandpass_iir(params)
     elif key == "plot":
-        return pre_plot(params, cfg_diagnostic)
+        return pre_plot(params)
     else:
         raise NameError(f"Requested invalid pre-processing routine: {key}")
 

@@ -14,14 +14,14 @@ def config_all():
     "shotnr": 18431,
     "datasource":
     {
-      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/018431/ECEI.018431.LFS.h5",
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["L0101-2408"],
       "datatype": "float"
     },
     "parameters": {
-      "Device": "L",
+      "dev": "L",
       "TriggerTime": [-0.12, 61.2, 60],
       "t_norm": [-0.119, -0.109],
       "SampleRate": 500,

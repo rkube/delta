@@ -83,7 +83,6 @@ class writer_base():
             attrsstr = json.dumps(attrs)
         except TypeError as e:
             self.logger.error(f"Can't serialize attributes: {e}")
-
         self.attrs = self.IO.DefineAttribute(attrsname, attrsstr)
 
     def Open(self):

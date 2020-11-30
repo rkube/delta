@@ -17,7 +17,7 @@ def test_preprocess_helpers(config_all):
     for key, params, mytype in zip(config_all["preprocess"].keys(),
                                    config_all["preprocess"].items(),
                                    type_list):
-        vv = get_preprocess_routine(key, params[1], config_all["diagnostic"])
+        vv = get_preprocess_routine(key, params[1])
         assert(isinstance(vv, mytype))
 
 

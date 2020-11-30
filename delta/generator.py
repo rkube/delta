@@ -6,12 +6,7 @@ Reads diagnostic data and stages it chunk-wise for transport.
 Data stream can be received with middleman or processor.
 """
 
-
 from mpi4py import MPI
-# import sys
-
-# sys.path.append("/home/rkube/software/gcc/8.3/adios2/lib/python3.8/site-packages")
-# import numpy as np
 
 import json
 import yaml
@@ -63,11 +58,12 @@ writer.DefineVariable(gen_var_name(cfg)[rank],
                       dataloader.get_chunk_shape(),
                       dataloader.dtype)
 # TODO: Clean up naming conventions for stream attributes
-writer.DefineAttributes("cfg", cfg)
+logger.info(f"Writing attributes: {dataloader.attrs}")
+
+writer.DefineAttributes("stream_attrs", dataloader.attrs)
 writer.Open()
 
 logger.info("Start sending on channel:")
-
 batch_gen = dataloader.batch_generator()
 for nstep, chunk in enumerate(batch_gen):
     # TODO: Do we want to place filtering in the generator? This would allow us to
@@ -80,7 +76,6 @@ for nstep, chunk in enumerate(batch_gen):
     writer.BeginStep()
     writer.put_data(chunk, {"tidx": nstep})
     writer.EndStep()
-    time.sleep(0.1)
 
 writer.writer.Close()
 logger.info(writer.transfer_stats())

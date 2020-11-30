@@ -5,21 +5,18 @@
 import logging
 from os.path import join
 
-from data_models.kstar_ecei import get_geometry
 from preprocess.plot_ecei import plot_ecei_timeslice
 
 
 class pre_plot():
     """Implements plotting."""
 
-    def __init__(self, params_pre, params_diag):
+    def __init__(self, params_pre):
         """Instantiates the pre_plot class as a callable.
 
         Args:
             params_pre (dictionary):
                 Preprocessing section of Delta configuration
-            params_diag(dictionary):
-                Diagnostic section of Delta configuration
 
         Returns:
             None
@@ -28,9 +25,7 @@ class pre_plot():
         self.plot_dir = params_pre["plot_dir"]
         self.logger = logging.getLogger("simple")
 
-        rarr, zarr, _ = get_geometry(params_diag["parameters"])
-
-    def process(self, data_chunk, executor):
+    def process(self, data_chunk, executor=None):
         """Plots the data chunk.
 
         Args:

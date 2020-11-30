@@ -93,7 +93,12 @@ class _loader_ecei():
             for attr_name in ["SampleRate", "TriggerTime", "TFcurrent", "Mode", "LoFreq",
                               "LensFocus", "LensZoom"]:
                 try:
-                    self.attrs.update({attr_name: dset[attr_name]})
+                    # Test if attribute is serializable. 
+                    # If it is f.ex an ndarray convert it to a list.
+                    new_attr = dset[attr_name]
+                    if isinstance(new_attr, np.ndarray):
+                        new_attr = list(new_attr)
+                    self.attrs.update({attr_name: new_attr})
                 except KeyError:
                     self.logger.info(f"Attribute {attr_name} note found in file {self.filename}")
             # Manually pretti-fy samplerate, tfcurrent, and Mode
