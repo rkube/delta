@@ -109,6 +109,7 @@ class reader_base():
         """
         try:
             attrs = self.IO.InquireAttribute(attrsname)
+            self.logger.info(f"Got attribute: {dir(attrs)}")
             stream_attrs = json.loads(attrs.DataString()[0])
         except ValueError as e:
             self.logger.error(f"Could not load attributes from stream: {e}")

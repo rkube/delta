@@ -45,6 +45,22 @@ The commands below set up the environment on the KSTAR DTN to start the generato
     mpirun -n 1 python generator.py --config configs/test_2node.json
 
 
+Notes on ADIOS2 protocols:
+
+With SST, we need to do as follows:
+Use --sdn  option with salloc  (which is to get an IP address to visible from the DTN):
+salloc --sdn
+Then, run srun  as follows:
+ADIOS2_IP=$SDN_IP_ADDR srun ...
+IPAddress in the config is for DataMan and it should be the ip address of the sender (i.e., the dtn nodes)
+
+
+
+
+2:11
+IPAddress in the config is for DataMan and it should be the ip address of the sender (i.e., the dtn nodes)
+
+
 
 
 3-node scenario

@@ -65,7 +65,7 @@ class writer_base():
     def DefineAttributes(self, attrsname: str, attrs: dict):
         """Wrapper around DefineAttribute.
         
-        Serializes an attribute dictionary as a json-string, which is written as an attribute
+        Serializes an attribute dictionary as a json, which is written as an attribute
         into ADIOS stream.
 
         NOTE: Currently no ADIOS cmd to use dict, pickle to string
@@ -83,6 +83,7 @@ class writer_base():
             attrsstr = json.dumps(attrs)
         except TypeError as e:
             self.logger.error(f"Can't serialize attributes: {e}")
+            raise TypeError(f"Can't serialize data stream attributes: {e}")
         self.attrs = self.IO.DefineAttribute(attrsname, attrsstr)
 
     def Open(self):
@@ -134,7 +135,6 @@ class writer_base():
 
     def transfer_stats(self):
         """Calculates bandwidth statistics from the transfer."""
-
         tr_sum, tr_max, tr_min, tr_mean, tr_std = self.stats.get_transfer_stats()
         du_sum, du_max, du_min, du_mean, du_std = self.stats.get_duration_stats()
 
