@@ -98,6 +98,8 @@ class _loader_ecei():
                     new_attr = dset[attr_name]
                     if isinstance(new_attr, np.ndarray):
                         new_attr = list(new_attr)
+                    if isinstance(new_attr, bytes):
+                        new_attr = new_attr.strip().decode('utf-8')
                     self.attrs.update({attr_name: new_attr})
                 except KeyError:
                     self.logger.info(f"Attribute {attr_name} note found in file {self.filename}")

@@ -60,7 +60,7 @@ writer.DefineVariable(gen_var_name(cfg)[rank],
 # TODO: Clean up naming conventions for stream attributes
 logger.info(f"Writing attributes: {dataloader.attrs}")
 
-writer.DefineAttributes("stream_attrs", str(dataloader.attrs))
+writer.DefineAttributes("stream_attrs", dataloader.attrs)
 writer.Open()
 
 logger.info("Start sending on channel:")
