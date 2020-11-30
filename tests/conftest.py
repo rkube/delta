@@ -19,17 +19,7 @@ def config_all():
       "num_chunks": 500,
       "channel_range": ["L0101-2408"],
       "datatype": "float"
-    },
-    "parameters": {
-      "dev": "L",
-      "TriggerTime": [-0.12, 61.2, 60],
-      "t_norm": [-0.119, -0.109],
-      "SampleRate": 500,
-      "TFcurrent": 23000.0,
-      "Mode": "O",
-      "LoFreq": 81,
-      "LensFocus": 80,
-      "LensZoom": 340}
+    }
   },
   "transport_nersc":
   {
@@ -91,6 +81,46 @@ def config_all():
 
     config = json.loads(config_str)
     return config
+
+
+@pytest.fixture()
+def stream_attrs_022289():
+    """Dummy substitute for ECEI parameters typically read from HDF5.
+
+    These parameters are taken from shot 022289
+    """
+    stream_attrs = {"dev": "GT",
+                    "TriggerTime": [-0.1, 61.1, 60],
+                    "t_norm": [-0.119, -0.109],
+                    "SampleRate": 500000,
+                    "TFcurrent": 18000.0,
+                    "Mode": "X",
+                    "LoFreq": 79.5,
+                    "LensFocus": 503,
+                    "LensZoom": 200}
+
+    return stream_attrs
+
+
+@pytest.fixture()
+def stream_attrs_018431():
+    """Dummy substitute for ECEI parameters typically read from HDF5.
+
+    These parameters are taken from shot 018431
+    """
+    stream_attrs = {"dev": "L",
+                    "TriggerTime": [-0.12, 61.12, 60],
+                    "t_norm": [-0.119, -0.109],
+                    "SampleRate": 500000,
+                    "TFcurrent": 23000.0,
+                    "Mode": "O",
+                    "LoFreq": 81,
+                    "LensFocus": 80,
+                    "LensZoom": 340}
+
+    return stream_attrs
+
+
 
 
 @pytest.fixture(scope="module")

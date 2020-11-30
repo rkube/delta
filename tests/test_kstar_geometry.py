@@ -5,7 +5,7 @@
 
 class kstarecei_mockup():
     """Mocks behaviour of kstarecei, but without data dependencies."""
-    def __init__(self, ch_h, ch_v, dev):
+    def __init__(self, ch_h, ch_v, dev, lofreq, tfcurrent, sf, sz, mode):
         """Initializes.
 
         Args:
@@ -23,11 +23,11 @@ class kstarecei_mockup():
         self.ch_h = ch_h
         self.ch_v = ch_v
         self.dev = dev
-        # Use values for shot 18431 whenever possible
-        self.lofreq = 81
-        self.tfcurrent = 23000.0
-        self.sf = 80 # LensFocus
-        self.sz = 340 # LensZoom
+        self.lofreq = lofreq
+        self.tfcurrent = tfcurrent
+        self.sf = sf
+        self.sz = sz
+        self.mode = mode
 
     def channel_position(self):
         """From fluctana/kstarecei.py. Calculates channel position."""
@@ -39,7 +39,13 @@ class kstarecei_mockup():
         e = 1.602e-19           # charge
         mu0 = 4 * np.pi * 1e-7  # permeability
         ttn = 56 * 16           # total TF coil turns
-        harmonic = 1            # O-mode in shot 18431
+        harmonic = -1
+        if self.mode == "O":
+            harmonic = 1            # O-mode in shot 18431
+        elif self.mode == "X":
+            harmonic = 2
+        else:
+            raise ValueError("mode must be either 'O' or 'X'")
 
         rpos = harmonic * e * mu0 * ttn * self.tfcurrent / ((2 * np.pi)**2 * me *
                                                             ((self.ch_h - 1) * 0.9 +
@@ -210,7 +216,7 @@ class kstarecei_mockup():
         return abcd
 
 
-def test_ecei_channel_geom(config_all):
+def test_ecei_channel_geom(stream_attrs_018431, stream_attrs_022289):
     """Verify calculated ECEI channel positions are the same as in fluctana."""
     import sys
     import os
@@ -223,21 +229,23 @@ def test_ecei_channel_geom(config_all):
     # Pick a random channel
     ch_h = np.random.randint(1, 9)
     ch_v = np.random.randint(1, 25)
-    # ch_str = f"ECEI_L{ch_v:02d}{ch_h:02d}"
     ch_2d = channel_2d(ch_v, ch_h, 24, 8, order="horizontal")
 
-    # Use the config_all fixture to get Delta configuration
-    config = config_all
-    cfg_diagnostic = config["diagnostic"]
+    for stream_attrs in [stream_attrs_018431, stream_attrs_022289]:
+        K = kstarecei_mockup(ch_h, ch_v,
+                            stream_attrs["dev"],
+                            stream_attrs["LoFreq"],
+                            stream_attrs["TFcurrent"],
+                            stream_attrs["LensFocus"],
+                            stream_attrs["LensZoom"],
+                            stream_attrs["Mode"])
+        pos_true = K.channel_position()
+        print("pos_true = ", pos_true)
+        rpos_arr, zpos_arr, apos_arr = get_geometry(stream_attrs)
+        print("Re-factored:", ch_2d.get_idx())
+        print(f"rpos = {rpos_arr[ch_2d.get_idx()]}, zpos = {zpos_arr[ch_2d.get_idx()]}, apos = {apos_arr[ch_2d.get_idx()]}")
+        pos_delta = np.array([rpos_arr[ch_2d.get_idx()], zpos_arr[ch_2d.get_idx()], apos_arr[ch_2d.get_idx()]])
 
-    # Calcuate channel position using FluctAna and Delta
-    K = kstarecei_mockup(ch_h, ch_v, "L")
-    pos_true = K.channel_position()
-    rpos_arr, zpos_arr, apos_arr = get_geometry(cfg_diagnostic["parameters"])
-    # print("Re-factored:", ch_2d.get_idx())
-    # print(f"rpos = {rpos_arr[ch_2d.get_idx()]}, zpos = {zpos_arr[ch_2d.get_idx()]}, apos = {apos_arr[ch_2d.get_idx()]}")
-    pos_delta = np.array([rpos_arr[ch_2d.get_idx()], zpos_arr[ch_2d.get_idx()], apos_arr[ch_2d.get_idx()]])
-
-    assert(np.linalg.norm(pos_true - pos_delta) < 1e-8)
+        assert(np.linalg.norm(pos_true - pos_delta) < 1e-8)
 
 # End of file test_kstar_ecei_helpers.py

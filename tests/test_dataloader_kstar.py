@@ -1,6 +1,15 @@
 # -*- Encoding: UTF-8 -*-
 
-"""Verify that dataloaders works correctly."""
+"""Verify that dataloaders works correctly.
+
+TODO:
+1. Implement tests to verify that the correct attributes are read from HDF5.
+   Delta now reads this section
+
+  from HDF5 attributes instead of hard-coding it in the config file.
+
+
+"""
 
 import mock
 import numpy as np
