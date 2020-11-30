@@ -34,6 +34,30 @@
       "TransportMode": "fast"
     }
   },
+  "transport_kstar":
+  {
+    "datapath": "tmp_nersc",
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "203.230.120.125",
+      "Timeout": "120",
+      "Port": "50021",
+      "TransportMode": "fast"
+    }
+  },
+  "transport_nersc_middleman":
+  {
+    "datapath": "tmp_nersc",
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "128.55.205.18",
+      "Timeout": "120",
+      "Port": "50001",
+      "TransportMode": "fast"
+    }
+  },
   "storage_mongo":
   {
     "backend": "mongo",
