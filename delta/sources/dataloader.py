@@ -2,9 +2,11 @@
 
 """General dataloaders."""
 
+import os
 import numpy as np
 import h5py
 import logging
+import re
 
 from data_models.kstar_ecei import ecei_chunk, channel_range_from_str
 from data_models.timebase import timebase_streaming
@@ -60,19 +62,12 @@ class _loader_ecei():
             self.dtype = np.int32
         elif cfg_all["diagnostic"]["datasource"]["datatype"] == "float":
             self.dtype = np.float64
-        
-        #update config file with the ECEI HDF5 file attributes
-        #(these changes will be reflected in cfg_all in generator.py)
-        self._read_attributes_from_hdf5(cfg_all)
 
-        # Generate start/stop time for timebase
-        self.f_sample = cfg_all["diagnostic"]["parameters"]["SampleRate"] * 1e3
-        self.dt = 1. / self.f_sample
-        self.t_start = cfg_all["diagnostic"]["parameters"]["TriggerTime"][0]
-        self.t_end = min(cfg_all["diagnostic"]["parameters"]["TriggerTime"][1],
-                         self.t_start + 5_000_000 * self.dt)
-        self.dev = cfg_all["diagnostic"]["parameters"]["Device"]
-
+        # Process attributes stored in HDF5 file
+        # Extract device name of filename, the part in between .[A-Z]{2}.
+        m = re.search('\.[A-Z]{1,2}\.', os.path.basename(self.filename))
+        self.attrs = {"dev": m[0][1:-1]}
+        self._read_attributes_from_hdf5()
         self.logger = logging.getLogger('simple')
 
         # Whether we use caching for loading data
@@ -81,24 +76,32 @@ class _loader_ecei():
             self.cache()
             self.is_cached = True
 
-    def _read_attributes_from_hdf5(self,cfg_all):
-        """ attributes from HDF5 into array.
-            updates cfg_all input, which is reflected on output since mutable
-        """
-        with h5py.File(self.filename,'r') as df:
-            dset = df["ECEI"].attrs
-            cfg_all["diagnostic"]["parameters"].update({'SampleRate':dset['SampleRate'][0]})
-            cfg_all["diagnostic"]["parameters"].update({'TriggerTime':dset['TriggerTime']})
-            cfg_all["diagnostic"]["parameters"].update({'TFcurrent':dset['TFcurrent']}) #TODO: Does this need to be converted to [A] here?
-            try:
-                cfg_all["diagnostic"]["parameters"].update({dset['Mode'].strip().decode()})
-            except:
-                if self.verbose: print('#### no Mode attribute in file, default: 2nd X-mode ####')
-                cfg_all["diagnostic"]["parameters"].update({"Mode":'X'})
-            cfg_all["diagnostic"]["parameters"].update({'LoFreq':dset['LoFreq']})
-            cfg_all["diagnostic"]["parameters"].update({'LensFocus':dset['LensFocus']})
-            cfg_all["diagnostic"]["parameters"].update({'LensZoom':dset['LensZoom']})
+    def _read_attributes_from_hdf5(self):
+        """Reads attributes from HDF5.
 
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
+        with h5py.File(self.filename, 'r') as df:
+            dset = df["ECEI"].attrs
+            for attr_name in ["SampleRate", "TriggerTime", "TFcurrent", "Mode", "LoFreq",
+                              "LensFocus", "LensZoom"]:
+                try:
+                    self.attrs.update({attr_name: dset[attr_name]})
+                except KeyError:
+                    self.logger.info(f"Attribute {attr_name} note found in file {self.filename}")
+            # Manually pretti-fy samplerate, tfcurrent, and Mode
+            # Store Toroidal Field Coil current in Amps
+            self.attrs["TFcurrent"] = self.attrs["TFcurrent"] * 1e3
+            # Store SampleRate in Hz
+            self.attrs["SampleRate"] = self.attrs["SampleRate"][0] * 1e3
+            # self.attrs["Mode"] = self.attrs["Mode"].strip().decode()
 
     def _read_from_hdf5(self, array, idx_start, idx_end):
         """Reads data from HDF5 into array.
@@ -119,7 +122,7 @@ class _loader_ecei():
         # Cache the data in memory
         with h5py.File(self.filename, "r",) as df:
             for ch in self.ch_range:
-                chname_h5 = f"/ECEI/ECEI_{self.dev}{ch.ch_v:02d}{ch.ch_h:02d}/Voltage"
+                chname_h5 = f"/ECEI/ECEI_{self.attrs['dev']}{ch.ch_v:02d}{ch.ch_h:02d}/Voltage"
                 array[ch.get_idx(), :] = df[chname_h5][idx_start:idx_end].astype(self.dtype)
         array[:] = array[:] * 1e-4
 
@@ -171,7 +174,13 @@ class _loader_ecei():
 
         for current_chunk in range(self.num_chunks):
             # Generate a time-base for the current chunk
-            tb_chunk = timebase_streaming(self.t_start, self.t_end, self.f_sample,
+            # Use start-time stored in attrs['TriggerTime'][0]
+            # Use end-time stored in attrs['TriggerTime'][1]
+            tend = min(self.attrs['TriggerTime'][1],
+                       self.attrs['TriggerTime'][0] + 5_000_000 / self.attrs['SampleRate'])
+            tb_chunk = timebase_streaming(self.attrs['TriggerTime'][0],
+                                          tend,
+                                          self.attrs['SampleRate'],
                                           self.chunk_size, current_chunk)
 
             # Load current time-chunk from HDF5 file
@@ -187,8 +196,8 @@ class _loader_ecei():
                 self._read_from_hdf5(_chunk_data, current_chunk * self.chunk_size,
                                      (current_chunk + 1) * self.chunk_size)
 
-            current_chunk = ecei_chunk(_chunk_data, tb_chunk)
+            current_chunk = ecei_chunk(_chunk_data, tb_chunk, params=self.attrs)
             yield current_chunk
 
 
-# End of file loader_ecei_v2.py
+# End of file dataloader.py

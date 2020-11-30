@@ -6,8 +6,10 @@ import logging
 import numpy as np
 from itertools import filterfalse
 
+import more_itertools
+
 from data_models.kstar_ecei import ecei_chunk, get_geometry
-from data_models.channels_2d import channel_2d, channel_range
+from data_models.channels_2d import channel_2d, channel_range, channel_pair
 from data_models.timebase import timebase_streaming
 
 
@@ -25,39 +27,36 @@ class data_model_generator():
             ValueError:
                 Field 'name' specified in cfg_diagnostic could not be matched
                 to an existing data_model
-
-
         """
         self.logger = logging.getLogger("simple")
         self.cfg = cfg_diagnostic
 
         # Generate start/stop time for timebase
         self.chunk_size = cfg_diagnostic["datasource"]["chunk_size"]
-        self.f_sample = cfg_diagnostic["parameters"]["SampleRate"] * 1e3
-        self.dt = 1. / self.f_sample
-        self.t_start, self.t_end, _ = cfg_diagnostic["parameters"]["TriggerTime"]
         # Callable that performs normalization. This is instantiated once data from
         # the time interval t_norm is read
         self.normalize = None
-        self.t_norm = self.cfg["parameters"]["t_norm"]
+        self.t_norm = self.cfg["datasource"]["t_norm"]
 
         if self.cfg["name"] == "kstarecei":
             self.data_type = ecei_chunk
-            self.rarr, self.zarr, _ = get_geometry(cfg_diagnostic["parameters"])
+            #self.rarr, self.zarr, _ = get_geometry(cfg_diagnostic["parameters"])
 
         elif self["name"] == "nstxgpi":
             self.data_type = None
         else:
             raise ValueError(f"No data model for diagnostic {cfg_diagnostic['name']}")
 
-    def new_chunk(self, stream_data: np.array, chunk_idx: int):
+    def new_chunk(self, stream_data: np.array, stream_attrs: dict, chunk_idx: int):
         """Generates a data model from new chunk of streamed data.
 
         Args:
             stream_data (np.array):
                 New data chunk read from :class: reader_gen.
+            stream_attr (dict):
+                Stream attributes, taken from :class: reader_gen.
             chunk_idx (int):
-                Sequence index in the stream
+                Sequence index of this time chunk in the stream
 
         Returns:
             None
@@ -65,9 +64,12 @@ class data_model_generator():
         # Generate a time-base and a data model
         if self.cfg["name"] == "kstarecei":
             # Adapt configuration file parameters for use in timebase_streaming constructor
-            tb_chunk = timebase_streaming(self.t_start, self.t_end, self.f_sample,
+            self.logger.info(f"New chunk. t0 = {stream_attrs}")
+            tb_chunk = timebase_streaming(stream_attrs["TriggerTime"][0],
+                                          stream_attrs["TriggerTime"][1],
+                                          stream_attrs["SampleRate"],
                                           self.chunk_size, chunk_idx)
-            chunk = self.data_type(stream_data, tb_chunk, rarr=self.rarr, zarr=self.zarr)
+            chunk = self.data_type(stream_data, tb_chunk)
 
             # Determine whether we need to normalize the data
             tidx_norm = [tb_chunk.time_to_idx(t) for t in self.t_norm]
@@ -124,14 +126,14 @@ def gen_channel_name(cfg_diagnostic: dict) -> str:
         raise ValueError
 
 
-def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
+def gen_channel_range(diag_name: str, chrg: list) -> channel_range:
     """Generates channel ranges for the diagnostics.
 
     Generates a channel_range object for the diagnostic at hand.
 
     Args:
-        cfg_diagnostic (dict):
-            "diagnostic" section from the global Delta configuration
+        diag_name: str
+            Name of the diagnostic
         chrg (tuple[int, int, int, int]):
             ch1_start, ch1_end, ch2_start, ch2_end.
 
@@ -140,12 +142,12 @@ def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
             channel_range configured with appropriate bounds and order for either
             KSTAR ecei or NSTX GPI
     """
-    if cfg_diagnostic["name"] == "kstarecei":
+    if diag_name == "kstarecei":
         ch1 = channel_2d(chrg[0], chrg[1], 24, 8, order='horizontal')
         ch2 = channel_2d(chrg[2], chrg[3], 24, 8, order='horizontal')
         return channel_range(ch1, ch2)
 
-    elif cfg_diagnostic["name"] == "nstxgpi":
+    elif diag_name == "nstxgpi":
         return None
 
     else:
@@ -154,6 +156,7 @@ def gen_channel_range(cfg_diagnostic: dict, chrg: list) -> channel_range:
 
 def gen_var_name(cfg: dict) -> str:
     """Generates a variable name from the diagnostic configuration."""
+    # TODO: We should put the device name back in here
     if cfg["diagnostic"]["name"] == "kstarecei":
         return cfg["diagnostic"]["datasource"]["channel_range"]
 
@@ -250,5 +253,42 @@ class normalize_mean():
         chunk.mark_bad_channels(verbose=True)
 
         return None
+
+
+def get_dispatch_sequence(ref_channels, cmp_channels, niter=128):
+    """Returns an a list of iterables that span all unique combinations of ref_ch x cmp_ch.
+
+    Args:
+        ref_channels [int, int, int int]:
+            List that describes the reference channels. start_h, start_v, end_h, end_v
+
+        cmp_channels [int, int, int, int]:
+            List that describes the compare channels. start_h, start_v, end_h, end_v
+        niter (int):
+            Length of the sub-lists we split the list of channel pairs into.
+
+    Returns:
+        all_chunks (???):
+            Chunked dispatch sequence.
+    """
+    # TODO: remove hard-coded kstarecei string.
+    ref_channel_rg = gen_channel_range("kstarecei", ref_channels)
+    cmp_channel_rg = gen_channel_range("kstarecei", cmp_channels)
+
+    # Construct a list of unique channels
+    # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
+    # The unique list of channels is then
+    # (1,1) x (1,1), (1,1) x (1,2)
+    # (1,2) x (1,2) !!! Omits (1,2) x (1,1)
+    # (1,3) x (1,1)
+    # (1,3) x (1,2)
+    channel_pairs = [channel_pair(cr, cx) for cr in ref_channel_rg for cx in cmp_channel_rg]
+    # Make a list, so that we don't exhaust the iterator after the first call.
+    # self.unique_channels = [i[0] for i in
+    #                         more_itertools.distinct_combinations(channel_pairs, 1)]
+    unique_channels = [ch for ch in unique_everseen(channel_pairs)]
+
+    all_chunks = list(more_itertools.chunked(unique_channels, niter))
+    return(all_chunks)
 
 # End of file helpers.py

@@ -66,11 +66,24 @@ def channel_range_from_str(range_str):
 class ecei_chunk():
     """Class that represents a time-chunk of ECEI data."""
 
-    def __init__(self, data, tb, params=None, rarr=None, zarr=None, num_v=24, num_h=8):
+    def __init__(self, data, tb, params=None, num_v=24, num_h=8):
+        # TODO: remove rarr and zarr and make them computable from params
         """Creates an ecei_chunk from a give dataset.
 
         The first dimension indices channels, the second dimension indices time.
-        Channels are ordered
+        Channels are ordered.
+
+        Parameters under which the data was measured needs to be passed in the params dict.
+        Keys need to include:
+            * Device: String identifier of the ECEI device: L, G, H, GT, or GR
+            * TriggerTime: 
+            * t_norm: Vector of 2 floats, defining the time interval used for normalization.
+            * SampleRate: Rate at which each channels samples Te
+            * TFCurrent: Toroidal Field Coil current, in Amps
+            * Mode: string, either 'X' or 'O'
+            * LoFreq: float
+            * LensFocus: float
+            * LensZoom: float
 
         Args:
             data (ndarray, float):
@@ -78,11 +91,7 @@ class ecei_chunk():
             tb (timebase_streaming):
                 timebase for ECEI voltages
             params:
-                Additional parameters
-            rarr (ndarray, float):
-                Radial position of individual channels, in m.
-            zarr (ndarray, float):
-                Vertical position of individual channels, in m.
+                Additional parameters under which the data was measured. See dicussion above.
             num_v (int):
                 Number of vertical channels. Defaults to 24.
             num_h (int):
@@ -111,17 +120,9 @@ class ecei_chunk():
         # Data can be 2 or 3 dimensional
         assert(data.shape[self.axis_ch] == self.num_h * self.num_v)
 
-        # Coordinate arrays give the radial and vertical coordinate of each channel
-        if rarr is not None:
-            self.rarr = rarr
-            assert(rarr.size == self.num_h * self.num_v)
-
-        if zarr is not None:
-            assert(zarr.size == self.num_h * self.num_v)
-            self.zarr = zarr
-
-        self.params = None
-
+        # Parameters for the ECEI chunk:
+        # 
+        self.params = params
         # True if data is normalized, False if not.
         self.is_normalized = False
         # offlev, offstd, siglev and sigstd have shape=(nchannels, 1)

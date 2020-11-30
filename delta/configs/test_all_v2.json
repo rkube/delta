@@ -5,22 +5,13 @@
     "shotnr": 22289,
     "datasource":
     {
-      "source_file": "/scratch/gpfs/rkube/KSTAR/022289/ECEI.022289.GT.h5",
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
-      "channel_range": ["L0101-2408"],
-      "datatype": "float"
-    },
-    "parameters": {
-      "Device": "GT",
-      "TriggerTime": [-0.1, 61.1, 60],
-      "t_norm": [-0.099, -0.089],
-      "SampleRate": 500,
-      "TFcurrent": 18000.0,
-      "Mode": "X",
-      "LoFreq": 79.5,
-      "LensFocus": 503,
-      "LensZoom": 200}
+      "channel_range": ["0101-2408"],
+      "datatype": "float",
+      "t_norm": [-0.099, -0.089]
+    }
   },
   "transport_nersc":
   {

@@ -23,8 +23,6 @@ import json
 import yaml
 import argparse
 
-import numpy as np
-
 from concurrent.futures import ThreadPoolExecutor
 from mpi4py.futures import MPIPoolExecutor
 
@@ -41,7 +39,6 @@ def consume(Q, my_task_list, my_preprocessor):
     Executed by a local thread.
     """
     logger = logging.getLogger('simple')
-    global cfg
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -55,17 +52,11 @@ def consume(Q, my_task_list, my_preprocessor):
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
 
-        #np.savez(f"test_data/msg_array_i_{msg.tb.chunk_idx:04d}.npz", msg.data)
-
-        # TODO: Should there be a general method to a time index from a data chunk?
         logger.info(f"Rank {rank}: Consumed: {msg.tb} Got data type {type(msg)}")
         msg = my_preprocessor.submit(msg)
-        # if(msg.tb.chunk_idx == 1):
-        #np.savez(f"test_data/msg_array_p_{msg.tb.chunk_idx:04d}.npz", msg.data)
-
         my_task_list.submit(msg)
-
         Q.task_done()
+
     logger.info("Task done")
 
 
@@ -73,17 +64,22 @@ def main():
     """Procesess a stream of data chunks on an executor."""
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    # size = comm.Get_size()
 
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis" +
                                      "tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file',
                         default='configs/config_null.json')
-    parser.add_argument('--benchmark', action="store_true")
+    parser.add_argument("--num_threads_preprocess", type=int,
+                        help="Number of threads used in preprocessing executor",
+                        default=4)
+    parser.add_argument("--num_threads_analysis", type=int,
+                        help="Number of threads used in analysis executor",
+                        default=16)
+    parser.add_argument("--num_worker_threads", type=int,
+                        help="Number of worker threads that consume incoming data chunks",
+                        default=4)
     args = parser.parse_args()
-
-    global cfg
 
     with open(args.config, "r") as df:
         cfg = json.load(df)
@@ -96,13 +92,13 @@ def main():
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('simple')
 
-    # Create a global executor
+    # Create PoolExecutors for preprocessing and analysis
     # executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     # PoolExecutor for pre-processing, on-node.
     # executor_pre = MPIPoolExecutor(max_workers=4)
-    executor_pre = ThreadPoolExecutor(max_workers=4)
+    executor_pre = ThreadPoolExecutor(max_workers=args.num_threads_preprocess)
     # PoolExecutor for data analysis. off-node
-    executor_anl = MPIPoolExecutor(max_workers=24)
+    executor_anl = MPIPoolExecutor(max_workers=args.num_threads_analysis)
 
     stream_varname = gen_var_name(cfg)[rank]
 
@@ -114,10 +110,9 @@ def main():
     # Instantiate a storage backend and store the run configuration and task configuration
     store_type = get_storage_object(cfg["storage"])
     store_backend = store_type(cfg["storage"])
-    # logger.info(f"Stored one")
+    store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
     #TODO: (RMC)  Should this be moved to where cfg updated? (would allow updating channels to process remotely)
-    #(would need to 
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
 
     dq = queue.Queue()
@@ -125,40 +120,36 @@ def main():
 
     tic_main = time.perf_counter()
 
-    # reader.Open() is blocking until it opens the data file or receives the
-    # data stream. Put this right before entering the main loop
+    # # reader.Open() is blocking until it opens the data file or receives the
+    # # data stream. Put this right before entering the main loop
     logger.info(f"{rank} Waiting for generator")
     reader.Open()
-    logger.info("Starting main loop")
+    stream_attrs = reader.get_attrs("cfg")
+    # TODO: Fix this somehow.
+    stream_attrs["SampleRate"] = stream_attrs["SampleRate"] * 1e3
 
+    data_model_gen = data_model_generator(cfg["diagnostic"])
+    my_preprocessor = preprocessor(executor_pre, cfg)
+    my_task_list = task_list(executor_anl, cfg["task_list"], cfg["storage"])
+
+    worker_thread_list = []
+    for _ in range(args.num_worker_threads):
+        new_worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
+        new_worker.start()
+        worker_thread_list.append(new_worker)
+
+    logger.info("Starting main loop")
     rx_list = []
-    cfg_update = False
     while True:
         stepStatus = reader.BeginStep()
         if stepStatus:
             # Read data
-            if not cfg_update:
-                cfg.update(reader.get_attrs("cfg"))
-                cfg_update = True
-                #TODO: (RMC)  The following taken from above
-                store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
-                data_model_gen = data_model_generator(cfg["diagnostic"])
-
-                my_preprocessor = preprocessor(executor_pre, cfg)
-                my_task_list = task_list(executor_anl, cfg["task_list"], cfg["diagnostic"], cfg["storage"])
-
-                workers = []
-                for _ in range(1):
-                    worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
-                    worker.start()
-                    workers.append(worker)
-
             stream_data = reader.Get(stream_varname, save=False)
             if reader.CurrentStep() in [0, 140]:
                 rx_list.append(reader.CurrentStep())
 
                 # Create a datamodel instance from the raw data and push into the queue
-                msg = data_model_gen.new_chunk(stream_data, reader.CurrentStep())
+                msg = data_model_gen.new_chunk(stream_data, stream_attrs, reader.CurrentStep())
                 dq.put_nowait(msg)
                 logger.info(f"Published tidx {reader.CurrentStep()}")
             reader.EndStep()
@@ -173,7 +164,7 @@ def main():
     logger.info("Queue joined")
 
     logger.info("Exiting main loop")
-    for thr in workers:
+    for thr in worker_thread_list:
         thr.join()
 
     logger.info("Workers have joined")

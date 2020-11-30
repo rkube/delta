@@ -14,8 +14,6 @@ The class task_list is a convenience class that stores multiple task_spectral ob
 """
 
 import logging
-import numpy as np
-import more_itertools
 
 # Import plain python kernels
 # from analysis.kernels_spectral import kernel_null, kernel_crosspower
@@ -28,9 +26,7 @@ from analysis.kernels_spectral_cy import kernel_crosspower_64_cy, kernel_crossph
 # Import CUDA kernels
 # from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
 
-from data_models.channels_2d import channel_pair
-from data_models.helpers import gen_channel_range, unique_everseen
-
+from data_models.helpers import get_dispatch_sequence
 from storage.backend import get_storage_object
 
 
@@ -91,7 +87,7 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
 class task_spectral():
     """Serves as the super-class for analysis methods."""
 
-    def __init__(self, task_config, cfg_diagnostic, cfg_storage):
+    def __init__(self, task_config, cfg_storage):
         """Initializes a spectral task.
 
         Fix channel list, analysis type, and parameters for the analysis routine.
@@ -106,9 +102,9 @@ class task_spectral():
             None
         """
         self.task_config = task_config
-        self.cfg_diagnostic = cfg_diagnostic
         self.cfg_storage = cfg_storage
         self.logger = logging.getLogger("simple")
+        self.logger.info(f"task_spectral: task_config={task_config}")
 
         # Stores the description of the task. This can be arbitrary
         self.description = task_config["task_description"]
@@ -132,50 +128,23 @@ class task_spectral():
         else:
             raise NameError(f"Unknown analysis task {self.analysis}")
 
-        # Parse the reference and cross channels.
-        self.ref_channels = gen_channel_range(cfg_diagnostic, task_config["ref_channels"])
-        # These channels serve as the cross-data for the spectral diagnostics
-        self.cmp_channels = gen_channel_range(cfg_diagnostic, task_config["cmp_channels"])
-
-        # Construct a list of unique channels
-        # F.ex. we have ref_channels [(1,1), (1,2), (1,3)] and cmp_channels = [(1,1), (1,2)]
-        # The unique list of channels is then
-        # (1,1) x (1,1), (1,1) x (1,2)
-        # (1,2) x (1,2) !!! Omits (1,2) x (1,1)
-        # (1,3) x (1,1)
-        # (1,3) x (1,2)
-        channel_pairs = [channel_pair(cr, cx)
-                         for cr in self.ref_channels for cx in self.cmp_channels]
-        # Make a list, so that we don't exhaust the iterator after the first call.
-        # self.unique_channels = [i[0] for i in
-        #                         more_itertools.distinct_combinations(channel_pairs, 1)]
-        self.unique_channels = [ch for ch in unique_everseen(channel_pairs)]
         # Number of channel pairs per future
         self.channel_chunk_size = task_config["channel_chunk_size"]
         # Total number of chunks, i.e. number of futures appended to the list per call to calculate
-        self.num_chunks = (len(self.unique_channels) +
-                           self.channel_chunk_size - 1) // self.channel_chunk_size
+        #self.num_chunks = (len(self.unique_channels) +
+        #                   self.channel_chunk_size - 1) // self.channel_chunk_size
 
+
+        #
+        self.dispatch_seq = get_dispatch_sequence(self.task_config["ref_channels"],
+                                                  self.task_config["cmp_channels"],
+                                                  self.task_config["channel_chunk_size"])
+        self.logger.info(f"dispatch_seq = {len(self.dispatch_seq[0])}")
+
+        # Initialize storage
         storage_class = get_storage_object(self.cfg_storage)
         self.storage_backend = storage_class(self.cfg_storage)
-        self.storage_backend.store_metadata(self.task_config, self.get_dispatch_sequence())
-
-    def get_dispatch_sequence(self, niter=None):
-        """Returns an a list of iterables that span all unique combinations of ref_ch x cmp_ch.
-
-        Args:
-            niter (int):
-                Length of the sub-lists we split the list of channel pairs into.
-
-        Returns:
-            all_chunks (???):
-                Chunked dispatch sequence.
-        """
-        if niter is None:
-            niter = self.channel_chunk_size
-
-        all_chunks = more_itertools.chunked(self.unique_channels, niter)
-        return(all_chunks)
+        self.storage_backend.store_metadata(self.task_config, self.dispatch_seq)
 
     def submit(self, executor, fft_data):
         """Launches a spectral analysis kernel on an executor.
@@ -198,36 +167,24 @@ class task_spectral():
 
         info_dict_list = [{"analysis_name": self.analysis,
                            "chunk_idx": fft_data.tb.chunk_idx,
-                           "channel_batch": batch_idx} for batch_idx in range(self.num_chunks)]
+                           "channel_batch": batch_idx} for batch_idx in range(len(self.dispatch_seq))]
 
         _ = [executor.submit(calc_and_store,
                              self.kernel,
                              self.storage_backend,
                              fft_data,
                              ch_it,
-                             info_dict) for ch_it, info_dict in zip(self.get_dispatch_sequence(),
+                             info_dict) for ch_it, info_dict in zip(self.dispatch_seq,
                                                                     info_dict_list)]
         self.logger.info(f"chunk_idx={fft_data.tb.chunk_idx} submitted {self.analysis} " +
-                         f"as {self.num_chunks} tasks: {self.kernel}.  fft_data: {type(fft_data)}")
-
-        # for fut, info_dict in zip(fut_list, info_dict_list):
-        #     result = fut.result()
-        #     tic_io = time.perf_counter()
-        #     self.storage_backend.store_data(result, info_dict)
-        #     toc_io = time.perf_counter()
-        #     dt_io = toc_io - tic_io
-
-        #     size_in_MB = np.prod(result.shape) * result.dtype.itemsize / 1024 / 1024
-        #     self.logger.info(f"Storing result for tidx={tidx} {self.analysis}:
-        #                      {size_in_MB:6.4f}MB took {dt_io:4.2f}s")
-
+                         f"as {len(self.dispatch_seq)} tasks: {self.kernel}.  fft_data: {type(fft_data)}")
         return None
 
 
 class task_list():
     """Defines interface to execute a group of tasks on an PEP-3148 executor."""
 
-    def __init__(self, executor_anl, task_config_list, diag_config, cfg_storage):
+    def __init__(self, executor_anl, cfg_tasklist, cfg_storage):
         """Initialize the object with a list of tasks to be performed.
 
         These tasks share a common channel list.
@@ -235,10 +192,6 @@ class task_list():
         Args:
             executor_anl (PEP-3148 executor):
                 Executor on which analysis tasks are performed
-            task_list (dict):
-                Defines parameters for the analysis routines
-            diag_config (dict):
-                Diagnostic section of Delta config
             cfg_storage (dict,):
                 Storage section of the Delta config
 
@@ -246,12 +199,12 @@ class task_list():
             None
         """
         self.executor_anl = executor_anl
-        self.task_config_list = task_config_list
+        #self.task_config_list = cfg_tasklist
         self.logger = logging.getLogger("simple")
 
         self.task_list = []
-        for task_cfg in self.task_config_list:
-            self.task_list.append(task_spectral(task_cfg, diag_config, cfg_storage))
+        for cfg_task in cfg_tasklist:
+            self.task_list.append(task_spectral(cfg_task, cfg_storage))
 
     def submit(self, data_chunk):
         """Launches the analysis pipeline with a data chunk.
