@@ -78,6 +78,11 @@ class reader_base():
         res = self.IO.InquireVariable(varname)
         return(res)
 
+    def InquireAttribute(self, attrname: str):
+        """Wrapper for IO.InquireAttribute."""
+        res = self.IO.InquireAttribute(attrname)
+        return(res)
+
     def get_data(self, varname: str):
         """Attempts to load `varname` from the opened stream."""
         var = self.IO.InquireVariable(varname)

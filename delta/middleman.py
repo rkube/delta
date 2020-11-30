@@ -34,12 +34,10 @@ class AdiosMessage:
 
 
 def forward(Q, cfg, timeout):
-    global comm, rank, args
+    global comm, rank, args, stream_attrs
     """To be executed by a local thread. Pops items from the queue and forwards them."""
     logger = logging.getLogger("middleman")
     
-    # Instantiate a dataloader
-    dataloader = get_loader(cfg)
     logger.info(f"Creating writer_gen: engine={cfg['transport_nersc_middleman']['engine']}")
 
     suffix = '' if not args.debug else '-MM'
@@ -47,19 +45,19 @@ def forward(Q, cfg, timeout):
     logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
     # Give the writer hints on what kind of data to transfer
 
-    writer.DefineVariable(gen_var_name(cfg)[rank],
-                        dataloader.get_chunk_shape(),
-                        dataloader.dtype)
-    writer.DefineAttributes("stream_attrs", dataloader.attrs)
-    writer.Open()
-    logger.info("Starting forwarding process")
-
     tx_list = []
-
+    is_first = True
     while True:
         msg = None
         try:
             msg = Q.get(timeout=timeout)
+            if is_first:
+                writer.DefineVariable(gen_var_name(cfg)[rank], msg.data.shape, msg.data.dtype)
+                if stream_attrs is not None:
+                    writer.DefineAttributes("stream_attrs", stream_attrs)
+                writer.Open()
+                logger.info("Starting forwarding process")
+                is_first = False
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
 
@@ -82,7 +80,7 @@ def forward(Q, cfg, timeout):
 
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
-    global comm, rank, args
+    global comm, rank, args, stream_attrs
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
@@ -111,7 +109,9 @@ def main():
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport_kstar"], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
-    stream_attrs = reader.get_attrs("stream_attrs")
+    stream_attrs = None
+    if reader.InquireAttribute("stream_attrs"):
+        stream_attrs = reader.get_attrs("stream_attrs")
     stream_varname = gen_var_name(cfg)[rank]
     logger.info(f"Stream varname: {stream_varname}")
 
