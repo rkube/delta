@@ -20,7 +20,6 @@ import argparse
 import timeit
 import time
 
-from sources.dataloader import get_loader
 from streaming.writers import writer_gen
 from streaming.reader_mpi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name
@@ -29,7 +28,6 @@ from data_models.helpers import gen_channel_name, gen_var_name
 class AdiosMessage:
     """Storage class used to transfer data from Kstar(Dataman) to local PoolExecuto."""
     tstep_idx = attr.ib(repr=True)
-    # (2020/11) jyc: Good place to wrap numpy data with ecei_chunk?
     data = attr.ib(repr=False)
 
 
@@ -67,8 +65,7 @@ def forward(Q, cfg, timeout):
             break
 
         writer.BeginStep()
-        # (2020/11) jyc: This is a hack. Need to wrap as ecei_chunk object
-        writer.put_data_np(msg.data, {"tidx": msg.tstep_idx})
+        writer.put_data(msg, {"tidx": msg.tstep_idx})
         writer.EndStep()
         time.sleep(0.1)
         tx_list.append(msg.tstep_idx)

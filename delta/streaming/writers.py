@@ -131,24 +131,6 @@ class writer_base():
 
         return None
 
-    # (2020/11) jyc: this is a temporary hack to write numpy data directly.
-    def put_data_np(self, data, attrs: dict):
-        assert(data.shape == self.shape)
-        if self.writer is not None:
-            assert(data.flags.contiguous)
-            # if not data_class.data.flags.contiguous:
-            #     data = np.array(data_class.data, copy=True)
-            #     self.writer.Put(self.variable, data, adios2.Mode.Sync)
-            # else:
-            tic = time.perf_counter()
-            self.writer.Put(self.variable, data, adios2.Mode.Sync)
-            toc = time.perf_counter()
-
-            num_bytes = np.product(data.shape) * data.itemsize
-            dt = toc - tic
-            self.stats.add_transfer(num_bytes, dt)
-        return None
-
     def transfer_stats(self):
         """Calculates bandwidth statistics from the transfer."""
 
