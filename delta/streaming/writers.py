@@ -61,10 +61,9 @@ class writer_base():
                                                shape, len(shape) * [0], shape, adios2.ConstantDims)
         return(self.variable)
 
-
     def DefineAttributes(self, attrsname: str, attrs: dict):
         """Wrapper around DefineAttribute.
-        
+
         Serializes an attribute dictionary as a json, which is written as an attribute
         into ADIOS stream.
 
@@ -88,7 +87,6 @@ class writer_base():
 
     def Open(self):
         """Opens a new channel."""
-
         if self.writer is None:
             self.writer = self.IO.Open(self.stream_name, adios2.Mode.Write)
 
@@ -105,8 +103,11 @@ class writer_base():
     def put_data(self, data_class, attrs: dict):
         """Opens a new stream and send data through it.
 
+        ADIOS2 requires that the data array is contiguous in memory in
+        order to be written.
+
         Args:
-            data (ndarray):
+            data_class (2d-array type)
                 Data to send.
             attrs (dict):
                 Additional meta-data
@@ -117,11 +118,9 @@ class writer_base():
         assert(data_class.data.shape == self.shape)
 
         if self.writer is not None:
+            # Assert that the data is continuous, as implicitly required by ADIOS2.
+            # The burden to produce contiguous data is on the data producer.
             assert(data_class.data.flags.contiguous)
-            # if not data_class.data.flags.contiguous:
-            #     data = np.array(data_class.data, copy=True)
-            #     self.writer.Put(self.variable, data, adios2.Mode.Sync)
-            # else:
             tic = time.perf_counter()
             self.writer.Put(self.variable, data_class.data, adios2.Mode.Sync)
             toc = time.perf_counter()
@@ -170,8 +169,8 @@ class writer_gen(writer_base):
         self.IO.SetParameters(cfg_transport["params"])
 
         if cfg_transport["engine"].lower() == "dataman":
-            cfg_transport["params"].update(Port = str(int(cfg_transport["params"]["Port"]) + 
-                                                      self.rank))
+            cfg_transport["params"].update(Port=str(int(cfg_transport["params"]["Port"]) +
+                                           self.rank))
 
 
 # End of file writers.py

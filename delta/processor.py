@@ -115,16 +115,12 @@ def main():
     # TODO: (RMC)  Should this be moved to where cfg updated? 
     # (would allow updating channels to process remotely)
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
+    reader.Open()
 
     dq = queue.Queue()
-    msg = reader.get_attrs("streamattrs")
-
-    tic_main = time.perf_counter()
 
     # reader.Open() is blocking until it opens the data file or receives the
     # data stream. Put this right before entering the main loop
-    logger.info(f"{rank} Waiting for generator")
-    reader.Open()
     stream_attrs = None #reader.get_attrs("stream_attrs")
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
@@ -138,6 +134,7 @@ def main():
         worker_thread_list.append(new_worker)
 
     logger.info("Starting main loop")
+    tic_main = time.perf_counter()
     rx_list = []
     while True:
         stepStatus = reader.BeginStep()
@@ -145,7 +142,7 @@ def main():
             # Load attributes
             if stream_attrs == None:
                 logger.info("Waiting for attributes")
-                stream_attrs = reader.get_attrs("streamattrs")
+                stream_attrs = reader.get_attrs("stream_attrs")
                 logger.info(f"Got attributes: {stream_attrs}")
             # Read data
             stream_data = reader.Get(stream_varname, save=False)

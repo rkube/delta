@@ -32,6 +32,9 @@ parser = argparse.ArgumentParser(description="Reads diagnostic data and stages" 
 parser.add_argument('--config', type=str,
                     help='Lists the configuration file',
                     default='configs/test_generator.json')
+parser.add_argument('--slow', type=float,
+                    help="Adds a small break in-between sending packages."
+                    default=0.1)
 args = parser.parse_args()
 
 # set up the configuration
@@ -75,6 +78,7 @@ for nstep, chunk in enumerate(batch_gen):
     writer.BeginStep()
     writer.put_data(chunk, {"tidx": nstep})
     writer.EndStep()
+    time.sleep(args.slow)
 
 
 writer.writer.Close()
