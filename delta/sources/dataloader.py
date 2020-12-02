@@ -8,11 +8,13 @@ import h5py
 import logging
 import re
 
+from tqdm import tqdm
+
 from data_models.kstar_ecei import ecei_chunk, channel_range_from_str
 from data_models.timebase import timebase_streaming
 
 
-def get_loader(cfg_all):
+def get_loader(cfg_all, cache=True):
     """Returns data loader appropriate for the configured diagnostic.
 
     Args:
@@ -128,7 +130,7 @@ class _loader_ecei():
         """
         # Cache the data in memory
         with h5py.File(self.filename, "r",) as df:
-            for ch in self.ch_range:
+            for ch in tqdm(self.ch_range):
                 chname_h5 = f"/ECEI/ECEI_{self.attrs['dev']}{ch.ch_v:02d}{ch.ch_h:02d}/Voltage"
                 array[ch.get_idx(), :] = df[chname_h5][idx_start:idx_end].astype(self.dtype)
         array[:] = array[:] * 1e-4

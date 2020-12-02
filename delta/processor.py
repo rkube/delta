@@ -47,7 +47,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
     while True:
         try:
-            msg = Q.get(timeout=5.0)
+            msg = Q.get(timeout=60.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -115,17 +115,13 @@ def main():
     # TODO: (RMC)  Should this be moved to where cfg updated? 
     # (would allow updating channels to process remotely)
     reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
+    reader.Open()
 
     dq = queue.Queue()
-    msg = None
 
-    tic_main = time.perf_counter()
-
-    # # reader.Open() is blocking until it opens the data file or receives the
-    # # data stream. Put this right before entering the main loop
-    logger.info(f"{rank} Waiting for generator")
-    reader.Open()
-    stream_attrs = reader.get_attrs("stream_attrs")
+    # reader.Open() is blocking until it opens the data file or receives the
+    # data stream. Put this right before entering the main loop
+    stream_attrs = None #reader.get_attrs("stream_attrs")
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
     my_preprocessor = preprocessor(executor_pre, cfg)
@@ -138,19 +134,25 @@ def main():
         worker_thread_list.append(new_worker)
 
     logger.info("Starting main loop")
+    tic_main = time.perf_counter()
     rx_list = []
     while True:
         stepStatus = reader.BeginStep()
         if stepStatus:
+            # Load attributes
+            if stream_attrs == None:
+                logger.info("Waiting for attributes")
+                stream_attrs = reader.get_attrs("stream_attrs")
+                logger.info(f"Got attributes: {stream_attrs}")
             # Read data
             stream_data = reader.Get(stream_varname, save=False)
-            if reader.CurrentStep() in [0, 140]:
-                rx_list.append(reader.CurrentStep())
+            # if reader.CurrentStep() in [0, 140]:
+            rx_list.append(reader.CurrentStep())
 
-                # Create a datamodel instance from the raw data and push into the queue
-                msg = data_model_gen.new_chunk(stream_data, stream_attrs, reader.CurrentStep())
-                dq.put_nowait(msg)
-                logger.info(f"Published tidx {reader.CurrentStep()}")
+            # Create a datamodel instance from the raw data and push into the queue
+            msg = data_model_gen.new_chunk(stream_data, stream_attrs, reader.CurrentStep())
+            dq.put_nowait(msg)
+            logger.info(f"Published tidx {reader.CurrentStep()}")
             reader.EndStep()
         else:
             logger.info(f"Exiting: StepStatus={stepStatus}")

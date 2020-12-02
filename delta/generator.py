@@ -33,6 +33,9 @@ parser.add_argument('--config', type=str,
                     help='Lists the configuration file',
                     default='configs/test_generator.json')
 parser.add_argument('--kstar', help='kstar', action='store_true')
+parser.add_argument('--slow', type=float,
+                    help="Adds a small break in-between sending packages."
+                    default=0.1)
 args = parser.parse_args()
 
 # set up the configuration
@@ -44,7 +47,6 @@ with open('configs/logger.yaml', 'r') as f:
     log_cfg = yaml.safe_load(f.read())
 logging.config.dictConfig(log_cfg)
 logger = logging.getLogger("generator")
-
 logger.info("Starting up...")
 
 # Instantiate a dataloader
@@ -62,8 +64,8 @@ writer.DefineVariable(gen_var_name(cfg)[rank],
 # TODO: Clean up naming conventions for stream attributes
 logger.info(f"Writing attributes: {dataloader.attrs}")
 
-writer.DefineAttributes("stream_attrs", dataloader.attrs)
 writer.Open()
+writer.DefineAttributes("stream_attrs", dataloader.attrs)
 
 logger.info("Start sending on channel:")
 batch_gen = dataloader.batch_generator()
@@ -78,6 +80,8 @@ for nstep, chunk in enumerate(batch_gen):
     writer.BeginStep()
     writer.put_data(chunk, {"tidx": nstep})
     writer.EndStep()
+    time.sleep(args.slow)
+
 
 writer.writer.Close()
 logger.info(writer.transfer_stats())
