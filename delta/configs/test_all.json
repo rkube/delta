@@ -24,7 +24,6 @@
   },
   "transport_nersc":
   {
-    "datapath": "tmp_nersc",
     "engine": "BP4",
     "params":
     {
@@ -36,7 +35,6 @@
   },
   "transport_kstar":
   {
-    "datapath": "tmp_nersc",
     "engine": "BP4",
     "params":
     {
@@ -48,7 +46,6 @@
   },
   "transport_nersc_middleman":
   {
-    "datapath": "tmp_nersc",
     "engine": "BP4",
     "params":
     {

@@ -9,75 +9,72 @@ import logging
 import logging.config
 import queue
 import threading
-
-import numpy as np
-
 import attr
 import json
 import yaml
 import argparse
 
-import timeit
-import time
-
 from streaming.writers import writer_gen
 from streaming.reader_mpi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name
 
+
 @attr.s
 class AdiosMessage:
-    """Storage class used to transfer data from Kstar(Dataman) to local PoolExecuto."""
+    """Dummy replacement for data_chunk class."""
     tstep_idx = attr.ib(repr=True)
     data = attr.ib(repr=False)
+    attrs = attr.ib(repr=False)
 
 
-def forward(Q, cfg, timeout):
-    global comm, rank, args, stream_attrs
+def forward(Q, cfg, args, timeout):
     """To be executed by a local thread. Pops items from the queue and forwards them."""
+    global comm, rank
     logger = logging.getLogger("middleman")
-    
-    logger.info(f"Creating writer_gen: engine={cfg['transport_nersc_middleman']['engine']}")
+    logger.info(f"Worker: Creating writer_gen: engine={cfg[args.transport_tx]['engine']}")
 
-    suffix = '' if not args.debug else '-MM'
-    writer = writer_gen(cfg["transport_nersc_middleman"], gen_channel_name(cfg["diagnostic"])+suffix)
-    logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
-    # Give the writer hints on what kind of data to transfer
+    # suffix = ""  # if not args.debug else '-MM'
+    ch_name = gen_channel_name(cfg["diagnostic"])
+    writer = writer_gen(cfg[args.transport_tx], ch_name)
+    logger.info(f"Worker: Streaming channel name = {ch_name}")
 
     tx_list = []
     is_first = True
     while True:
-        msg = None
+        # msg = None
         try:
             msg = Q.get(timeout=timeout)
+            logger.info(f"Worker: Receiving from Queue: {msg} - {msg.data.shape}, {msg.data.dtype}")
             if is_first:
                 writer.DefineVariable(gen_var_name(cfg)[rank], msg.data.shape, msg.data.dtype)
-                if stream_attrs is not None:
-                    writer.DefineAttributes("stream_attrs", stream_attrs)
+                #if msg.attrs is not None:
+                writer.DefineAttributes("stream_attrs", msg.attrs)
+                logger.info(f"Worker: Defining stream_attrs for forwarded stream: {msg.attrs}")
                 writer.Open()
-                logger.info("Starting forwarding process")
+                logger.info("Worker: Starting forwarding process")
                 is_first = False
         except queue.Empty:
-            logger.info("Empty queue after waiting until time-out. Exiting")
-
-        if msg.tstep_idx is None:
-            Q.task_done()
-            logger.info("Received hangup signal")
+            logger.info("Worker: Empty queue after waiting until time-out. Exiting")
             break
 
+        logger.info(f"Worker Forwarding chunk {msg.tstep_idx}. Data = {msg.data.shape}")
         writer.BeginStep()
-        writer.put_data(msg, {"tidx": msg.tstep_idx})
+        writer.put_data(msg)
         writer.EndStep()
         time.sleep(0.1)
+        logger.info(f"Worker: Done writing chunk {msg.tstep_idx}.")
         tx_list.append(msg.tstep_idx)
 
         Q.task_done()
         logger.info(f"Consumed tidx={msg.tstep_idx}")
-    logger.info(f"Exiting send loop. Transmitted {len(tx_list)} time chunks: {tx_list}")
+
+    logger.info(f"Worker: Exiting send loop. Transmitted {len(tx_list)} time chunks: {tx_list}")
+    logger.info(writer.transfer_stats())
 
 
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
-    global comm, rank, args, stream_attrs
+    global comm, rank, args
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
@@ -85,18 +82,19 @@ def main():
                                      "analysis tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file',
                         default='configs/config-middle.json')
-    parser.add_argument('--debug', action='store_true')
+    parser.add_argument("--transport_rx", help="Specifies the name of the transport section that is used to configure the reader",
+                        default="transport_rx")
+    parser.add_argument("--transport_tx", help="Specifies the name of the transport section that is used to configure the writer",
+                        default="transport_tx")
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
         cfg = json.load(df)
-    timeout = 30
+    timeout = 5
 
     # The middleman uses both a reader and a writer. Each is configured with using
     # their respective section of the config file. Therefore some keys are duplicated,
     # such as channel_range. Make sure that these items are the same in both sections
-
-    # assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
 
     with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
@@ -104,68 +102,48 @@ def main():
     logger = logging.getLogger('middleman')
 
     # Create ADIOS reader object
-    reader = reader_gen(cfg["transport_kstar"], gen_channel_name(cfg["diagnostic"]))
+    reader = reader_gen(cfg[args.transport_rx], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
     stream_attrs = None
-    if reader.InquireAttribute("stream_attrs"):
-        stream_attrs = reader.get_attrs("stream_attrs")
     stream_varname = gen_var_name(cfg)[rank]
-    logger.info(f"Stream varname: {stream_varname}")
+    logger.info(f"Main: Stream varname: {stream_varname}")
 
     dq = queue.Queue()
     msg = None
-    worker = threading.Thread(target=forward, args=(dq, cfg, timeout))
+    worker = threading.Thread(target=forward, args=(dq, cfg, args, timeout))
     worker.start()
 
-    tic = timeit.default_timer()
-    nstep = 0
     rx_list = []
     stream_data = None
     while True:
         stepStatus = reader.BeginStep()
-        logger.info(f"stepStatus = {stepStatus}, currentStep = {reader.CurrentStep()}")
-
+        logger.info(f"Main: stepStatus = {stepStatus}, currentStep = {reader.CurrentStep()}")
         if stepStatus:
-            if reader.CurrentStep() == 0:
-                tic = timeit.default_timer()
             # Read data
-            stream_data = reader.Get(stream_varname, save=False)
+            if stream_attrs is None:
+                stream_attrs = reader.get_attrs("stream_attrs")
+                logger.info(f"Got attributes: {stream_attrs}")
 
+            stream_data = reader.Get(stream_varname, save=False)
             rx_list.append(reader.CurrentStep())
 
             # Generate message id and publish is
-            msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data)
+            msg = AdiosMessage(tstep_idx=reader.CurrentStep(), data=stream_data, attrs=stream_attrs)
             dq.put_nowait(msg)
-            logger.info(f"Published message {msg}")
+            logger.info(f"Main: Published message {msg}")
             reader.EndStep()
-            nstep += 1
         else:
-            logger.info(f"Exiting: StepStatus={stepStatus}")
-            dq.put_nowait(AdiosMessage(tstep_idx=None, data=None))
+            logger.info(f"Main: Exiting: StepStatus={stepStatus}")
             break
 
         # last_step = reader.CurrentStep()
 
-    logger.info("Exiting main loop")
+    logger.info("Main: Exiting main loop")
     worker.join()
-    logger.info("Workers have joined")
+    logger.info("Main: Workers have joined")
     dq.join()
-    logger.info("Queue joined")
-    toc = timeit.default_timer()
-    deltat = toc - tic
-
-    chunk_size = np.prod(stream_data.shape) * stream_data.itemsize / 1024 / 1024
-    logger.info(f"Received {len(rx_list)} time chunks: {rx_list}")
-    logger.info("")
-    logger.info("Summary:")
-    logger.info(f"    chunk shape: {stream_data.shape}")
-    logger.info(f"    chunk size (MB): {chunk_size:.03f}")
-    logger.info(f"    total nstep: {nstep:d}")
-    logger.info(f"    total data (MB): {(chunk_size * nstep):03f}")
-    logger.info(f"    time (sec): {(deltat):.03f}")
-    logger.info(f"    throughput (MB/sec): {(chunk_size * nstep)/(deltat):.03f}")
-
-    logger.info("Finished")
+    logger.info("Main: Queue joined")
+    logger.info("Main: Finished")
 
 
 if __name__ == "__main__":

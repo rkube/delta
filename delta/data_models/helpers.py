@@ -40,7 +40,6 @@ class data_model_generator():
 
         if self.cfg["name"] == "kstarecei":
             self.data_type = ecei_chunk
-            #self.rarr, self.zarr, _ = get_geometry(cfg_diagnostic["parameters"])
 
         elif self["name"] == "nstxgpi":
             self.data_type = None

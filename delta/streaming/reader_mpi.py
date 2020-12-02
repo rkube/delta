@@ -2,28 +2,28 @@
 
 from mpi4py import MPI
 
-import sys 
 import logging
 import json
-from os.path import join
-
 import numpy as np
-
-#from analysis.channels import channel, channel_range
-from streaming.adios_helpers import gen_io_name
-
 import adios2
+
+from streaming.adios_helpers import gen_io_name
+from streaming.stream_stats import stream_stats
 
 
 class reader_base():
-    def __init__(self, cfg: dict, stream_name):
+    def __init__(self, cfg: dict, stream_name: str):
         """Generates a reader for KSTAR ECEI data.
 
-        Parameters:
-        -----------
-        cfg: delta config dictionary
-        """
+        Arguments:
+            cfg (dict):
+                delta config dictionary
+            stream_name (str):
+                ADIOS2 name of the stream
 
+        Returns:
+            None
+        """
         comm  = MPI.COMM_SELF
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
@@ -48,11 +48,11 @@ class reader_base():
         self.logger.info(f"Waiting to receive channel name {self.stream_name}")
         if self.reader is None:
             self.reader = self.IO.Open(self.stream_name, adios2.Mode.Read)
-            #attrs = self.IO.InquireAttribute("cfg")
+            # attrs = self.IO.InquireAttribute("cfg")
         else:
             pass
         self.logger.info(f"Opened channel {self.stream_name}")
-        #self.logger.info(f"-> attrs = {attrs.DataString()}")
+        # self.logger.info(f"-> attrs = {attrs.DataString()}")
 
         return None
 
@@ -83,20 +83,6 @@ class reader_base():
         res = self.IO.InquireAttribute(attrname)
         return(res)
 
-    def get_data(self, varname: str):
-        """Attempts to load `varname` from the opened stream."""
-        var = self.IO.InquireVariable(varname)
-        if var.Type() == 'int64_t':
-            dtype = np.dtype('int64')
-        elif var.Type() == 'double':
-            dtype = np.dtype('double')
-        else:
-            dtype = np.dtype(var.Type())
-        io_array = np.zeros(var.Shape(), dtype=dtype)
-        self.reader.Get(var, io_array, adios2.Mode.Sync)
-
-        return(io_array)
-
     def get_attrs(self, attrsname: str):
         """Inquire json string `attrsname` from the opened stream.
 
@@ -112,13 +98,13 @@ class reader_base():
             all_cfg["diagnostics"]["parameters"] (dict):
                 Named section of the all_cfg
         """
-        try:
-            attrs = self.IO.InquireAttribute(attrsname)
-            self.logger.info(f"Got attribute: {dir(attrs)}")
-            stream_attrs = json.loads(attrs.DataString()[0])
-        except ValueError as e:
-            self.logger.error(f"Could not load attributes from stream: {e}")
-            raise ValueError(f"Failed to load attributes {attrsname} from {self.stream_name}")
+        #try:
+        attrs = self.IO.InquireAttribute(attrsname)
+        self.logger.info(f"Got attribute: {attrs.Data()}")
+        stream_attrs = json.loads(attrs.DataString()[0])
+        #except ValueError as e:
+        #    self.logger.error(f"Could not load attributes from stream: {e}")
+        #    raise ValueError(f"Failed to load attributes {attrsname} from {self.stream_name}")
 
         self.logger.info(f"Loaded attributes: {stream_attrs}")
         # TODO: Clean up naming conventions for stream attributes
@@ -158,6 +144,7 @@ class reader_base():
 
 
 class reader_gen(reader_base):
+    """I don't know why we have this derived class - RK 2020-12-02."""
     def __init__(self, cfg: dict, stream_name: str):
         """Instantiates a reader.
 
@@ -168,6 +155,9 @@ class reader_gen(reader_base):
                 delta config dict
             stream_name (str):
                 Name of the data stream to read
+
+        Returns:
+            A class instance
         """
         super().__init__(cfg, stream_name)
         self.IO.SetEngine(cfg["engine"])

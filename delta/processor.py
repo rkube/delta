@@ -75,10 +75,13 @@ def main():
                         default=4)
     parser.add_argument("--num_threads_analysis", type=int,
                         help="Number of threads used in analysis executor",
-                        default=16)
+                        default=4)
     parser.add_argument("--num_worker_threads", type=int,
                         help="Number of worker threads that consume incoming data chunks",
                         default=4)
+    parser.add_argument("--transport", type=str,
+                        help="Specifies the transport section used to configure the reader",
+                        default="transport_rx")
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
@@ -92,11 +95,8 @@ def main():
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('simple')
 
-    # Create PoolExecutors for preprocessing and analysis
-    # executor = concurrent.futures.ThreadPoolExecutor(max_workers=60)
     # PoolExecutor for pre-processing, on-node.
-    # executor_pre = MPIPoolExecutor(max_workers=4)
-    executor_pre = ThreadPoolExecutor(max_workers=args.num_threads_preprocess)
+    executor_pre = MPIPoolExecutor(max_workers=args.num_threads_preprocess)
     # PoolExecutor for data analysis. off-node
     executor_anl = MPIPoolExecutor(max_workers=args.num_threads_analysis)
 
@@ -114,14 +114,15 @@ def main():
 
     # TODO: (RMC)  Should this be moved to where cfg updated? 
     # (would allow updating channels to process remotely)
-    reader = reader_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
+    reader = reader_gen(cfg[args.transport], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
 
     dq = queue.Queue()
 
-    # reader.Open() is blocking until it opens the data file or receives the
-    # data stream. Put this right before entering the main loop
-    stream_attrs = reader.get_attrs("stream_attrs")
+    # In a streaming setting, (SST, dataman) attributes can only be accessed after
+    # reading the first time step of a variable. 
+    # Initialize stream_attrs with None and load it in the main loop below.
+    stream_attrs = None 
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
     my_preprocessor = preprocessor(executor_pre, cfg)
@@ -140,10 +141,10 @@ def main():
         stepStatus = reader.BeginStep()
         if stepStatus:
             # Load attributes
-            # if stream_attrs == None:
-            #     logger.info("Waiting for attributes")
-            #     stream_attrs = reader.get_attrs("stream_attrs")
-            #     logger.info(f"Got attributes: {stream_attrs}")
+            if stream_attrs is None:
+                logger.info("Waiting for attributes")
+                stream_attrs = reader.get_attrs("stream_attrs")
+                logger.info(f"Got attributes: {stream_attrs}")
             # Read data
             stream_data = reader.Get(stream_varname, save=False)
             # if reader.CurrentStep() in [0, 140]:

@@ -51,7 +51,7 @@ logger.info("Starting up...")
 
 # Instantiate a dataloader
 dataloader = get_loader(cfg)
-configname = "transport_nersc" if not args.kstar else "transport_kstar"
+configname = "transport_tx" if not args.kstar else "transport_rx"
 logger.info(f"Creating writer_gen: engine={cfg[configname]['engine']}")
 
 writer = writer_gen(cfg[configname], gen_channel_name(cfg["diagnostic"]))
@@ -78,7 +78,7 @@ for nstep, chunk in enumerate(batch_gen):
     if rank == 0:
         logger.info(f"Sending time_chunk {nstep} / {dataloader.num_chunks}")
     writer.BeginStep()
-    writer.put_data(chunk, {"tidx": nstep})
+    writer.put_data(chunk)
     writer.EndStep()
     time.sleep(args.slow)
 

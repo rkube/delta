@@ -11,8 +11,6 @@
     {
       "chunk_size": 10000,
       "nstep": 500,
-      "datapath": "tmp_kstar",
-      "channel_range": ["L0101-2408"],
       "engine": "DataMan",
       "params":
       {
@@ -26,8 +24,6 @@
     {
       "chunk_size": 10000,
       "nstep": 500,
-      "datapath": "tmp_nersc",
-      "channel_range": ["L0101-2408"],
       "engine": "DataMan",
       "params":
       {

@@ -2,13 +2,11 @@
 
 from mpi4py import MPI
 
-import sys
 import numpy as np
 import json
 import logging
 import time
 
-#sys.path.append("/global/homes/r/rkube/software/adios2-current/lib/python3.8/site-packages")
 import adios2
 
 from streaming.stream_stats import stream_stats
@@ -22,7 +20,6 @@ class writer_base():
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
-
         self.logger = logging.getLogger("simple")
 
         self.adios = adios2.ADIOS(MPI.COMM_SELF)
@@ -35,7 +32,6 @@ class writer_base():
 
         # Generate a descriptive channel name
         self.stream_name = stream_name
-        self.logger.info(f"writer_base: stream_name =  {self.stream_name}")
 
         # To generate statistics
         self.stats = stream_stats()
@@ -84,13 +80,13 @@ class writer_base():
             self.logger.error(f"Can't serialize attributes: {e}")
             raise TypeError(f"Can't serialize data stream attributes: {e}")
         self.attrs = self.IO.DefineAttribute(attrsname, attrsstr)
+        self.logger.info(f"writer_base: Defined attribute {attrsname}")
 
     def Open(self):
         """Opens a new channel."""
         if self.writer is None:
             self.writer = self.IO.Open(self.stream_name, adios2.Mode.Write)
-
-        return None
+        self.logger.info(f"Opened writer: {self.writer}")
 
     def BeginStep(self):
         """Wrapper around writer.BeginStep."""
@@ -100,7 +96,7 @@ class writer_base():
         """Wrapper around writer.EndStep."""
         return self.writer.EndStep()
 
-    def put_data(self, data_class, attrs: dict):
+    def put_data(self, data_class):
         """Opens a new stream and send data through it.
 
         ADIOS2 requires that the data array is contiguous in memory in
@@ -129,16 +125,14 @@ class writer_base():
             dt = toc - tic
             self.stats.add_transfer(num_bytes, dt)
 
-        return None
-
     def transfer_stats(self):
         """Calculates bandwidth statistics from the transfer."""
         tr_sum, tr_max, tr_min, tr_mean, tr_std = self.stats.get_transfer_stats()
         du_sum, du_max, du_min, du_mean, du_std = self.stats.get_duration_stats()
 
-        stats_str =  f"Summary:\n"
-        stats_str += f"========"
-        stats_str += f""
+        stats_str = "Summary:\n"
+        stats_str += "========"
+        stats_str += ""
         stats_str += f"    total steps:         {self.stats.nsteps}"
         stats_str += f"    total data (MB):     {(tr_sum / 1024 / 1024)}"
         stats_str += f"    transfer times(sec): {(du_sum)}"
