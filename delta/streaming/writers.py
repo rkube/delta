@@ -131,7 +131,6 @@ class writer_base():
 
         return None
 
-
     def transfer_stats(self):
         """Calculates bandwidth statistics from the transfer."""
         tr_sum, tr_max, tr_min, tr_mean, tr_std = self.stats.get_transfer_stats()

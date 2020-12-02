@@ -32,6 +32,7 @@ parser = argparse.ArgumentParser(description="Reads diagnostic data and stages" 
 parser.add_argument('--config', type=str,
                     help='Lists the configuration file',
                     default='configs/test_generator.json')
+parser.add_argument('--kstar', help='kstar', action='store_true')
 parser.add_argument('--slow', type=float,
                     help="Adds a small break in-between sending packages."
                     default=0.1)
@@ -50,9 +51,10 @@ logger.info("Starting up...")
 
 # Instantiate a dataloader
 dataloader = get_loader(cfg)
-logger.info(f"Creating writer_gen: engine={cfg['transport_nersc']['engine']}")
+configname = "transport_nersc" if not args.kstar else "transport_kstar"
+logger.info(f"Creating writer_gen: engine={cfg[configname]['engine']}")
 
-writer = writer_gen(cfg["transport_nersc"], gen_channel_name(cfg["diagnostic"]))
+writer = writer_gen(cfg[configname], gen_channel_name(cfg["diagnostic"]))
 logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
 # Give the writer hints on what kind of data to transfer
 
