@@ -33,7 +33,7 @@ parser.add_argument('--config', type=str,
                     help='Lists the configuration file',
                     default='configs/test_generator.json')
 parser.add_argument('--slow', type=float,
-                    help="Adds a small break in-between sending packages."
+                    help="Adds a small break in-between sending packages.",
                     default=0.1)
 args = parser.parse_args()
 

@@ -121,7 +121,7 @@ def main():
 
     # reader.Open() is blocking until it opens the data file or receives the
     # data stream. Put this right before entering the main loop
-    stream_attrs = None #reader.get_attrs("stream_attrs")
+    stream_attrs = reader.get_attrs("stream_attrs")
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
     my_preprocessor = preprocessor(executor_pre, cfg)
@@ -140,10 +140,10 @@ def main():
         stepStatus = reader.BeginStep()
         if stepStatus:
             # Load attributes
-            if stream_attrs == None:
-                logger.info("Waiting for attributes")
-                stream_attrs = reader.get_attrs("stream_attrs")
-                logger.info(f"Got attributes: {stream_attrs}")
+            # if stream_attrs == None:
+            #     logger.info("Waiting for attributes")
+            #     stream_attrs = reader.get_attrs("stream_attrs")
+            #     logger.info(f"Got attributes: {stream_attrs}")
             # Read data
             stream_data = reader.Get(stream_varname, save=False)
             # if reader.CurrentStep() in [0, 140]:
