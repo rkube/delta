@@ -130,6 +130,9 @@ def main():
                 tic = timeit.default_timer()
             # Read data
             stream_data = reader.Get(stream_varname, save=False)
+            if stream_attrs is None:
+                if reader.InquireAttribute("stream_attrs"):
+                    stream_attrs = reader.get_attrs("stream_attrs")
 
             rx_list.append(reader.CurrentStep())
 
