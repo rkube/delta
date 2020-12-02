@@ -120,9 +120,10 @@ def main():
         logger.info(f"Main: stepStatus = {stepStatus}, currentStep = {reader.CurrentStep()}")
         if stepStatus:
             # Read data
+            stream_data = reader.Get(stream_varname, save=False)
             if stream_attrs is None:
-                stream_attrs = reader.get_attrs("stream_attrs")
-                logger.info(f"Got attributes: {stream_attrs}")
+                if reader.InquireAttribute("stream_attrs"):
+                    stream_attrs = reader.get_attrs("stream_attrs")
 
             stream_data = reader.Get(stream_varname, save=False)
             rx_list.append(reader.CurrentStep())
