@@ -1,11 +1,9 @@
 # Endocing: UTF-8 -*-
 
 
-"""Receives data from generator and forwards them to processor.
+"""Receives data from generator and forwards them to processor."""
 
-Run the middleman on the Data Transfer Node like this:
-$ python middleman.py --config configs/test_3node_all.json
-"""
+from mpi4py import MPI
 
 import logging
 import logging.config
@@ -22,10 +20,9 @@ import argparse
 import timeit
 import time
 
-from streaming.reader_nompi import reader_gen
-from streaming.writer_nompi import writer_gen
-from analysis.channels import channel_range
-
+from streaming.writers import writer_gen
+from streaming.reader_mpi import reader_gen
+from data_models.helpers import gen_channel_name, gen_var_name
 
 @attr.s
 class AdiosMessage:
@@ -35,19 +32,30 @@ class AdiosMessage:
 
 
 def forward(Q, cfg, timeout):
+    global comm, rank, args, stream_attrs
     """To be executed by a local thread. Pops items from the queue and forwards them."""
     logger = logging.getLogger("middleman")
-    writer = writer_gen(cfg["transport_nersc"])
-    dummy_data = np.zeros((192, cfg["transport_nersc"]["chunk_size"]), dtype=np.float64)
-    writer.DefineVariable(cfg["transport_nersc"]["channel_range"][0], dummy_data)
-    writer.Open()
-    logger.info("Starting reader process")
-    tx_list = []
+    
+    logger.info(f"Creating writer_gen: engine={cfg['transport_nersc_middleman']['engine']}")
 
+    suffix = '' if not args.debug else '-MM'
+    writer = writer_gen(cfg["transport_nersc_middleman"], gen_channel_name(cfg["diagnostic"])+suffix)
+    logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
+    # Give the writer hints on what kind of data to transfer
+
+    tx_list = []
+    is_first = True
     while True:
         msg = None
         try:
             msg = Q.get(timeout=timeout)
+            if is_first:
+                writer.DefineVariable(gen_var_name(cfg)[rank], msg.data.shape, msg.data.dtype)
+                if stream_attrs is not None:
+                    writer.DefineAttributes("stream_attrs", stream_attrs)
+                writer.Open()
+                logger.info("Starting forwarding process")
+                is_first = False
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
 
@@ -57,7 +65,7 @@ def forward(Q, cfg, timeout):
             break
 
         writer.BeginStep()
-        writer.put_data(msg.data)
+        writer.put_data(msg, {"tidx": msg.tstep_idx})
         writer.EndStep()
         time.sleep(0.1)
         tx_list.append(msg.tstep_idx)
@@ -69,22 +77,26 @@ def forward(Q, cfg, timeout):
 
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
+    global comm, rank, args, stream_attrs
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
     parser = argparse.ArgumentParser(description="Receive data and dispatch" +
                                      "analysis tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file',
                         default='configs/config-middle.json')
+    parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
         cfg = json.load(df)
-        df.close()
     timeout = 30
 
     # The middleman uses both a reader and a writer. Each is configured with using
     # their respective section of the config file. Therefore some keys are duplicated,
     # such as channel_range. Make sure that these items are the same in both sections
 
-    assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
+    # assert(cfg["transport_kstar"]["channel_range"] == cfg["transport_nersc"]["channel_range"])
 
     with open("configs/logger.yaml", "r") as f:
         log_cfg = yaml.safe_load(f.read())
@@ -94,6 +106,11 @@ def main():
     # Create ADIOS reader object
     reader = reader_gen(cfg["transport_kstar"], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
+    stream_attrs = None
+    if reader.InquireAttribute("stream_attrs"):
+        stream_attrs = reader.get_attrs("stream_attrs")
+    stream_varname = gen_var_name(cfg)[rank]
+    logger.info(f"Stream varname: {stream_varname}")
 
     dq = queue.Queue()
     msg = None
@@ -112,9 +129,7 @@ def main():
             if reader.CurrentStep() == 0:
                 tic = timeit.default_timer()
             # Read data
-            stream_data = reader.Get(channel_range.from_str(cfg["transport_kstar"]
-                                                            ["channel_range"][0]),
-                                     save=False)
+            stream_data = reader.Get(stream_varname, save=False)
 
             rx_list.append(reader.CurrentStep())
 
