@@ -4,22 +4,9 @@
     "channel_range": ["ECEI_GR0101-2408"],
     "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
     "analysis": [{"name" : "all"}],
-    "engine": "BP4",
-    "params": { "IPAddress": "127.0.0.1",
-                "Timeout": "60",
-                "OneToOneMode": "TRUE",
-                "OpenTimeoutSecs": "600"},
     "nstep": 500,
     "batch_size": 10000,
     "resultspath": "./",
-
-    "num_analysis": 2,
-    "analysis_engine": "BP4",
-    "analysis_engine_params": {"IPAddress": "127.0.0.1",
-                "Timeout": "60",
-                "OneToOneMode": "TRUE",
-                "OpenTimeoutSecs": "600"},
-    "num_workers": 4,
 
     "transport_nersc":
     {
@@ -32,10 +19,10 @@
       "params":
       {
         "IPAddress": "128.55.205.18",
-        "Timeout": "3600",
+        "Timeout": "1800",
         "Port": "50001",
         "TransportMode": "fast",
-        "OpenTimeoutSecs": "3600",
+        "OpenTimeoutSecs": "1800",
         "RegistrationMethod": "Screen"
       }
     },
@@ -49,10 +36,10 @@
       "params":
       {
         "IPAddress": "128.55.205.18",
-        "Timeout": "3600",
+        "Timeout": "1800",
         "Port": "50001",
         "TransportMode": "fast",
-        "OpenTimeoutSecs": "3600",
+        "OpenTimeoutSecs": "1800",
         "RegistrationMethod": "File",
         "DataTransport": "WAN"
       }
@@ -67,10 +54,10 @@
       "params":
       {
         "IPAddress": "128.55.205.18",
-        "Timeout": "3600",
+        "Timeout": "1800",
         "Port": "50001",
         "TransportMode": "fast",
-        "OpenTimeoutSecs": "3600",
+        "OpenTimeoutSecs": "1800",
         "RegistrationMethod": "File",
         "DataTransport": "WAN"
       }
