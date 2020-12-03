@@ -130,7 +130,7 @@ logging.info(f"Time drift: {time_drift}")
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
-if args.shotnum:
+if args.shotnr:
     cfg['shotnr'] = args.shotnr
 expinfo = {}
 

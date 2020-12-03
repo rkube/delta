@@ -31,7 +31,7 @@ args = parser.parse_args()
 with open(args.config, "r") as df:
     cfg = json.load(df)
 ## overwriting shotnum if given by user
-if args.shotnum:
+if args.shotnr:
     cfg['shotnr'] = args.shotnr
 expinfo = {}
 
