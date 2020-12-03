@@ -86,7 +86,6 @@ class writer_base():
         """Opens a new channel."""
         if self.writer is None:
             self.writer = self.IO.Open(self.stream_name, adios2.Mode.Write)
-        self.logger.info(f"Opened writer: {self.writer}")
 
     def BeginStep(self):
         """Wrapper around writer.BeginStep."""

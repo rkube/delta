@@ -61,7 +61,6 @@ def forward(Q, cfg, args, timeout):
         writer.BeginStep()
         writer.put_data(msg)
         writer.EndStep()
-        time.sleep(0.1)
         logger.info(f"Worker: Done writing chunk {msg.tstep_idx}.")
         tx_list.append(msg.tstep_idx)
 

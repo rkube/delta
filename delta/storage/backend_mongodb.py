@@ -41,7 +41,8 @@ class mongo_connection():
         self.datastore = cfg_mongo["datastore"]
 
         # Get name of the run
-        assert(len(cfg_mongo["run_id"]) == 6)
+        # assert(len(cfg_mongo["run_id"]) == 6)
+        
         self.coll_str = "test_analysis_" + cfg_mongo["run_id"]
 
     def __enter__(self):

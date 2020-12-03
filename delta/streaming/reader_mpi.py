@@ -56,9 +56,9 @@ class reader_base():
 
         return None
 
-    def BeginStep(self):
+    def BeginStep(self, timeoutSeconds=0.0):
         """Wrapper for reader.BeginStep."""
-        res = self.reader.BeginStep()
+        res = self.reader.BeginStep(timeoutSeconds=timeoutSeconds)
         if res == adios2.StepStatus.OK:
             return(True)
         return(False)

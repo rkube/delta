@@ -47,7 +47,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
     while True:
         try:
-            msg = Q.get(timeout=60.0)
+            msg = Q.get(timeout=10.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -96,14 +96,14 @@ def main():
     logger = logging.getLogger('simple')
 
     # PoolExecutor for pre-processing, on-node.
-    executor_pre = MPIPoolExecutor(max_workers=args.num_threads_preprocess)
+    executor_pre = ThreadPoolExecutor(max_workers=args.num_threads_preprocess)
     # PoolExecutor for data analysis. off-node
     executor_anl = MPIPoolExecutor(max_workers=args.num_threads_analysis)
 
-    stream_varname = gen_var_name(cfg)[rank]
+    stream_varname = gen_var_name(cfg)[0]
 
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    cfg["run_id"] = "ABC234"
+    cfg["run_id"] = "ABC297"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -138,7 +138,9 @@ def main():
     tic_main = time.perf_counter()
     rx_list = []
     while True:
-        stepStatus = reader.BeginStep()
+        logger.info("=============================================pre BeginStep()")
+        stepStatus = reader.BeginStep(timeoutSeconds=5.0)
+        logger.info(f"============================================ currentStep = {reader.CurrentStep()}, stepStatus = {stepStatus}, ")
         if stepStatus:
             # Load attributes
             if stream_attrs is None:
@@ -155,13 +157,14 @@ def main():
             dq.put_nowait(msg)
             logger.info(f"Published tidx {reader.CurrentStep()}")
             reader.EndStep()
+            logger.info(f"============================================ Ending step {reader.CurrentStep()}")
         else:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
+        
+        #if reader.CurrentStep() > 50:
+        #    break
 
-        if reader.CurrentStep() > 142:
-            logger.info("End of the line. Exiting")
-            break
     dq.join()
     logger.info("Queue joined")
 
