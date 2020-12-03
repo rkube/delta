@@ -9,7 +9,7 @@
                 "Timeout": "60",
                 "OneToOneMode": "TRUE",
                 "OpenTimeoutSecs": "600"},
-    "nstep": 100,
+    "nstep": 500,
     "batch_size": 10000,
     "resultspath": "./",
 
@@ -28,13 +28,15 @@
       "nstep": 500,
       "datapath": "tmp_nersc",
       "channel_range": ["L0101-2408"],
-      "engine": "BP4",
+      "engine": "SST",
       "params":
       {
         "IPAddress": "128.55.205.18",
         "Timeout": "3600",
         "Port": "50001",
-        "TransportMode": "fast"
+        "TransportMode": "fast",
+        "OpenTimeoutSecs": "3600",
+        "RegistrationMethod": "Screen"
       }
     },
     "transport_nersc_middleman":
@@ -43,13 +45,16 @@
       "nstep": 500,
       "datapath": "tmp_nersc_middleman",
       "channel_range": ["L0101-2408"],
-      "engine": "BP4",
+      "engine": "SST",
       "params":
       {
         "IPAddress": "128.55.205.18",
         "Timeout": "3600",
         "Port": "50001",
-        "TransportMode": "fast"
+        "TransportMode": "fast",
+        "OpenTimeoutSecs": "3600",
+        "RegistrationMethod": "File",
+        "DataTransport": "WAN"
       }
     },
     "transport_nersc_workwithmiddleman":
@@ -58,13 +63,16 @@
       "nstep": 500,
       "datapath": "tmp_nersc_middleman",
       "channel_range": ["L0101-2408"],
-      "engine": "BP4",
+      "engine": "SST",
       "params":
       {
         "IPAddress": "128.55.205.18",
         "Timeout": "3600",
         "Port": "50001",
-        "TransportMode": "fast"
+        "TransportMode": "fast",
+        "OpenTimeoutSecs": "3600",
+        "RegistrationMethod": "File",
+        "DataTransport": "WAN"
       }
     }
 }
