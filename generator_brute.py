@@ -25,10 +25,14 @@ size = comm.Get_size()
 parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--sleep', type=float, help='sleep', default=0.0)
+parser.add_argument('--shotnum', type=int, help='shotnum', default=None)
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
+## overwriting shotnum if given by user
+if args.shotnum:
+    cfg['shotnr'] = args.shotnum
 expinfo = {}
 
 datapath = cfg["datapath"]
@@ -56,6 +60,9 @@ num_batches = data_pts // batch_size
 
 # Get a data_loader
 dobj = KstarEcei(shot=shotnr,data_path=datapath,clist=my_channel_range,verbose=False)
+while not os.path.exists(dobj.fname):
+    print("Waiting ... %s"%(dobj.fname))
+    time.sleep(5)
 expinfo.update({'TriggerTime':dobj.tt.tolist(),'SampleRate':[dobj.fs/1e3],
             'TFcurrent':dobj.itf/1e3,'Mode':dobj.mode, 
             'LoFreq':dobj.lo,'LensFocus':dobj.sf,'LensZoom':dobj.sz})
