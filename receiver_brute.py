@@ -81,6 +81,7 @@ parser.add_argument('--ngroups', type=int, help='Number of subgroups', default=1
 parser.add_argument('--subjob', help='subjob', action='store_true')
 parser.add_argument('--onlyn', type=int, help='process only n')
 parser.add_argument('--blocksize', type=int, help='blocksize', default=24)
+parser.add_argument('--shotnr', type=int, help='shotnr', default=None)
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--processpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='process')
 group.add_argument('--threadpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='thread')
@@ -129,6 +130,8 @@ logging.info(f"Time drift: {time_drift}")
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
+if args.shotnum:
+    cfg['shotnr'] = args.shotnr
 expinfo = {}
 
 #TODO: Remove for non-debug

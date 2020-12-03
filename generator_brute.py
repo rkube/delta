@@ -25,14 +25,14 @@ size = comm.Get_size()
 parser = argparse.ArgumentParser(description="Send KSTAR data using ADIOS2")
 parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--sleep', type=float, help='sleep', default=0.0)
-parser.add_argument('--shotnum', type=int, help='shotnum', default=None)
+parser.add_argument('--shotnr', type=int, help='shotnr', default=None)
 args = parser.parse_args()
 
 with open(args.config, "r") as df:
     cfg = json.load(df)
 ## overwriting shotnum if given by user
 if args.shotnum:
-    cfg['shotnr'] = args.shotnum
+    cfg['shotnr'] = args.shotnr
 expinfo = {}
 
 datapath = cfg["datapath"]
