@@ -280,7 +280,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
             # backend.store(my_analysis, analysis_result)
             #logging.info(f"\tWorker: loop done: tstep={tstep}, rank={rank}, analysis={ic}, hostname={hostname}")
         t1 = time.time()
-        #save_spec(results,tstep)
+        save_spec(results,tstep)
         t2 = time.time()
         logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={pidmap[os.getpid()]} hostname={hostname} time elapsed: {t2-t0:.2f}")
     return tstep
