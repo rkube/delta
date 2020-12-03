@@ -201,7 +201,7 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
 def save_spec(results,tstep):
     #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
     #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
-    with adios2.open(cfg["resultspath"]+cfg["shotnr"]+'.'+str(tstep).zfill(4)+'.bp','w') as fw:
+    with adios2.open(cfg["resultspath"]+str(cfg["shotnr"])+'.'+str(tstep).zfill(4)+'.bp','w') as fw:
         for key in results.keys():
             fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
 
