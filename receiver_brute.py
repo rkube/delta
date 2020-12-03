@@ -239,7 +239,7 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         sptime = trange[0] + np.arange(nperseg/2,channel_data.shape[-1] - nperseg/2 + 1,nperseg - noverlap)/A.Dlist[0].fs
 
         results['stft_time'] = sptime
-        results['stft_freq'] = A.Dlist[0].ax
+        results['stft_freq'] = A.Dlist[0].ax*A.Dlist[0].fs/2
 
         Nchannels = channel_data.shape[0] 
         if args.dry:
