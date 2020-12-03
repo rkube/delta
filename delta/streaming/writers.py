@@ -87,6 +87,10 @@ class writer_base():
         if self.writer is None:
             self.writer = self.IO.Open(self.stream_name, adios2.Mode.Write)
 
+    def Close(self):
+        """Wrapper for Close."""
+        self.writer.Close()
+
     def BeginStep(self):
         """Wrapper around writer.BeginStep."""
         return self.writer.BeginStep()
