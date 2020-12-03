@@ -186,7 +186,7 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
         cfg["transport_nersc_middleman"]["params"].update(Port = str(5001 + 10*worker_id))
         logging.info(f'DataMan Port: {cfg["transport_nersc_middleman"]["params"]["Port"]}')
 
-    writer = writer_gen(cfg["transport_nersc_middleman"])
+    writer = writer_gen(cfg["transport_nersc_middleman"], shotnr=shotnr)
     writer.DefineVariable("tstep",np.array(0))
     writer.DefineVariable("floats",data_arr)
     writer.DefineVariable("trange",np.array([0.0,0.0]))
@@ -441,11 +441,10 @@ if __name__ == "__main__":
                         cfg["transport_nersc_workwithmiddleman"]["params"].update(Port = str(5001 + 10*rank))
                         logging.info(f'DataMan Port: {cfg["transport_nersc_workwithmiddleman"]["params"]["Port"]}')
 
-                    reader = reader_gen(cfg["transport_nersc_workwithmiddleman"])
+                    reader = reader_gen(cfg["transport_nersc_workwithmiddleman"], shotnr=cfg["shotnr"])
                     reader.Open(multi_channel_id=rank)
                 else:
-                    #reader = reader_gen(cfg["shotnr"], 0, cfg["engine"], cfg["params"])
-                    reader = reader_gen(cfg["transport_nersc"])
+                    reader = reader_gen(cfg["transport_nersc"], shotnr=cfg["shotnr"])
                     reader.Open()
             else:
                 reader.get_all_data()

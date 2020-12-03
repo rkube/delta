@@ -1,7 +1,7 @@
 {
-    "datapath": "/eceidata2/exp_2017/",
-    "shotnr": 18431,
-    "channel_range": ["ECEI_L0101-2408"],
+    "datapath": "/expdata2/exp_2020/",
+    "shotnr": 22289,
+    "channel_range": ["ECEI_GR0101-2408"],
     "fft_params" : {"nfft": 1000, "window": "hann", "overlap": 0.5, "detrend" :1},
     "analysis": [{"name" : "all"}],
     "engine": "BP4",
@@ -13,12 +13,6 @@
     "batch_size": 10000,
     "resultspath": "./",
 
-    "middleman_engine": "SST",
-    "middleman_params": {"IPAddress": "127.0.0.1",
-                "Timeout": "60",
-                "OneToOneMode": "TRUE",
-                "OpenTimeoutSecs": "600"},
-
     "num_analysis": 2,
     "analysis_engine": "BP4",
     "analysis_engine_params": {"IPAddress": "127.0.0.1",
@@ -27,23 +21,9 @@
                 "OpenTimeoutSecs": "600"},
     "num_workers": 4,
 
-    "transport_kstar":
-    {
-      "chunk_size": 10000,
-      "nstep": 500,
-      "datapath": "tmp_nersc",
-      "channel_range": ["L0101-2408"],
-      "engine": "BP4",
-      "params":
-      {
-        "IPAddress": "203.230.120.125",
-        "Timeout": "120",
-        "Port": "50001",
-        "TransportMode": "fast"
-      }
-    },
     "transport_nersc":
     {
+      "shotnr": 22289,
       "chunk_size": 10000,
       "nstep": 500,
       "datapath": "tmp_nersc",
@@ -52,7 +32,7 @@
       "params":
       {
         "IPAddress": "128.55.205.18",
-        "Timeout": "120",
+        "Timeout": "3600",
         "Port": "50001",
         "TransportMode": "fast"
       }
@@ -67,7 +47,7 @@
       "params":
       {
         "IPAddress": "128.55.205.18",
-        "Timeout": "120",
+        "Timeout": "3600",
         "Port": "50001",
         "TransportMode": "fast"
       }
@@ -82,7 +62,7 @@
       "params":
       {
         "IPAddress": "128.55.205.18",
-        "Timeout": "120",
+        "Timeout": "3600",
         "Port": "50001",
         "TransportMode": "fast"
       }

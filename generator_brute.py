@@ -58,11 +58,17 @@ batch_size = cfg['batch_size'] #int(1e4)
 # Calculate the number of required data batches we send over the channel
 num_batches = data_pts // batch_size
 
+# (2020/12) jyc: temporary fix for KSTAR demo
+clist = expand_clist(my_channel_range)
+dev = clist[0][5:7]
+fname = "{:s}{:06d}/ECEI.{:06d}.{:s}.h5".format(datapath, shotnr, shotnr, dev)
+print ("fname:", fname)
+while not os.path.exists(fname):
+    print("Waiting ... %s"%(fname))
+    time.sleep(5)
+
 # Get a data_loader
 dobj = KstarEcei(shot=shotnr,data_path=datapath,clist=my_channel_range,verbose=False)
-while not os.path.exists(dobj.fname):
-    print("Waiting ... %s"%(dobj.fname))
-    time.sleep(5)
 expinfo.update({'TriggerTime':dobj.tt.tolist(),'SampleRate':[dobj.fs/1e3],
             'TFcurrent':dobj.itf/1e3,'Mode':dobj.mode, 
             'LoFreq':dobj.lo,'LensFocus':dobj.sf,'LensZoom':dobj.sz})
@@ -77,7 +83,7 @@ data_all = np.array_split(data,num_batches,axis=-1)
 
 #writer = writer_dataman(shotnr, gen_id)
 #writer = writer_gen(shotnr, gen_id, cfg["engine"], cfg["params"])
-writer = writer_gen(cfg["transport_nersc"])
+writer = writer_gen(cfg["transport_nersc"], shotnr=shotnr)
 
 data_arr = data_all[0]
 writer.DefineVariable("tstep",np.array(0))
