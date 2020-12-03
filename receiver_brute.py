@@ -201,7 +201,7 @@ def writer_init(shotnr, gen_id, worker_id, data_arr):
 def save_spec(results,tstep):
     #TODO: Determine how to use adios2 efficiently instead (and how to read in like normal, e.g. without steps?)
     #np.savez(resultspath+'delta.'+str(tstep).zfill(4)+'.npz',**results)
-    with adios2.open(cfg["resultspath"]+'delta.'+str(tstep).zfill(4)+'.bp','w') as fw:
+    with adios2.open(cfg["resultspath"]+cfg["shotnr"]+'.'+str(tstep).zfill(4)+'.bp','w') as fw:
         for key in results.keys():
             fw.write(key,results[key],results[key].shape,[0]*len(results[key].shape),results[key].shape)
 
@@ -233,6 +233,13 @@ def perform_analysis(channel_data, cfg, tstep, trange):
         A.fftbins(nfft=cfg['fft_params']['nfft'],window=cfg['fft_params']['window'],
           overlap=cfg['fft_params']['overlap'],detrend=cfg['fft_params']['detrend'],full=1,scipy=True)
         results['stft'] = A.Dlist[0].spdata
+        nfft = cfg['fft_params']['nfft']
+        noverlap=int(A.Dlist[0].overlap*nfft)
+        nperseg = nfft
+        sptime = trange[0] + np.arange(nperseg/2,channel_data.shape[-1] - nperseg/2 + 1,nperseg - noverlap)/A.Dlist[0].fs
+
+        results['stft_time'] = sptime
+        results['stft_freq'] = A.Dlist[0].ax
 
         Nchannels = channel_data.shape[0] 
         if args.dry:
