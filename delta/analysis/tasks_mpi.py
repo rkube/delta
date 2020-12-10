@@ -23,6 +23,7 @@ import logging
 from analysis.kernels_spectral import kernel_null, kernel_crosscorr
 from analysis.kernels_spectral_cy import kernel_coherence_64_cy
 from analysis.kernels_spectral_cy import kernel_crosspower_64_cy, kernel_crossphase_64_cy
+from analysis.kernels_spectral_gpu import kernel_spectral_GAP
 # Import CUDA kernels
 # from analysis.kernels_spectral_cu import kernel_crossphase_cu, kernel_crosscorr_cu
 
@@ -63,13 +64,6 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     dt_calc = t2_calc - t1_calc
 
     t1_io = datetime.datetime.now()
-    # TODO: We do not want these hard-coded changes to info_dict here.
-    try:
-        info_dict["rarr"] = list(fft_data.rarr)
-        info_dict["zarr"] = list(fft_data.zarr)
-        info_dict["bad_channels"] = [bool(c) for c in fft_data.bad_channels]
-    except:
-        None
 
     storage_backend.store_data(result, info_dict)
     t2_io = datetime.datetime.now()
@@ -119,12 +113,10 @@ class task_spectral():
             self.kernel = kernel_crosscorr
         elif self.analysis == "coherence":
             self.kernel = kernel_coherence_64_cy
-        # elif self.analysis == "skw":
-        #     self.kernel = kernel_skw
-        # elif self.analysis == "bicoherence":
-        #     self.kernel = kernel_bicoherence
         elif self.analysis == "null":
             self.kernel = kernel_null
+        elif self.analysis == "spectral_GAP_gpu":
+            self.kernel = kernel_spectral_GAP
         else:
             raise NameError(f"Unknown analysis task {self.analysis}")
 
@@ -199,7 +191,6 @@ class task_list():
             None
         """
         self.executor_anl = executor_anl
-        #self.task_config_list = cfg_tasklist
         self.logger = logging.getLogger("simple")
 
         self.task_list = []
@@ -216,32 +207,10 @@ class task_list():
         Returns:
             None
         """
-        # tic_fft = time.perf_counter()
-
-        # # # Following 4 lines execute the stft on the GPU
-        # data_gpu = cp.asarray(data_chunk.data)
-        # res = self.executor_fft.submit(stft,
-        #                                data_gpu,
-        #                                axis=data_chunk.axis_t,
-        #                                fs=data_chunk.params["fs"],
-        #                                nperseg=data_chunk.params["nfft"],
-        #                                window=data_chunk.params["window"],
-        #                                detrend=data_chunk.params["detrend"],
-        #                                noverlap=data_chunk.params["noverlap"],
-        #                                padded=False,
-        #                                return_onesided=False,
-        #                                boundary=None)
-        # fft_data_tmp = res.result()
-        # fft_data = cp.asnumpy(fft_data_tmp[2])
-        # from mpi4py import MPI
-        # comm = MPI.COMM_WORLD
 
         self.logger.info(f"task_list: Received type {type(data_chunk)}\
             for chunk_idx {data_chunk.tb.chunk_idx}")
 
-        # with open(f"outfile_t{data_chunk.tb.chunk_idx}_{comm.rank:03d}.txt", "w") as df:
-        #     df.write("test\n")
-        #     df.flush()
 
         for task in self.task_list:
             task.submit(self.executor_anl, data_chunk)

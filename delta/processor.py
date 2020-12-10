@@ -103,7 +103,7 @@ def main():
     stream_varname = gen_var_name(cfg)[0]
 
     cfg["run_id"] = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    cfg["run_id"] = "ABC297"
+    cfg["run_id"] = "ABC302"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -162,8 +162,8 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
         
-        #if reader.CurrentStep() > 50:
-        #    break
+        if reader.CurrentStep() > 5:
+            break
 
     dq.join()
     logger.info("Queue joined")

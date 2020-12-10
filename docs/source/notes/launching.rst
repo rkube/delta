@@ -15,11 +15,11 @@ The commands below set up the environment on cori to start the processor:
 .. code-block:: shell
 
     #!/bin/bash
-    export OMP_NUM_CORES=4
+    export OMP_NUM_CORES=16
     export OMP_PROC_BIND=true
     export OMP_PLACES=cores 
 
-    srun -n 16 -c 4 --cpu-bind=cores python -m mpi4py.futures processor.py --config configs/delta_config.json
+    srun -n 4 -c 16 --cpu-bind=cores python -m mpi4py.futures processor.py --config configs/delta_config.json
 
 
 2-node scenario
@@ -28,7 +28,7 @@ In this scenario, the `generator` streams data directly to the `proceessor`.
 
 The recommended way is to start the `processor` on Cori. You may need to increase the
 timeout in the message queues to accomodate a longer wait for initial time chunks.
-After the processor has started, launch the generator on the KSTAR DTN:
+After the processor has started, launch the generator on the sending system:
 
 The commands below set up the environment on the KSTAR DTN to start the generator
 
@@ -43,7 +43,7 @@ The commands below set up the environment on the KSTAR DTN to start the generato
     module use -a /home/choij/sw/modulefiles
     module load adios2
 
-    python generator.py --config configs/test_all.json --kstar
+    mpirun -np 1 python generator.py --config configs/test_all.json --kstar
 
 
 .. note::
@@ -95,4 +95,4 @@ The commands below set up the environment on the NERSC DTN to start the middlema
     module load adios2
     module load python_delta_comm
 
-    python middleman.py --config configs/test_all.json 
+    mpirun -np 1 python middleman.py --config configs/test_all.json 
