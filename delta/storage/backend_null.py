@@ -17,7 +17,7 @@ class backend_null():
         self.logger.debug("storage finished:", info_dict)
         return None
 
-    def store_metadata(self, cfg, dispatch_seq):
+    def store_metadata(self, cfg):
         """Stores nothing."""
         self.logger.debug("store_metadata finished")
         return None

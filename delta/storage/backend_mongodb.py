@@ -197,14 +197,12 @@ class backend_mongodb():
         assert cfg_mongo["datastore"] in ["gridfs", "numpy", "adios2"]
         self.datastore = cfg_mongo["datastore"]
 
-    def store_metadata(self, cfg, dispatch_seq):
+    def store_metadata(self, cfg):
         """Stores metadata that allows to identify channel pairs with the stored data.
 
         Args
             cfg (dict):
-                The configuration of the analysis run
-            dispatch_seq (iterable):
-                The serialized task dispatch sequence
+                A dictionary of metadata to store.
 
         Returns:
             inserted_id (ObjectID):

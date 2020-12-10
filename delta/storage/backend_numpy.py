@@ -48,7 +48,7 @@ class backend_numpy():
         np.savez(fname_fq, chunk_data, analysis_name=chunk_info['analysis_name'],
                  tidx=chunk_info['tidx'], batch=chunk_info['channel_batch'])
 
-    def store_metadata(self, cfg, dispatch_seq):
+    def store_metadata(self, cfg):
         """Stores metadta in an numpy file.
 
         The dispatch sequence from a task object is returned by task.get_dispatch_sequence()
@@ -81,12 +81,12 @@ class backend_numpy():
         #     j_lists.append("["  + ", ".join([c.to_json() for c in sub_list]) + "]")
         # j_str = "[" + ", ".join(j_lists) + "]"
 
-        j_str = serialize_dispatch_seq()
+        #j_str = serialize_dispatch_seq()
         # Put the channel serialization in the corresponding key
-        j_str = '{"channel_serialization": ' + j_str + '}'
-        j = json.loads(j_str)
+        #j_str = '{"channel_serialization": ' + j_str + '}'
+        #j = json.loads(j_str)
         # Adds the channel_serialization key to cfg
-        cfg.update(j)
+        #cfg.update(j)
 
         with open(join(self.basedir, "config.json"), "w") as df:
             json.dump(cfg, df)

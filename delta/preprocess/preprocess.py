@@ -9,23 +9,24 @@ from preprocess.helpers import get_preprocess_routine
 from storage.backend import get_storage_object
 from data_models.kstar_ecei import get_geometry
 
+
 class preprocessor():
     """Defines a pre-processing pipeline.
 
-    This class defines a pre-processing pipeline that is serially executed on the
-    processor.
+    This class defines a pre-processing pipeline that is serially executed on an
+    executor.
     """
 
     def __init__(self, executor, cfg):
         """Configures the pre-processing pipeline from a dictionary.
 
-        For each key-value pairs in `cfg_preprocess`, a pre-processing callable
+        For each key-value pairs in `cfg['preprocess']`, a pre-processing callable
         will be configured and appended list of callables.
 
         Args:
             executor (PEP-3148-style executor):
                 Executor on which all pre-processing will be performed
-            cfg_preprocess
+            cfg: (dict)
                 Delta configuration
 
         Returns:
@@ -70,7 +71,7 @@ class preprocessor():
 
         storage_class = get_storage_object(cfg_storage)
         storage = storage_class(cfg_storage)
-        storage.store_metadata(chunk_metadata, None)
+        storage.store_metadata(chunk_metadata)
 
     def submit(self, timechunk):
         """Launches preprocessing routines on the executor.

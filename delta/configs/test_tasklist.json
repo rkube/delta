@@ -1,0 +1,76 @@
+{
+  "diagnostic":
+  {
+    "name": "kstarecei",
+    "shotnr": 27299,
+    "datasource":
+    {
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
+      "chunk_size": 10000,
+      "num_chunks": 20,
+      "channel_range": ["0101-2408"],
+      "datatype": "float",
+      "t_norm": [-0.099, -0.089]
+    }
+  },
+  "transport_rx":
+  {
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "203.230.120.125",
+      "Timeout": "120",
+      "Port": "50001",
+      "TransportMode": "fast"
+    }
+  },
+  "transport_tx":
+  {
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "128.55.205.18",
+      "Timeout": "120",
+      "Port": "50055",
+      "TransportMode": "fast"
+    }
+  },
+  "storage_mongo":
+  {
+    "backend": "mongo",
+    "datastore": "gridfs",
+    "datadir": "/global/cscratch1/sd/rkube/delta"
+  },
+  "storage":
+  {
+    "backend": "null"
+  },
+ "preprocess": {
+   "bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"},
+   "no_wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5, "rescale_sigma": false},
+   "no_plot": {"time_range": [2.7175, 2.7178], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
+   },
+  "analysis": {
+    "crosscorr": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crosspower_cy": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crossphase_cy": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "coherence_cy": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  }
+}
