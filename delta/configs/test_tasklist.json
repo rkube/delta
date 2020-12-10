@@ -52,6 +52,13 @@
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
    },
   "analysis": {
+    "spectral_GAP": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  },
+  "analysis_no": {
     "crosscorr": {
       "channel_chunk_size": 32768, 
       "ref_channels": [1, 1, 24, 8], 

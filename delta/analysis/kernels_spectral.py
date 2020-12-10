@@ -116,10 +116,6 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
 
         res[idx, :] = np.fft.fftshift(_tmp.real)
 
-    with open("/global/homes/r/rkube/repos/delta/delta/xcorr.txt", "a") as df:
-        df.write("kernel_crosscorr executed\n")
-        df.flush()
-
     return(res)
 
 

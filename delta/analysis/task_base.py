@@ -32,13 +32,10 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     t1_calc = datetime.datetime.now()
     result = kernel(fft_data.data, ch_it, fft_data.params)
     t2_calc = datetime.datetime.now()
-    dt_calc = t2_calc - t1_calc
 
     t1_io = datetime.datetime.now()
-
     storage_backend.store_data(result, info_dict)
-    t2_io = datetime.datetime.now()
-    dt_io = t2_io - t1_io
+    dt_io = datetime.datetime.now() - t1_io
 
     with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
         df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
@@ -69,6 +66,9 @@ class task_base():
     def _get_kernel(self):
         return None
 
+    def _get_dispatch_func(self):
+        return calc_and_store
+
     def execute(self, timechunk, executor):
         """Launches a spectral analysis kernel on an executor.
 
@@ -88,19 +88,21 @@ class task_base():
         """
         self.logger.info("Entering submit.")
 
-        info_dict_list = [{"analysis_name": self.__str__,
+        info_dict_list = [{"analysis_name": self.__str__(),
                            "chunk_idx": timechunk.tb.chunk_idx,
-                           "channel_batch": batch_idx} for batch_idx in range(len(self.dispatch_seq))]
+                           "channel_batch": batch_idx}
+                          for batch_idx in range(len(self.dispatch_seq))]
 
-        _ = [executor.submit(calc_and_store,
+        _ = [executor.submit(self._get_dispatch_func(),
                              self._get_kernel(),
                              self.storage_backend,
                              timechunk,
                              ch_it,
                              info_dict) for ch_it, info_dict in zip(self.dispatch_seq,
                                                                     info_dict_list)]
-        self.logger.info(f"chunk_idx={timechunk.tb.chunk_idx} submitted {self.__str__()} " +
-                         f"as {len(self.dispatch_seq)} tasks: {self._get_kernel()}")
+        self.logger.info((f"chunk_idx={timechunk.tb.chunk_idx} submitted {self.__str__()} "
+                          f"as {len(self.dispatch_seq)} tasks: {self._get_kernel()} "
+                          f"dispatch_function: {self._get_dispatch_func()}"))
         return None
 
 

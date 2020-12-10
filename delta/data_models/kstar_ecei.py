@@ -163,7 +163,7 @@ class ecei_chunk():
 
         if verbose:
             for item in np.argwhere(ref > 30.0):
-                self.logger.info(f"LOW SIGNAL: channel({my_num_to_vh(item[0] + 1)}) ref = {ref[item[0]]:f}")
+                self.logger.debug(f"LOW SIGNAL: channel({my_num_to_vh(item[0] + 1)}) ref = {ref[item[0]]:f}")
         self.bad_channels[ref > 30.0] = True
 
         # Mark bottom saturated channels
@@ -172,7 +172,7 @@ class ecei_chunk():
             for item in np.argwhere(self.offstd < 1e-3):
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
-                self.logger.info(f"SAT offset channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
+                self.logger.debug(f"SAT offset channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
 
         # Mark top saturated channels
         self.bad_channels[np.squeeze(self.sigstd < 1e-3)] = True
@@ -180,7 +180,7 @@ class ecei_chunk():
             for item in np.argwhere(self.sigstd < 1e-3):
                 os = self.offstd[tuple(item)]
                 ol = self.offlev[tuple(item)]
-                self.logger.info(f"SAT signal channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
+                self.logger.debug(f"SAT signal channel {my_num_to_vh(item[0] + 1)}: offstd = {os} offlevel = {ol}")
 
     def create_ft(self, fft_data, params):
         """Returns a fourier-transformed object.

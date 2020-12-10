@@ -7,7 +7,7 @@ from analysis.task_spectral import task_null, task_crosscorr
 from analysis.task_spectral import task_crosspower, task_crossphase, task_coherence
 from analysis.task_spectral_cy import task_coherence_cy, task_crosspower_cy, task_crossphase_cy
 #from analysis.task_spectral_cu import task_coherence_cu, task_crosscorr_cu, task_crossphase_cu, task_crosspower_cu
-#from analysis.task_spectral_numba import task_spectral_GAP
+from analysis.task_spectral_numba import task_spectral_GAP
 
 
 def get_analysis_task(key, params, cfg_storage):
@@ -54,8 +54,8 @@ def get_analysis_task(key, params, cfg_storage):
         return task_coherence_cy(params, cfg_storage)
     #elif key == "coherence_cu":
     #    return task_coherence_cu(params, cfg_storage)
-    #elif key == "spectral_GAP":
-    #    return task_spectral_GAP(params, cfg_storage)
+    elif key == "spectral_GAP":
+        return task_spectral_GAP(params, cfg_storage)
     else:
         raise NameError(f"Requested invalid analysis routine: {key}")
 
