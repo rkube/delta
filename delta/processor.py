@@ -46,7 +46,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
     while True:
         try:
-            msg = Q.get(timeout=10.0)
+            msg = Q.get(timeout=2.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break

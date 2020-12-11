@@ -1,10 +1,23 @@
 # -*- Encoding: UTF-8 -*-
 
 from numba import jit, cuda
+import math, cmath
+
+@cuda.jit
+def increment_by_one(an_array):
+    pos = cuda.grid(1)
+    if pos < an_array.size:
+        an_array[pos] += 1
+
+@cuda.jit
+def increment_by_two(out_arr):
+    pair_idx, nn = cuda.grid(2)
+    if pair_idx < out_arr.shape[0] and nn < out_arr.shape[1]:
+        out_arr[pair_idx, nn] += 1.0
 
 
 @cuda.jit
-def kernel_spectral_GAP(in_arr, out_arr, ch1_idx_arr, ch2_idx_arr, win_factor=0.0):
+def kernel_spectral_GAP(in_arr, out_arr, ch1_idx_arr, ch2_idx_arr, win_factor=1.0):
     """Calculates G, A, P in one call.
 
     G: coherence
@@ -29,6 +42,7 @@ def kernel_spectral_GAP(in_arr, out_arr, ch1_idx_arr, ch2_idx_arr, win_factor=0.
     """
     # Obtain position in the output array from the launch configuration
     pair_idx, nn = cuda.grid(2)
+
     # Infer indices to be used to calculate output quantite
     ch1_idx = ch1_idx_arr[pair_idx]
     ch2_idx = ch2_idx_arr[pair_idx]
@@ -46,16 +60,20 @@ def kernel_spectral_GAP(in_arr, out_arr, ch1_idx_arr, ch2_idx_arr, win_factor=0.
             Pyy = Y * Y.conjugate()
             Pxy = X * Y.conjugate()
 
-            G += Pxy / sqrt(Pxx * Pyy)
+            G += Pxy / cmath.sqrt(Pxx * Pyy)
             AP += Pxy
 
         G /= in_arr.shape[2]
         AP /= in_arr.shape[2]
-        
-        # Write coherence to output array
-        out_arr[pair_idx, nn, 0] = abs(G)
-        out_arr[pair_idx, nn, 1] = arctan2(AP.imag, AP.real)
-        out_arr[pair_idx, nn, 2] = abs(AP).real / win_factor
 
+        # # Write coherence to output array
+        out_arr[pair_idx, nn, 0] = abs(G)
+        out_arr[pair_idx, nn, 1] = math.atan2(AP.imag, AP.real)
+        out_arr[pair_idx, nn, 2] = abs(AP) / win_factor
+
+        # # # This is for debug purposes
+        # out_arr[pair_idx, nn, 0] += 1.0
+        # out_arr[pair_idx, nn, 1] += 2.0
+        # out_arr[pair_idx, nn, 2] += 3.0
 
 # End of file kernels_spectral_gpu.py
