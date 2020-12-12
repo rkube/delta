@@ -157,8 +157,8 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
         
-        if reader.CurrentStep() > 5:
-            break
+        # if reader.CurrentStep() > 5:
+        #     break
 
     dq.join()
     logger.info("Queue joined")
