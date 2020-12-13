@@ -44,7 +44,7 @@ def test_dataloader_ecei_cached(config_all, stream_attrs_018431):
     import os
     sys.path.append(os.path.abspath('delta'))
     import numpy as np
-    from delta.sources.dataloader import _loader_ecei
+    from delta.sources.loader_kstarecei import loader_kstarecei
 
     # Generate a read_attribute_dummy using the stream_attrs_... fixture.
     # This needs to be a closure, as we can't pass the fixture as a function
@@ -52,14 +52,13 @@ def test_dataloader_ecei_cached(config_all, stream_attrs_018431):
     def read_attrs_dummy(cls):
         return read_attributes_from_hdf5_dummy(cls, stream_attrs_018431)
 
-
     cfg_all = config_all
     cfg_all["diagnostic"]["datasource"]["num_chunks"] = 5
     # Instantiate a loader where _read_from_hdf5 is replaced with load_dummy_data
     # with mock.patch.object(_loader_ecei, "_read_from_hdf5", new=read_from_hdf5_dummy):
-    with mock.patch.multiple(_loader_ecei, _read_from_hdf5=read_from_hdf5_dummy,
+    with mock.patch.multiple(loader_kstarecei, _read_from_hdf5=read_from_hdf5_dummy,
                              _read_attributes_from_hdf5=read_attrs_dummy):
-        my_loader = _loader_ecei(cfg_all, cache=True)
+        my_loader = loader_kstarecei(cfg_all)
 
         for batch in my_loader.batch_generator():
             # Mean should be roughly 3.5, depending on what use as dummy data
@@ -73,7 +72,7 @@ def test_dataloader_ecei_nocache(config_all, stream_attrs_018431):
     sys.path.append(os.path.abspath('delta'))
     import numpy as np
     # # Import packages as delta.... so that we can run pytest as 
-    from delta.sources.dataloader import _loader_ecei
+    from delta.sources.loader_kstarecei import loader_kstarecei
 
     # Generate a read_attribute_dummy using the stream_attrs_... fixture.
     # This needs to be a closure, as we can't pass the fixture as a function
@@ -84,10 +83,10 @@ def test_dataloader_ecei_nocache(config_all, stream_attrs_018431):
     cfg_all = config_all
     # Instantiate a loader where _read_from_hdf5 is replaced with load_dummy_data
     # with mock.patch.object(_loader_ecei, "_read_from_hdf5", new=read_from_hdf5_dummy):
-    with mock.patch.multiple(_loader_ecei, _read_from_hdf5=read_from_hdf5_dummy,
+    with mock.patch.multiple(loader_kstarecei, _read_from_hdf5=read_from_hdf5_dummy,
                              _read_attributes_from_hdf5=read_attrs_dummy):
 
-        my_loader = _loader_ecei(cfg_all, cache=False)
+        my_loader = loader_kstarecei(cfg_all)
 
         assert(my_loader.get_chunk_shape() == (192, cfg_all["diagnostic"]["datasource"]["chunk_size"]))
         for batch in my_loader.batch_generator():

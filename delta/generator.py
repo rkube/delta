@@ -18,7 +18,7 @@ import logging
 import logging.config
 
 from streaming.writers import writer_gen
-from sources.dataloader import get_loader
+from sources.helpers import get_loader
 from data_models.helpers import gen_channel_name, gen_var_name
 
 # Initialize MPI
