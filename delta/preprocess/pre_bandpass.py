@@ -50,7 +50,7 @@ class pre_bandpass_iir():
 
         Args:
             params (dict):
-                Will be passed to scipy.signal.iirdesign
+                Are passed to scipy.signal.iirdesign
 
         Returns:
             None

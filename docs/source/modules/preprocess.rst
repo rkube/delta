@@ -2,30 +2,31 @@
 Pre-processing
 ==============
 
-The `processor` can be configured to pre-process data before submitting them
-to the analysis pipeline. 
+This module provides the building blocks to construct a composable pre-processing pipeline.
+Data chunks that are passed into the pre-processing pipeline are sequentially transformed by
+each pre-processing routine. The pipeline is defined by the ``preprocess`` section in the
+configuration file. Each entry in this section is interpreted as the name of a preprocessing routine
+and its parameters. The routines itself are executed on a PEP-3148 style executor.
 
-The pipeline is defined by the ``preprocess`` section in the configuration file.
-Each entry in this section is interpreted as the name of a preprocessing routine
-and its parameters.
-
-For example, defining the entry
+For example, the entry
 
 
 .. code-block:: json
 
-    {...
-        "preprocess":
-        {
-            "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 5}
-            "stft": {"nfft": 512, "fs": 5000000, "window": "hann", "overlap": 0.5, "detrend": linear}
-        }
-    ...}
+    "preprocess" 
+    {
+      "pre1": {"parameter1": 1, "parameter2": 2},
+      "pre2": {"parameter1": 1, "parameter2": "val2"}
+    }
 
-Defines a pre-processing pipeline consisting of wavelet filtering followed by a short-time
-Fourier transformation. The keys in the section, `wavelet` and `stft` in the example
-here are mapped to preprocessor functions through
-:py:meth:`preprocess.helpers.get_preprocess_routine` .
+
+defines a pre-processing pipeline consisting of two routines. The keys `pre1` and `pre2` 
+in the `preprocess` section are mapped to preprocessor classes by
+:py:meth:`preprocess.helpers.get_preprocess_routine`. The preprocessor classes itself expose a 
+`process` member, which takes a data chunk as input and returns the transformed data chunk.
+This function serves as a wrapper around a function call.
+The parameter dictionaries in the configuration file above are stored by the preprocessor 
+class instances and are passed to the wrapped function call.
 
 The example below shows how to set up a pre-processing pipeline
 
@@ -48,36 +49,42 @@ In the receiver loop, this pipeline is executed by calling
 message. The pre-processed time-chunk is then avilable as `msg_pp`.
 
 
-As a convention, all preprocessor classes define a method `process`, taking an
+As a common interface, all preprocessor classes define the method `process`, taking an
 :class:`data_models.data_model` as input and returning the same object type. This
-allows the routine to be stackable.
-     
+allows to compose preprocessing routines into a pipeline.
+
+
 
 
 .. contents:: Contents 
     :local:
 
-Preprocessing pipeline
-----------------------
-.. automodule:: preprocess.preprocess
-    :members:
 
 Short-Time Fourier Transformation
 ---------------------------------
 .. automodule:: preprocess.pre_stft
     :members:
+    :special-members: __init__
 
 Wavelet Filtering
 -----------------
 .. automodule:: preprocess.pre_wavelet
     :members:
+    :special-members: __init__
 
 Bandpass Filtering
 ------------------
 .. automodule:: preprocess.pre_bandpass
     :members:
+    :special-members: __init__
+
+Plotting
+--------
+.. automodule:: preprocess.pre_plot
+    :members:
+    :special-members: __init__
 
 Helper functions
 ----------------
 .. automodule:: preprocess.helpers
-    :members:
+

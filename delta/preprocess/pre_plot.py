@@ -9,7 +9,12 @@ from preprocess.plot_ecei import plot_ecei_timeslice
 
 
 class pre_plot():
-    """Implements plotting."""
+    """Plots the pre-processed data and stores it to a file.
+    
+    Plots are made using the instantaneous data in the pipeline. That is,
+    the position of the plot routine in the preprocessing pipeline is
+    important.
+    """
 
     def __init__(self, params_pre):
         """Instantiates the pre_plot class as a callable.
