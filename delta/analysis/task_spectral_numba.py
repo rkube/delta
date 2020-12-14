@@ -74,7 +74,7 @@ def calc_and_store_numba(kernel, storage_backend, fft_data, ch_it, info_dict):
 
 
 class task_spectral_GAP(task_base):
-    """Calculates coherence, cross-power and cross-phase in a fused kernel."""
+    """Calculates coherence, cross-power and cross-phase in a fused GPU kernel."""
     def _get_kernel(self):
         return kernel_spectral_GAP
         #return increment_by_two

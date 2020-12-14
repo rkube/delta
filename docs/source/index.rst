@@ -1,31 +1,20 @@
 Welcome to delta-fusion's documentation!
 ========================================
 
+`Delta`(the aDaptive near rEaL-Time Analysis framework) facilitates near real-time streaming
+analysis of big fusion data on remote HPC resources. It implements software components
+for loading and staging measurement data, streaming, analysis, and storage. `Delta` combines these
+components into a framework for adaptive near-real time analysis of streaming data, targeted 
+towards use-cases in fusion energy research. It consists of multiple executables that send,
+receive, and process data on different machines. The picture below gives an 
+overview of Delta.
 
-What does delta fusion do?
-==========================
-Delta fusion aims to connect fusion experiments and HPC clusters.
 
 
-
-Guide
-^^^^^
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents: 
-
-.. Delta-fusion documentation master file, created by
-   sphinx-quickstart on Thu Oct 22 11:55:40 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to Delta-fusion's documentation!
-========================================
-Delta facilitates near real-time streaming analysis of big fusion data on
-remote HPC resources. It consists of multiple executables that send,
-receive, and process data on different machines. The picture below gives an 
-overview of Delta.
 
 
 .. figure:: delta_arch_v02.png
@@ -69,6 +58,7 @@ Package reference
     modules/preprocess
     modules/analysis
     modules/storage
+    modules/configuration
 
 
 

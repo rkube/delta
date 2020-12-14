@@ -59,6 +59,13 @@ allows to compose preprocessing routines into a pipeline.
 .. contents:: Contents 
     :local:
 
+preprocess
+----------
+
+.. automodule:: preprocess.preprocess
+    :members:
+    :special-members: __init__
+
 
 Short-Time Fourier Transformation
 ---------------------------------

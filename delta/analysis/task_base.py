@@ -64,27 +64,24 @@ class task_base():
         self.storage_backend.store_metadata(params)
 
     def _get_kernel(self):
+        """Returns the analysis kernel to launch."""
         return None
 
     def _get_dispatch_func(self):
+        """Returns the dispatch function to use."""
         return calc_and_store
 
     def execute(self, timechunk, executor):
         """Launches a spectral analysis kernel on an executor.
 
         Args:
-        executor (PEP-3148-style executor):
-            Executor to use
-        fft_data (data-model):
-            Fourier Coefficients of the data to analyze
+            executor (`PEP-3148 <https://www.python.org/dev/peps/pep-3148/>`_ compatible executor):
+                Executor to use
+            fft_data (data-model):
+                Fourier Coefficients of the data to analyze
 
         Returns:
             None
-
-        Note: When submitting member functions on the executioner we are losing the
-        ability to store future lists.
-
-        This implementation lacks self.futures_list and the results of e.submit are discarded.
         """
         self.logger.info("Entering submit.")
 

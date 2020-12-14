@@ -4,7 +4,7 @@ from sources.loader_kstarecei import loader_kstarecei
 
 
 def get_loader(cfg_all):
-    """Returns data loader appropriate for the configured diagnostic.
+    """Returns data loader for diagnostic defined in cfg['diagnostic']['name']
 
     Args:
         cfg_all (dict):

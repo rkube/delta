@@ -42,7 +42,7 @@ exclude_patterns = []
 
 # -- User configuration ------------------------------------------------------
 # Do not attempt to build mpi4py when building the documentation
-autodoc_mock_imports = ['mpi4py', 'skimage', 'h5py']
+autodoc_mock_imports = ['mpi4py', 'skimage', 'h5py', 'adios2', 'pymongo', 'gridfs', 'bson']
 
 
 # -- Options for HTML output -------------------------------------------------
