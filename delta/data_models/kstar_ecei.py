@@ -1,21 +1,11 @@
 # -*- Encoding: UTF-8 -*-
 
-"""Contains helper function for working with the ECEI diagnostic.
-
-Author: Minjun Choi (original), Ralph Kube (refactored)
-
-These are just the member functions from kstarecei.py, copied here
-so that we don't need to instantiate an kstarecei object.
-
-Defines abstraction for handling ECEI channels.
+"""Defines data types and helper functions for handling KSTAR ECEI data.
 
 The ECEI diagnostics provides 192 independent channels that are arranged
 into a 8 radial by 24 vertical view.
 
-In fluctana, channels are referred to f.ex. L0101 or GT1507. The letters refer to a
-device (D), the first two digits to the vertical channel number (V) and the last two digits
-refer to the horizontal channel number (H). In delta we ue the format DDVVHH, where the letters
-refer to one of the three components.
+This code is based on the `fluctana <https://github.com/minjunJchoi/fluctana>`_ code
 """
 
 import logging
@@ -24,47 +14,27 @@ import numpy as np
 from data_models.channels_2d import channel_2d, channel_range, num_to_vh
 
 
-def channel_range_from_str(range_str):
-    """Generates a channel_range from a range.
-
-    Channel ranges are specified like this:
-
-    ..code-block::
-        'ECEI_[LGHT..][0-9]{4}-[0-9]{4}'
-
-    Args:
-        range_str (str):
-        Specifices KSTAR ECEI channel range
-
-    Returns:
-        channel_range (channel_range):
-            Channel range corresponding to range_str
-    """
-    import re
-
-    m = re.search('[A-Z]{1,2}', range_str)
-    # try:
-    #     dev = m.group(0)
-    # except:
-    #     raise AttributeError("Could not parse channel string " + range_str)
-
-    m = re.findall('[0-9]{4}', range_str)
-
-    ch_i = int(m[0])
-    ch_hi = ch_i % 100
-    ch_vi = int(ch_i // 100)
-    ch_i = channel_2d(ch_vi, ch_hi, 24, 8, 'horizontal')
-
-    ch_f = int(m[1])
-    ch_hf = ch_f % 100
-    ch_vf = int(ch_f // 100)
-    ch_f = channel_2d(ch_vf, ch_hf, 24, 8, 'horizontal')
-
-    return channel_range(ch_i, ch_f)
-
-
 class ecei_chunk():
-    """Class that represents a time-chunk of ECEI data."""
+    """Class that represents a time-chunk of ECEI data.
+    
+    This class provides the following interface.
+
+    Creating a time-chunk from streaming data, where `tb_chunk` is of type
+    :py:class:`data_models.timebase.timebase_streaming`:
+
+    .. code-block:: python
+
+        chunk = kstar_ecei(stream_data, tb_chunk, stream_attrs)
+
+    Example: Fourier-transformation of a time-chunk. Time-axis is given given by
+    axis_t member, data is access by data member, sampling frequency is calculated
+    through time-base.
+
+    .. code-block:: python
+
+        fft_data = fft(chunk.data, axis=chunk.axsi_t, fsample = 1. / chunk.tb.dt()
+    
+    """
 
     def __init__(self, data, tb, params=None, num_v=24, num_h=8):
         # TODO: remove rarr and zarr and make them computable from params
@@ -75,10 +45,11 @@ class ecei_chunk():
 
         Parameters under which the data was measured needs to be passed in the params dict.
         Keys need to include:
+
             * dev: String identifier of the ECEI device: L, G, H, GT, or GR
             * TriggerTime: 
-            * t_norm: Vector of 2 floats, defining the time interval used for normalization.
-            * SampleRate: Rate at which each channels samples Te
+            * t_norm: Vector of 2 floats, defining the time interval used for normalization. In seconds.
+            * SampleRate: Rate at which each channels samples the plasma. In Hz.
             * TFCurrent: Toroidal Field Coil current, in Amps
             * Mode: string, either 'X' or 'O'
             * LoFreq: float
@@ -88,7 +59,7 @@ class ecei_chunk():
         Args:
             data (ndarray, float):
                 Raw data for the ECEI voltages
-            tb (timebase_streaming):
+            tb (:py:class:`data_models.timebase.timebase_streaming`):
                 timebase for ECEI voltages
             params:
                 Additional parameters under which the data was measured. See dicussion above.
@@ -147,10 +118,13 @@ class ecei_chunk():
     def mark_bad_channels(self, verbose=False):
         """Mark bad channels.
 
-        These are channels with either
-        * Low signal level: std(offset) / siglev > 0.3
-        * Saturated signal data(bottom saturation): std(offset) < 0.001
-        * Saturated offset data(top saturation): std(signal) < 0.001
+        A channel where any of the following three condition is true is marked as bad.
+
+            * Low signal level: std(offset) / siglev > 0.3
+            * Saturated signal data(bottom saturation): std(offset) < 0.001
+            * Saturated offset data(top saturation): std(signal) < 0.001
+
+        Internally, bad channels is represented by an bool array of shape (self.num_h * self.num_v)
         """
         self.logger.info(f"offlev: {self.offlev.shape}, offstd: {self.offstd.shape}, siglev: {self.siglev.shape}, sigstd: {self.sigstd.shape}")
         # Check for low signal level
@@ -244,6 +218,51 @@ class ecei_chunk_ft():
     def shape(self):
         """Forwards to self.ecei_data.shape."""
         return self.ecei_data.shape
+
+
+def channel_range_from_str(range_str):
+    """Generates a channel_range from a range.
+
+    In `fluctana <https://github.com/minjunJchoi/fluctana>`_ ,
+    channels are referred to f.ex. 
+
+    .. code-block::
+    
+        'L0101' or 'GT1507'
+    
+    The letters refer to a device (D), the first two digits to the vertical channel number (V) 
+    and the last two digits refer to the horizontal channel number (H). Delta uses the same DDVVHH
+    format.
+
+    Args:
+        range_str (str):
+            KSTAR ECEI channel range, format DDVVHH
+
+    Returns:
+        channel_range (:py:class:`data_models.channels_2d.channel_range`):
+             Channel range corresponding to range_str
+    """
+    import re
+
+    m = re.search('[A-Z]{1,2}', range_str)
+    # try:
+    #     dev = m.group(0)
+    # except:
+    #     raise AttributeError("Could not parse channel string " + range_str)
+
+    m = re.findall('[0-9]{4}', range_str)
+
+    ch_i = int(m[0])
+    ch_hi = ch_i % 100
+    ch_vi = int(ch_i // 100)
+    ch_i = channel_2d(ch_vi, ch_hi, 24, 8, 'horizontal')
+
+    ch_f = int(m[1])
+    ch_hf = ch_f % 100
+    ch_vf = int(ch_f // 100)
+    ch_f = channel_2d(ch_vf, ch_hf, 24, 8, 'horizontal')
+
+    return channel_range(ch_i, ch_f)
 
 
 def get_abcd(LensFocus, LensZoom, Rinit, dev, new_H=True):

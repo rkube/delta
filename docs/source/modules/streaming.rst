@@ -24,10 +24,31 @@ Example code to instantiate a writer and stream data would look like this:
 
 
 During instantiation, the writer uses `cfg['transport']` to set appropriate ADIOS2 parameters,
-such as the 
-`streaming protocol <https://adios2.readthedocs.io/en/latest/engines/engines.html>`_ ,
-and additional parameters, and initializes a channel name for the
-datastream. To send data through the stream, a 
+such as the `streaming protocol <https://adios2.readthedocs.io/en/latest/engines/engines.html>`_ ,
+and additional parameters. For example, the configuration section
+
+.. code-block::
+
+    "transport":
+    {
+        "engine": "BP4",
+        "params":
+        {
+            "Threads: 4",
+            "InitialBufferSize": "1Gb"
+        }
+    }
+
+will instantiate :py:class:`streaming.reader_mpi.reader_gen` that expects input
+from a BP4-file. Details on BP4 and valid parameters can be found in the
+`ADIOS2 documentation <https://adios2.readthedocs.io/en/latest/engines/engines.html#bp4>`_ .
+
+Since :py:class:`streaming.writers.writer_gen` and :py:class:`streaming.reader_mpi.reader_gen` 
+need to open the same channel name, the convenience function 
+:py:func:`data_models.helpers.gen_channel_name` generates such a name from the `diagnostic`
+object in the configuration file.
+
+To send data through the stream, a 
 `variable <https://adios2.readthedocs.io/en/latest/components/components.html?highlight=definevariable#variable>`_ 
 has to be defined with a shape and an expected datatype.
 After the stream has been opened, one can define 

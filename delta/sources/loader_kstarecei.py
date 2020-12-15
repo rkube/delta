@@ -33,6 +33,9 @@ class loader_kstarecei():
             * diagnostic.datahsour.num_chunks - Total number of chunks to load
             * diagnostic.datasource.datatype - Numerical type to use for data
 
+
+        Glossary example... :term:`foobar.a1`
+
         """
         self.ch_range = channel_range_from_str(cfg_all["diagnostic"]["datasource"]
                                                ["channel_range"][0])
