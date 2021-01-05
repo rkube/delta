@@ -9,11 +9,5 @@ exclude =
     .nox
     streaming
     tests
-    generator_brute_multi.py
-    receiver_mpi.py
-    receiver.py
-    generator_adios2.py
-    generator_brute.py
-    receiver_brute.py
     __init__.py
     docs/source/conf.py
