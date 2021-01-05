@@ -10,25 +10,34 @@ and its parameters. The routines itself are executed on a PEP-3148 style executo
 
 For example, the entry
 
+.. code-block:: 
 
-.. code-block:: json
-
-    "preprocess" 
+    "preprocess": 
     {
-      "pre1": {"parameter1": 1, "parameter2": 2},
-      "pre2": {"parameter1": 1, "parameter2": "val2"}
+      "bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"},
+      "plot": {"time_range": [2.7175, 2.7178], "plot_dir": "/home/user/delta_run/plots/"}
     }
 
 
-defines a pre-processing pipeline consisting of two routines. The keys `pre1` and `pre2` 
-in the `preprocess` section are mapped to preprocessor classes by
-:py:meth:`preprocess.helpers.get_preprocess_routine`. The preprocessor classes itself expose a 
-`process` member, which takes a data chunk as input and returns the transformed data chunk.
-This function serves as a wrapper around a function call.
-The parameter dictionaries in the configuration file above are stored by the preprocessor 
-class instances and are passed to the wrapped function call.
+defines a pre-processing pipeline consisting of two routines,
+:py:class:`preprocess.pre_bandpass.bandpass_fir` and 
+:py:class:`preprocess.pre_plot.pre_plot`. The function :py:func:`preprocess.helpers.get_preprocess_routine`
+implements a mapping from keys such as :code:`bandpass_fir` and
+:code:`plot` to the respective preprocessor classes. 
 
-The example below shows how to set up a pre-processing pipeline
+Preprocessor classes are instantiated like this:
+
+.. code-block:: python
+
+    pp_fir = pre_bandpass_fir(params)
+    pp_plot = pre_plot(params)
+
+The parameters are stored as member variables by the class objects. To preprocess time chunks,
+preprocessing classes define  :py:meth:`preprocess.wavelet.process` member. This preprocesses a
+time-chunk on an executor and returns the transformed time-chunk.
+
+By returning the same data type as was passed into the `process` member, preprocessing 
+routines can be combined into a preprocessing pipeline:
 
 .. code-block:: python
     
@@ -44,8 +53,10 @@ The example below shows how to set up a pre-processing pipeline
 First, an executor on which the pre-processing will be performed, is instantiated.
 In the example here, this is a ThreadPoolExecutor that uses 4 worker threads on the
 root node. Following that call, the pre-processing pipeline is instantiated. 
+
+
 In the receiver loop, this pipeline is executed by calling 
-:py:meth:`preprocess.preprocess.submit` with the just received
+:py:meth:`preprocess.preprocessor.submit` with the just received
 message. The pre-processed time-chunk is then avilable as `msg_pp`.
 
 
@@ -58,6 +69,13 @@ allows to compose preprocessing routines into a pipeline.
 
 .. contents:: Contents 
     :local:
+
+preprocess
+----------
+
+.. automodule:: preprocess.preprocess
+    :members:
+    :special-members: __init__
 
 
 Short-Time Fourier Transformation
@@ -84,7 +102,8 @@ Plotting
     :members:
     :special-members: __init__
 
-Helper functions
-----------------
-.. automodule:: preprocess.helpers
+Preprocessing Helper functions
+------------------------------
+.. autofunction:: preprocess.helpers.get_preprocess_routine
+
 

@@ -4,7 +4,35 @@
 
 
 class timebase_streaming():
-    """Defines a timebase for a data chunk in the stream."""
+    """Defines a timebase for a time-chunk of data in a stream.
+
+    The start and end time refer to the entire data stream. To describe the
+    position of the time-chunk in the stream, the member function 
+    :py:func:`analysis.timebase.timebase_streaming.time_to_idx` returns an
+    integer index if the time argument falls within the current time chunk.
+
+    .. code-block:: python
+        
+        >>> t_start = -0.1   # This is the start time of the stream
+        >>> t_end = 9.9  # This is the stop time of the stream
+        >>> f_sample = 5e5  # Sampling frequency
+        >>> chunk_size = 10_000  # Number of samples per time-chunk
+        >>> chunk_idx = 12  # We want to describe the 12th time-chunk.
+
+        >>> tb_stream = timebase_streaming(t_start, t_end, f_sample, chunk_size, chunk_idx)
+
+        >>> for t, target in range(chunk_idx * chunk_size - 2,
+                                   chunk_idx * chunk_size + 2)):
+                time = tb_stream.t_start + t / tb_stream.f_sample
+                print(tb_stream.time_to_idx(time))
+
+            [None, None, 0, 1, 2]
+    
+    The first two sample times fall before the described time-chunk. Here time_to_idx returns `None`.
+    The last three sample times are within time-chunk and time_to_idx returns the time index of 
+    the relevant sample.
+
+    """
 
     def __init__(self, t_start: float, t_end: float, f_sample: float,
                  samples_per_chunk: int, chunk_idx: int):
@@ -61,7 +89,8 @@ class timebase_streaming():
 
         Returns:
             tidx_rel (int):
-                Relative index in the current time chunk
+                Relative index in the current time chunk. Returns :code:`None` of time is outside 
+                of current chunk.
         """
         assert(time >= self.t_start)
         assert(time <= self.t_end)

@@ -29,7 +29,7 @@ author = 'R. Kube, R.M. Churchill, Y.J. Choi, J. Wang'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # ones.
-extensions = ["sphinx.ext.autodoc", "sphinx_rtd_theme"]
+extensions = ["sphinx.ext.autodoc", "sphinx_rtd_theme", "sphinx.ext.autosectionlabel"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -42,7 +42,7 @@ exclude_patterns = []
 
 # -- User configuration ------------------------------------------------------
 # Do not attempt to build mpi4py when building the documentation
-autodoc_mock_imports = ['mpi4py', 'skimage', 'h5py']
+autodoc_mock_imports = ['mpi4py', 'skimage', 'h5py', 'adios2', 'pymongo', 'gridfs', 'bson']
 
 
 # -- Options for HTML output -------------------------------------------------

@@ -15,7 +15,7 @@ class task_null(task_base):
 
 
 class task_crosscorr(task_base):
-    """Calculcates cross-correlation using numpy."""
+    """Calculcates cross-correlation using numpy kernel."""
     def __str__(self):
         return "task_crosscorr"
 
@@ -24,7 +24,7 @@ class task_crosscorr(task_base):
 
 
 class task_coherence(task_base):
-    """Calculcates coherence using numpy."""
+    """Calculcates coherence using numpy kernel."""
     def __str__(self):
         return "task_coherence"
 
@@ -33,7 +33,7 @@ class task_coherence(task_base):
 
 
 class task_crossphase(task_base):
-    """Calculates crossphase using numpy."""
+    """Calculates crossphase using numpy kernel."""
     def __str__(self):
         return "task_crossphase"
 
@@ -42,7 +42,7 @@ class task_crossphase(task_base):
 
 
 class task_crosspower(task_base):
-    """Calculates crosspower using numpy."""
+    """Calculates crosspower using numpy kernel."""
     def __str__(self):
         return "task_crosspower"
         

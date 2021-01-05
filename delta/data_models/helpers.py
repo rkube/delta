@@ -27,6 +27,11 @@ class data_model_generator():
             ValueError:
                 Field 'name' specified in cfg_diagnostic could not be matched
                 to an existing data_model
+
+        Used keys from cfg_all:
+            * diagnostic.datasource.chunk_size
+            * diagnostic.datasource.t_norm
+            * diagnostic.name
         """
         self.logger = logging.getLogger("simple")
         self.cfg = cfg_diagnostic
@@ -40,8 +45,7 @@ class data_model_generator():
 
         if self.cfg["name"] == "kstarecei":
             self.data_type = ecei_chunk
-
-        elif self["name"] == "nstxgpi":
+        elif self.cfg["name"] == "nstxgpi":
             self.data_type = None
         else:
             raise ValueError(f"No data model for diagnostic {cfg_diagnostic['name']}")

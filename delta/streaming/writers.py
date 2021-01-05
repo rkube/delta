@@ -1,5 +1,7 @@
 # -*- coding: UTF-8 -*-
 
+"""Writers for the Delta framework."""
+
 from mpi4py import MPI
 
 import numpy as np

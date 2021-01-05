@@ -13,7 +13,7 @@ from streaming.stream_stats import stream_stats
 
 class reader_base():
     def __init__(self, cfg: dict, stream_name: str):
-        """Generates a reader for KSTAR ECEI data.
+        """Initializes the generic reader base class.
 
         Arguments:
             cfg (dict):
@@ -148,8 +148,6 @@ class reader_gen(reader_base):
     def __init__(self, cfg: dict, stream_name: str):
         """Instantiates a reader.
 
-           Control Adios method and params through cfg
-
         Args:
             cfg (dict):
                 delta config dict
@@ -158,6 +156,10 @@ class reader_gen(reader_base):
 
         Returns:
             A class instance
+
+        Used keys from cfg_all:
+            * transport.engine - Defines the `ADIOS2 engine <https://adios2.readthedocs.io/en/latest/engines/engines.html#supported-engines>`_
+            * transport.params - Passed to `SetParameters <https://adios2.readthedocs.io/en/latest/api_full/api_full.html?highlight=setparameters#_CPPv4N6adios22IO13SetParametersERKNSt6stringE>`_
         """
         super().__init__(cfg, stream_name)
         self.IO.SetEngine(cfg["engine"])

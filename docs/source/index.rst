@@ -1,31 +1,17 @@
 Welcome to delta-fusion's documentation!
 ========================================
 
+`Delta` (the a **D** aptive near r **E** a **L** - **T** ime **A** nalysis framework) facilitates near real-time
+streaming and analysis of big fusion data on remote HPC resources. It implements software components
+for loading and staging measurement data, streaming, analysis, and storage. `Delta` combines these
+components into a framework for adaptive near-real time analysis of streaming data, targeted 
+towards use-cases in fusion energy research. It consists of multiple executables that send,
+receive, and process data on different machines. The picture below gives an overview of Delta.
 
-What does delta fusion do?
-==========================
-Delta fusion aims to connect fusion experiments and HPC clusters.
-
-
-
-Guide
-^^^^^
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents: 
-
-.. Delta-fusion documentation master file, created by
-   sphinx-quickstart on Thu Oct 22 11:55:40 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to Delta-fusion's documentation!
-========================================
-Delta facilitates near real-time streaming analysis of big fusion data on
-remote HPC resources. It consists of multiple executables that send,
-receive, and process data on different machines. The picture below gives an 
-overview of Delta.
 
 
 .. figure:: delta_arch_v02.png
@@ -39,12 +25,9 @@ to the `processor`, which executes data analysis kernels on a supercomputer.
 The analysis results are stored and made available to web-clients by a separate
 webserver.
 
-This documentation describes the capabilities of `Delta`, how to configure it and
-how to launch distributed anaylsis workflows.
-
-
 Running Delta
 =============
+Describes how to install, configure, and launch distributed analysis workflows.
 
 
 .. toctree::
@@ -58,18 +41,41 @@ Running Delta
 
 Package reference
 =================
+Documentation of individual software modules
 
 .. toctree::
     :maxdepth: 1
     :caption: Package reference
 
-    modules/data_models
     modules/sources
+    modules/data_models
     modules/streaming
     modules/preprocess
     modules/analysis
     modules/storage
 
+
+Presentations and Papers
+========================
+Delta has been presented at multiple scientific conferences.
+
+SciPy 2020
+^^^^^^^^^^
+
+* `Proceedings paper <http://conference.scipy.org/proceedings/scipy2020/ralph_kube.html>`_
+* `Presentation <https://www.youtube.com/watch?v=8udbAD-KZdA&t=4s>`_
+
+
+23rd Conference on High Temperature Plasma Diagnostics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* `Presentation <https://www.youtube.com/watch?v=56d93cN9oNo&t=370s>`_
+
+SC 2020 Workshop
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2020 IEEE/ACM HPC for Urgent Decision Making Workshop
+
+* `Paper <https://conferences.computer.org/scwpub/#!/toc/23?>`_
 
 
 

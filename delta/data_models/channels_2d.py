@@ -11,16 +11,16 @@ class channel_2d:
 
         Args:
             ch_v (int):
-              Horizontal channel number
+                Horizontal channel number
             ch_h (int):
-              Vertical channel number
+                Vertical channel number
             chnum_v (int):
-              Total count of vertical channels
+                Total count of vertical channels
             chnum_h (int):
-              Total count of vertical channels
+                Total count of vertical channels
             order (string):
-              Either 'horizontal' or 'vertical'. Denotes whether horizontal or
-              vertical channels are arranged consecutively
+                Either 'horizontal' or 'vertical'. Denotes whether horizontal or
+                vertical channels are arranged consecutively
 
         Returns:
             None
@@ -129,6 +129,7 @@ class channel_range:
     as defined by vertical and horizontal initial and final position (vi, hi), and (vf, hf).
 
     ::
+
             v
             ^
             |
@@ -145,7 +146,8 @@ class channel_range:
     Iteration over this selection with horizontal channels consecutively ordered
     gives the index series
 
-     ::
+    ::
+
          (3,2), (4,2), (5,2),
          (3,3), (4,3), (5,3),
          (3,4), (4,4), (5,4),
@@ -231,17 +233,20 @@ class num_to_vh():
 
     >>> obj = num_to_vh(24, 8, "vertical")
     >>> ch_num_to_vh(17)
-    (3, 1)
+         (3, 1)
     """
 
     def __init__(self, chnum_v: int, chnum_h: int, order: str):
         """Initializes with number of vertical and horizontal views.
 
         Args:
-            chnum_v (int): Number of vertical views in the diagnostic
-            chnum_h (int): Number of horizontal views in the diagnostic
-            order (string) : Either 'horizontal' or 'vertical' denotes whether horizontal
-                             or vertical channels are ordered consecutively.
+            chnum_v (int):
+                Number of vertical views in the diagnostic
+            chnum_h (int):
+                Number of horizontal views in the diagnostic
+            order (string) :
+                Either 'horizontal' or 'vertical' denotes whether horizontal
+                or vertical channels are ordered consecutively.22
         """
         self.chnum_v = chnum_v
         self.chnum_h = chnum_h

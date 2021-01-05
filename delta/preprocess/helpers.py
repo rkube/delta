@@ -10,7 +10,22 @@ from preprocess.pre_plot import pre_plot
 
 
 def get_preprocess_routine(key, params):
-    """Returns a instance of a callable pre-processing objects for each key.
+    """Returns an instance of a pre-processing objects that matches the key.
+
+    +--------------+------------------------------------------------------+
+    | key          | object                                               |
+    +==============+======================================================+
+    | stft         | :py:class:`preprocess.pre_stft.pre_stft`             |
+    +--------------+------------------------------------------------------+
+    | wavelet      | :py:class:`preprocess.pre_wavelet.pre_wavelet`       |
+    +--------------+------------------------------------------------------+
+    | bandpass_fir | :py:class:`preprocess.pre_bandpass.pre_bandpass_fir` |
+    +--------------+------------------------------------------------------+
+    | bandbass_iir | :py:class:`preprocess.pre_bandpass.pre_bandpass_iir` |
+    +--------------+------------------------------------------------------+
+    | plot         | :py:class:`preprocess.pre_plot.pre_plot`             |
+    +--------------+------------------------------------------------------+
+
 
     Args:
         key (string):

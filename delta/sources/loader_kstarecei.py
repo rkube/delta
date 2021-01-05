@@ -26,6 +26,16 @@ class loader_kstarecei():
 
         Returns:
             None
+
+        Used keys from cfg_all:
+            * diagnostic.datasource.source_file - Name of the hdf5 file
+            * diagnostic.datasource.chunk_size - Number of samples per chunk
+            * diagnostic.datahsour.num_chunks - Total number of chunks to load
+            * diagnostic.datasource.datatype - Numerical type to use for data
+
+
+        Glossary example... :term:`foobar.a1`
+
         """
         self.ch_range = channel_range_from_str(cfg_all["diagnostic"]["datasource"]
                                                ["channel_range"][0])
@@ -40,7 +50,9 @@ class loader_kstarecei():
         if cfg_all["diagnostic"]["datasource"]["datatype"] == "int":
             self.dtype = np.int32
         elif cfg_all["diagnostic"]["datasource"]["datatype"] == "float":
-            self.dtype = np.float64
+            self.dtype = np.float
+        elif cfg_all["diagnostic"]["datasource"]["datatype"] == "double":
+            self.dtype = np.float
 
         # Process attributes stored in HDF5 file
         # Extract device name of filename, the part in between .[A-Z]{2}.
@@ -138,14 +150,9 @@ class loader_kstarecei():
     def batch_generator(self):
         """Loads the next time-chunk from the data file.
 
-        This implementation works as a generator.
-
-        The ECEI data is usually normalized to a fixed offset, calculated using data
-        at the beginning of the stream.
-
         >>> batch_gen = loader.batch_generator()
         >>> for batch in batch_gen():
-        >>>    ...
+        >>>    type(batch) = ecei_chunk
 
         Returns:
             chunk (ecei_chunk)
