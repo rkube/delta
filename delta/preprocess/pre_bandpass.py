@@ -3,7 +3,7 @@
 
 """Defines infitnite-impulse bandpass filters."""
 
-from scipy.signal import iirdesign, butter, sosfilt
+from scipy.signal import iirdesign, butter, sosfilt, filtfilt
 
 
 def kernel_bandpass_sos(data, params):
@@ -26,6 +26,30 @@ def kernel_bandpass_sos(data, params):
 
     """
     y = sosfilt(params["sos"], data.data, axis=data.axis_t)
+    data.data[:] = y[:]
+
+    return(data)
+
+
+def kernel_bandpass_iir(data, params):
+    """Executes iir bandpass filter.
+
+    Uses `scipy.signal.filtfilt
+    <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.filtfilt.html>`_
+    to filter a data sequence.
+
+    Args:
+        data (twod_chunk):
+            Time-chunk of diagnostic data.
+        params:
+            Dictionary of arguments that are passed to `scipy.signal.filtfilt`.
+
+    Returns:
+        data (twod_chunk):
+            Time-chunk with filtered data
+
+    """
+    y = filtfilt(params["bir"], params["air"], data.data, axis=data.axis_t)
     data.data[:] = y[:]
 
     return(data)
@@ -56,7 +80,9 @@ class pre_bandpass_iir():
             None
         """
         self.params = params
-        self.sos = iirdesign(**params)
+        print("params = ", params)
+        self.bir, self.air = iirdesign(**params)
+        print("bir = ", self.bir, ", air = ", self.air)
 
     def process(self, data_chunk, executor):
         """Bandpass-filters the time-chunk.
@@ -72,8 +98,8 @@ class pre_bandpass_iir():
                 Time-chunk of data
         """
         # Do nothing and return the data
-        params = {"sos": self.sos}
-        fut = executor.submit(kernel_bandpass_sos, data_chunk, params)
+        params = {"bir": self.bir, "air": self.air}
+        fut = executor.submit(kernel_bandpass_iir, data_chunk, params)
         data_chunk = fut.result()
         return data_chunk
 
