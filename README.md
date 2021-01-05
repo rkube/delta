@@ -17,7 +17,12 @@ For installation and documentation, see https://delta-fusion.readthedocs.io/en/l
 ![Delta Architecture](https://github.com/rkube/delta/blob/master/docs/source/delta_arch_v02.png "Delta Architecture")
 
 Cite as:
----
-R. Kube et al., “Leading magnetic fusion energy science into the big-and-fast data lane” Proceedings of
-the 19th Python in Science Conference. [DOI: 10.25080/Majora-342d178e-013]
----
+```
+@inproceedings{Kube2020,
+   author = {R. Kube and R.M. Churchill and Jong Youl Choi and Ruonan Wang and Scott Klasky and C. S. Chang},
+   journal = {Proceedings of the 19th Python in Science Conference},
+   title = {Leading magnetic fusion energy science into the big-and-fast data lane},
+   url = {http://conference.scipy.org/proceedings/scipy2020/ralph_kube.html},
+   year = {2020},
+}
+```
