@@ -6,25 +6,77 @@ Summary
 =======
 
 * MPIPoolExecutor 
-  - Workers will be created by using MPI Spawn (which is not supported on Cori)
-  - After MPI Spawn, workers will have own MPI_COMM_WORLD (which is different from the master's world comm)
-  - Workers will execute every things except the "__main__" block after spawning
-  - Using "-m mpi4py.futures" in the command will not use MPI Spawn
-  - Using "-m mpi4py.futures" in the command will override max_workers argument in MPIPoolExecutor() call
-  - If MPI Spawn is enabled, it can be used to construct multiple master-worker sets. 
-    e.g.) mpirun -n 2 python -c "MPIPoolExecutor(max_workers=3)" 
-          will create a total 6 processes: 2 masters and each of them has 3 workers.
-          Note: Using "-m mpi4py.futures" will create only 2 processes in total
+    - Workers will be created by using MPI Spawn (which is not supported on Cori)
+    - After MPI Spawn, workers will have own MPI_COMM_WORLD (which is different from the master's world comm)
+    - Workers will execute every things except the "__main__" block after spawning
+    - Using "-m mpi4py.futures" in the command will not use MPI Spawn
+    - Using "-m mpi4py.futures" in the command will override max_workers argument in MPIPoolExecutor() call
+    - If MPI Spawn is enabled, it can be used to construct multiple master-worker sets. 
+        e.g.) mpirun -n 2 python -c "MPIPoolExecutor(max_workers=3)" 
+            will create a total 6 processes: 2 masters and each of them has 3 workers.
+            Note: Using "-m mpi4py.futures" will create only 2 processes in total
 
 * MPICommExecutor 
-  - Workers will be created by using MPI comm split
-  - MPI collective calls can be used outside of the "__main__" block as well as outside of the MPICommExecutor context.
+    - Workers will be created by using MPI comm split
+    - MPI collective calls can be used outside of the "__main__" block as well as outside of the MPICommExecutor context.
 
 * Using "-m mpi4py.futures" in the command line
-  - mpi4py will automatically split n MPI processes into two groups; a master (rank 0) and n-1 workers.
-  - n-1 workers will be blocked until the master execute MPICommExecutor/MPIPoolExecutor calls (submit, map, etc),
+    - mpi4py will automatically split n MPI processes into two groups; a master (rank 0) and n-1 workers.
+    - n-1 workers will be blocked until the master execute MPICommExecutor/MPIPoolExecutor calls (submit, map, etc),
     which cause any MPI collective calls (barrier/send/receive/etc) to be hanged.
-  - n-1 workers will not execute the "__main__" block
+    - n-1 workers will not execute the "__main__" block
+
+Command
+=======
+```
+$ python test_executor.py -h                                                                      
+usage: test_executor.py [-h] [--nworkers NWORKERS]
+                        [--ncorespernode NCORESPERNODE] [--nsteps NSTEPS]
+                        [--chunksize CHUNKSIZE] [--analysistime ANALYSISTIME]
+                        [--checkclock] [--setaffinity]
+                        [--processpool | --threadpool | --mpicomm | --mpipool]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --nworkers NWORKERS   Number of workers
+  --ncorespernode NCORESPERNODE
+                        Number of cores per node
+  --nsteps NSTEPS       Number of steps
+  --chunksize CHUNKSIZE
+                        Number of steps in data chunk
+  --analysistime ANALYSISTIME
+                        Analysis time in second
+  --checkclock          Check clock diff
+  --setaffinity         Set affinity
+  --processpool         use ProcessPoolExecutor
+  --threadpool          use ThreadPoolExecutor
+  --mpicomm             use MPICommExecutor
+  --mpipool             use MPIPoolExecutor
+```
+
+Examples (Cori)
+========
+* Run MPIPoolExecutor wtth 8 workers (will fail with MPID_Comm_spawn_multiple not implemented)
+    srun -n 1 python test_executor.py --mpipool --nworkers=8
+  Intead, run:
+    srun -n 9 python -m mpi4py.futures test_executor.py --mpipool
+
+* Run MPICommExecutor wtth 1 master-8 workers. The following two commands will same:
+    srun -n 9 python test_executor.py --mpicomm
+    srun -n 9 python -m mpi4py.futures test_executor.py --mpicomm
+
+  However, the following will hang since `checkclock` option will call MPI send/receive
+    srun -n 9 python -m mpi4py.futures test_executor.py --mpicomm --checkclock
+  The following will work:
+    srun -n 9 python test_executor.py --mpicomm --checkclock
+
+* ProcessPoolExecutor with and without affinity
+    srun -n 1 python test_executor.py --processpool --nworkers=8 --setaffinity
+    srun -n 1 python test_executor.py --processpool --nworkers=8
+
+* ThreadPoolExecutor with and without affinity
+    srun -n 1 python test_executor.py --threadpool --nworkers=8 --setaffinity
+    srun -n 1 python test_executor.py --threadpool --nworkers=8
 
 """
 
@@ -103,9 +155,10 @@ parser.add_argument('--nsteps', type=int, help='Number of steps', default=100)
 parser.add_argument('--chunksize', type=int, help='Number of steps in data chunk', default=10000)
 parser.add_argument('--analysistime', type=float, help='Analysis time in second', default=1.0)
 parser.add_argument('--checkclock', help='Check clock diff', action='store_true')
+parser.add_argument('--setaffinity', help='Set affinity', action='store_true')
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--processpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='process')
-group.add_argument('--threadpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='thread')
+group.add_argument('--threadpool', help='use ThreadPoolExecutor', action='store_const', dest='pool', const='thread')
 group.add_argument('--mpicomm', help='use MPICommExecutor', action='store_const', dest='pool', const='mpicomm')
 group.add_argument('--mpipool', help='use MPIPoolExecutor', action='store_const', dest='pool', const='mpipool')
 parser.set_defaults(pool='process')
@@ -194,9 +247,10 @@ def hello(counter):
     ## Set affinity when using ProcessPoolExecutor
     if args.pool == 'process':
         if hasattr(os, 'sched_getaffinity'):
-            ## We leave rank-0 core for the main process
-            affinity_mask = {pidmap[os.getpid()]%args.ncorespernode}
-            os.sched_setaffinity(0, affinity_mask)
+            if args.setaffinity:
+                ## We leave rank-0 core for the main process
+                affinity_mask = {pidmap[os.getpid()]%args.ncorespernode}
+                os.sched_setaffinity(0, affinity_mask)
             affinity = os.sched_getaffinity(0)
     logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={pidmap[os.getpid()]} affinity={affinity}")
     # time.sleep(random.randint(1, 5))
