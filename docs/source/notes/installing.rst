@@ -66,7 +66,7 @@ configuration from the script above this can be done with
 
 .. code-block:: shell
 
-    export PYTHONPATH=$PYTHONPATH:$HOME/software/adios2-current/lib/python3.9/site-packages/adios2
+    export PYTHONPATH=$PYTHONPATH:$HOME/software/adios2-current/lib/python3.9/site-packages
 
 
 
