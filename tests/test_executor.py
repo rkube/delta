@@ -70,11 +70,11 @@ Examples (Cori)
   The following will work:
     srun -n 9 python test_executor.py --mpicomm --checkclock
 
-* ProcessPoolExecutor with and without affinity
+* ProcessPoolExecutor with and without affinity (recommend to check with htop)
     srun -n 1 python test_executor.py --processpool --nworkers=8 --setaffinity
     srun -n 1 python test_executor.py --processpool --nworkers=8
 
-* ThreadPoolExecutor with and without affinity
+* ThreadPoolExecutor with and without affinity (recommend to check with htop)
     srun -n 1 python test_executor.py --threadpool --nworkers=8 --setaffinity
     srun -n 1 python test_executor.py --threadpool --nworkers=8
 
@@ -207,7 +207,6 @@ def perform_analysis(tstep, channel_data):
     A, B = np.random.random((size, size)), np.random.random((size, size))
 
     # Matrix multiplication
-    N = 10
     t0 = time.time()
     for i in range(args.nanalysis):
         np.dot(A, B)
