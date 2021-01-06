@@ -32,7 +32,7 @@ Command
 $ python test_executor.py -h                                                                      
 usage: test_executor.py [-h] [--nworkers NWORKERS]
                         [--ncorespernode NCORESPERNODE] [--nsteps NSTEPS]
-                        [--chunksize CHUNKSIZE] [--analysistime ANALYSISTIME]
+                        [--chunksize CHUNKSIZE] [--nanalysis NANALYSIS]
                         [--checkclock] [--setaffinity]
                         [--processpool | --threadpool | --mpicomm | --mpipool]
 
@@ -44,8 +44,8 @@ optional arguments:
   --nsteps NSTEPS       Number of steps
   --chunksize CHUNKSIZE
                         Number of steps in data chunk
-  --analysistime ANALYSISTIME
-                        Analysis time in second
+  --nanalysis NANALYSIS
+                        Number of nanalysis
   --checkclock          Check clock diff
   --setaffinity         Set affinity
   --processpool         use ProcessPoolExecutor
@@ -147,13 +147,13 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-parser = argparse.ArgumentParser(description="Test executor")
+parser = argparse.ArgumentParser()
 # parser.add_argument('--config', type=str, help='Lists the configuration file', default='config.json')
 parser.add_argument('--nworkers', type=int, help='Number of workers', default=1)
 parser.add_argument('--ncorespernode', type=int, help='Number of cores per node', default=64)
 parser.add_argument('--nsteps', type=int, help='Number of steps', default=100)
 parser.add_argument('--chunksize', type=int, help='Number of steps in data chunk', default=10000)
-parser.add_argument('--analysistime', type=float, help='Analysis time in second', default=1.0)
+parser.add_argument('--nanalysis', type=int, help='Number of nanalysis', default=100)
 parser.add_argument('--checkclock', help='Check clock diff', action='store_true')
 parser.add_argument('--setaffinity', help='Set affinity', action='store_true')
 group = parser.add_mutually_exclusive_group()
@@ -209,10 +209,8 @@ def perform_analysis(tstep, channel_data):
     # Matrix multiplication
     N = 10
     t0 = time.time()
-    while True:
+    for i in range(args.nanalysis):
         np.dot(A, B)
-        if time.time()-t0 > args.analysistime:
-            break
     t1 = time.time()
     logging.info(f"\tWorker: perform_analysis done: tstep={tstep} rank={rank} pid={os.getpid()} ID={pidmap[os.getpid()]} hostname={hostname} time elapsed: {t1-t0:.2f}")
     return tstep
