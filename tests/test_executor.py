@@ -93,7 +93,7 @@ import time
 import os
 import socket
 import queue
-import threading
+from threading import Thread
 
 import logging
 import sys
@@ -155,6 +155,7 @@ parser.add_argument('--nsteps', type=int, help='Number of steps', default=100)
 parser.add_argument('--chunksize', type=int, help='Number of steps in data chunk', default=10000)
 parser.add_argument('--nanalysis', type=int, help='Number of nanalysis', default=100)
 parser.add_argument('--ntasks', type=int, help='Number of tasks (separate executor launches / data chunk)', default=1)
+parser.add_argument('--ndispatcher', type=int, help='Number of ndispatcher', default=1)
 parser.add_argument('--checkclock', help='Check clock diff', action='store_true')
 parser.add_argument('--setaffinity', help='Set affinity', action='store_true')
 group = parser.add_mutually_exclusive_group()
@@ -223,15 +224,11 @@ def dispatch():
     isfirst = True
     while True:
         tstep, channel_data = dq.get()
+        dq.task_done()
         logging.info(f"\tDispatcher: read data: tstep={tstep}, rank={rank}")
-        if channel_data is None:
-            dq.task_done()
-            logging.info(f"\tDispatcher: no more data. break. rank={rank}")
-            break
         for i in range(args.ntasks): 
             future = executor.submit(perform_analysis, tstep, channel_data)
             fs.put(future)
-        dq.task_done()
 
 def foo(n):
     time.sleep(2)
@@ -326,20 +323,24 @@ if __name__ == "__main__":
             # The main idea is not to slow down the master.
             dq = queue.Queue()
             
-            dispatcher = threading.Thread(target=dispatch)
-            dispatcher.start()
+            dispatcher_list = list()
+            for i in range(args.ndispatcher):
+                dispatcher = Thread(target=dispatch)
+                dispatcher.setDaemon(True)
+                dispatcher.start()
+                dispatcher_list.append(dispatcher)
 
             # We use another queue to track output (filled with future objects)
             fs = queue.Queue()
 
 
+            # Warming-up (just to make sure workers are created before running main analysis)
+            for _ in executor.map(foo, range(2*max(args.nworkers,size))):
+                pass
+            time.sleep(1)
+
             ## Check if all workers are successfully created.
             if args.pool in ('process','thread'):
-                # Warming-up (just to make sure workers are created before running main analysis)
-                for _ in executor.map(foo, range(2*args.nworkers)):
-                    pass
-                time.sleep(3)
-
                 while True:
                     with counter.get_lock():
                         logging.info(f'nworkers so far {counter.value}')
@@ -389,20 +390,13 @@ if __name__ == "__main__":
             
             ## Clean up
             dq.join()
-            dq.put((-1, None))
-            dispatcher.join()
             fs.put(None)
-            logging.info(f"All done.")
 
             logging.info(f"Futures: len={fs.qsize()}")
-            for i in range(fs.qsize()):
-            #for future in iter(fs.get, None):
-                future = fs.get()
-                if future is not None:
-                    logging.info(f"future done? {future.result()}")
-                else:
-                    logging.info(f"no more")
-                    break
+            for future in iter(fs.get, None):
+                logging.info(f"future done? {future.result()}")
+
+            logging.info(f"All done.")
 
     ## All done
     t3 = time.time()
