@@ -86,7 +86,7 @@ class data_model_generator():
             elif self.normalize is not None:
                 self.normalize(chunk)
             else:
-                self.logger.info("dropping current_chunk: self.normalize has not been initialized")
+                self.logger.info(f"new_chunk: {chunk_idx}: self.normalize has not been initialized")
 
             return chunk
 

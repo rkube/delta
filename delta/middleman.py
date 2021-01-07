@@ -67,6 +67,7 @@ def forward(Q, cfg, args, timeout):
         Q.task_done()
         logger.info(f"Consumed tidx={msg.tstep_idx}")
 
+    writer.Close()
     logger.info(f"Worker: Exiting send loop. Transmitted {len(tx_list)} time chunks: {tx_list}")
     logger.info(writer.transfer_stats())
     writer.writer.Close()
