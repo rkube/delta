@@ -69,6 +69,7 @@ def forward(Q, cfg, args, timeout):
 
     logger.info(f"Worker: Exiting send loop. Transmitted {len(tx_list)} time chunks: {tx_list}")
     logger.info(writer.transfer_stats())
+    writer.writer.Close()
 
 
 def main():
