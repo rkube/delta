@@ -5,7 +5,7 @@
 # (e.g. "from read_executor import LogParser")
 #if this script run as a main file, supply the log file as an argument:
 #   python read_executor.py slurm-3771414.out
-```
+
 import re
 import time,datetime
 
