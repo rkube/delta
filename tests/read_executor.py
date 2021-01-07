@@ -41,5 +41,8 @@ if __name__=="__main__":
     logp = LogParser(filename)
     tis,dts,ranks = logp.parse()
 
+    plt.figure()
     for (ti,dt,rank) in zip(tis,dts,ranks):
         plt.plot([ti,ti+dt],[rank,rank],'g')
+    plt.xlabel('Walltime [s]')
+    plt.ylabel('Rank')
