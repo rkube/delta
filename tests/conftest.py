@@ -33,52 +33,39 @@ def config_all():
       "TransportMode": "fast"
     }
   },
-  "storage_mongo":
-  {
-    "backend": "mongo",
-    "datastore": "gridfs",
-    "datadir": "/global/cscratch1/sd/rkube/delta"
-  },
   "storage":
   {
-    "backend": "null"
+    "backend": "numpy",
+    "basedir": "/global/homes/r/rkube/tmp"
   },
- "preprocess": {
-   "plot": {"time_range": [0.0, 0.00002], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
-   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 4},
+ "preprocess": 
+{
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
-   "no_bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"},
-   "no_bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0392], "gpass": 0.5, "gstop": 10, "ftype": "ellip"}
+   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"}
    },
- "task_list": [{
-                "task_description" : "cross_correlation",
-                "analysis": "cross_correlation",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              },
-              {
-                "task_description" : "cross_power",
-                "analysis": "cross_power",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              },
-              {
-                "task_description" : "cross_phase",
-                "analysis": "cross_phase",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              },
-              {
-                "task_description" : "coherence",
-                "analysis": "coherence",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              }]
-    }"""
+  "analysis": {
+    "crossphase": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crosspower": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crossphase": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "coherence": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  }
+  }"""
 
     config = json.loads(config_str)
     return config

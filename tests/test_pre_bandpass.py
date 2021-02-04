@@ -2,8 +2,6 @@
 
 """Unit tests for wavelet preprocessing."""
 
-import pytest
-
 
 def test_pre_bandpass_iir(config_all):
     """Compare Delta's bandpass preprocessing to directly calling scipy signal."""

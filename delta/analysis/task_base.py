@@ -7,11 +7,11 @@ from data_models.helpers import get_dispatch_sequence
 from storage.backend import get_storage_object
 
 
-def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
+def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
     """Dispatch a kernel and store the result.
 
     Args:
-        fft_data (ecei_chunk_ft):
+        timechunk (ecei_chunk_ft):
             Contains the fourier-transformed data.
             dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
         ch_it (iterable):
@@ -22,26 +22,25 @@ def calc_and_store(kernel, storage_backend, fft_data, ch_it, info_dict):
     Returns:
         None
     """
-    from mpi4py import MPI
+    #from mpi4py import MPI
     import datetime
-    from socket import gethostname
-
-    comm = MPI.COMM_WORLD
+    #from socket import gethostname
+    #comm = MPI.COMM_WORLD
     chunk_idx = info_dict['chunk_idx']
     an_name = info_dict["analysis_name"]
     t1_calc = datetime.datetime.now()
-    result = kernel(fft_data.data, ch_it, fft_data.params)
+    result = kernel(timechunk.data_ft, ch_it, timechunk.params)
     t2_calc = datetime.datetime.now()
 
-    t1_io = datetime.datetime.now()
+    #t1_io = datetime.datetime.now()
     storage_backend.store_data(result, info_dict)
-    dt_io = datetime.datetime.now() - t1_io
+    #dt_io = datetime.datetime.now() - t1_io
 
-    with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
-                 t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
-                 f" Storage: {dt_io} " + f" {gethostname()}\n")
-        df.flush()
+    #with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
+    #    df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
+    #             t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
+    #             f" Storage: {dt_io} " + f" {gethostname()}\n")
+    #    df.flush()
 
     return result
 
@@ -83,8 +82,6 @@ class task_base():
         Returns:
             None
         """
-        self.logger.info("Entering submit.")
-
         info_dict_list = [{"analysis_name": self.__str__(),
                            "chunk_idx": timechunk.tb.chunk_idx,
                            "channel_batch": batch_idx}
@@ -102,4 +99,4 @@ class task_base():
                           f"dispatch_function: {self._get_dispatch_func()}"))
         return None
 
-
+# End of file task_base.py

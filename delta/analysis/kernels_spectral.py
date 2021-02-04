@@ -32,14 +32,14 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
       Axy (float):
         Cross phase
     """
-    Pxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+
+    Pxy = np.zeros([len(ch_it), fft_data.shape[1], fft_data.shape[2]], dtype=fft_data.dtype)
+
     for idx, ch_pair in enumerate(ch_it):
-        Pxy[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] *
-                       fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1)
+        Pxy[idx, :, :] = fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()
 
-    crossphase = np.zeros_like(Pxy.real)
-    np.arctan2(Pxy.imag, Pxy.real, out=crossphase, where=(Pxy.real > 1e-6) | (Pxy.imag > 1e-6))
-
+    crossphase = np.arctan2(Pxy.imag, Pxy.real).mean(axis=2)
+    np.savez("crossphase.npz", crossphase=crossphase)
     return crossphase
 
 
@@ -81,6 +81,7 @@ def kernel_coherence(fft_data, ch_it, fft_config):
         coherence (float)
     """
     Gxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+
 
     for idx, ch_pair in enumerate(ch_it):
         X = fft_data[ch_pair.ch1.get_idx(), :, :]
