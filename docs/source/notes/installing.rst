@@ -52,6 +52,9 @@ To compile adios2, this script may be helpful:
     -DZeroMQ_INCLUDE_DIR=$HOME/software/zeromq/include \
     ../adios2-devel
 
+    make -j 16
+    make install
+    
     rm $HOME/software/adios2-current
     ln -s $HOME/software/adios2-$VER $HOME/software/adios2-current 
 
@@ -63,7 +66,7 @@ configuration from the script above this can be done with
 
 .. code-block:: shell
 
-    export PYTHONPATH=$PYTHONPATH:$HOME/software/adios2-current/lib/python3.9/site-packages/adios2
+    export PYTHONPATH=$PYTHONPATH:$HOME/software/adios2-current/lib/python3.9/site-packages
 
 
 
