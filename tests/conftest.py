@@ -40,8 +40,8 @@ def config_all():
   },
  "preprocess": 
 {
-   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
-   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"}
+   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"},
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
    },
   "analysis": {
     "crossphase": {

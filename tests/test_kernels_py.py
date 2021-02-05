@@ -17,6 +17,7 @@ def test_kernels(config_all):
     from data_models.kstar_ecei import ecei_chunk
     from data_models.helpers import get_dispatch_sequence
     from data_models.timebase import timebase_streaming
+    from analysis.kernels_spectral import kernel_crossphase
 
     from scipy.signal import stft
 
@@ -24,7 +25,6 @@ def test_kernels(config_all):
 
     # Mutate storage path for numpy backend
     config_all["storage"]["basedir"] = os.getcwd()
-
 
     # Create the BlockBlobService that is used to call the Blob service for the storage account
     blob_service_client = BlockBlobService(account_name="deltafiles")
@@ -46,8 +46,6 @@ def test_kernels(config_all):
     # flimits is also in the numpy file, but it was stored as a string...
     flimits = np.array([5, 9])
     os.remove(full_path_to_file)
-
-    print(sig_ch0_fa[:5])
 
     # Generate data. Load only 2 relevant channel data into the dummy data block.
     # This data has been frequency filtered in fluctana.
@@ -97,23 +95,25 @@ def test_kernels(config_all):
     for idx, ch_pair in enumerate(ch_it):
         if(ch_pair.ch1.get_idx() == ch1_idx):
             if(ch_pair.ch2.get_idx() == ch0_idx):
+                print(ch_pair.ch1.get_idx(), ch_pair.ch2.get_idx())
                 delta_idx = idx
                 break
+
+    # Alternative 2: Pass pre-processed chunk data directly to kernel
+    Axy_here = kernel_crossphase(chunk_pre.data_ft, ch_it, None)
 
     # Calcuate the L2 norm between the crossphase calculated here to the crossphase calculated in Delta
     # Do this only for the frequencies within the filter pass band
     cmp_idx = (np.abs(frg) > flimits[0] * 1e3) & (np.abs(frg) < flimits[1] * 1e3)
-    print("cmp_idx = ", np.argwhere(cmp_idx))
-    print("delta_idx = ", delta_idx)
-    print("crossphase_delta = ", crossphase_delta[delta_idx, cmp_idx])
-    print("Axy_bp[cmp_idx] = ", Axy_bp[cmp_idx])
-
     dist = np.linalg.norm(Axy_bp[cmp_idx] + 
                           crossphase_delta[delta_idx, cmp_idx]) / np.linalg.norm(Axy_bp[cmp_idx])
 
     assert(dist < 0.5)
 
-    
+    # Calculate the L2 norm between crossphase calcuated through task_list.submit and
+    # by directly calling the kernel
+    dist = np.linalg.norm(Axy_here - crossphase_delta)
+    assert(dist < 1e-10)    
 
 
 
