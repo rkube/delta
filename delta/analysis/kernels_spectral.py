@@ -39,7 +39,6 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
         Pxy[idx, :, :] = fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()
 
     crossphase = np.arctan2(Pxy.imag, Pxy.real).mean(axis=2)
-    np.savez("crossphase.npz", crossphase=crossphase)
     return crossphase
 
 
@@ -88,7 +87,7 @@ def kernel_coherence(fft_data, ch_it, fft_config):
         Y = fft_data[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
-        Gxy[idx, :] = np.abs(X * Y.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1)
+        Gxy[idx, :] = np.abs((X * Y.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1))
 
     Gxy = Gxy.real
     return(Gxy)

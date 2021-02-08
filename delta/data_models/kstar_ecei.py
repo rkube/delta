@@ -103,7 +103,7 @@ class ecei_chunk():
         self.siglev = None
         self.sigstd = None
         # bad_channels is used as a mask and has shape=(nchannels)
-        self.bad_channels = np.zeros((self.num_h * self.num_v), dtype=np.bool)
+        self.bad_channels = np.zeros((self.num_h * self.num_v), dtype=bool)
 
     @property
     def data(self):

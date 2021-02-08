@@ -9,10 +9,9 @@ def test_preprocess_helpers(config_all):
     sys.path.append(os.path.abspath('delta'))
     from preprocess.helpers import get_preprocess_routine
     from preprocess.pre_stft import pre_stft
-    from preprocess.pre_wavelet import pre_wavelet
-    from preprocess.pre_plot import pre_plot
+    from preprocess.pre_bandpass import pre_bandpass_iir
 
-    type_list = [pre_plot, pre_wavelet, pre_stft]
+    type_list = [pre_bandpass_iir, pre_stft]
 
     for key, params, mytype in zip(config_all["preprocess"].keys(),
                                    config_all["preprocess"].items(),
