@@ -6,7 +6,6 @@
 import numpy as np
 import cupy as cp
 
-
 def kernel_null(fft_data, ch_it, fft_config):
     """Does nothing.
 
