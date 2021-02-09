@@ -13,7 +13,6 @@ def kernel_null(data, ch_it, fft_config):
 
     Used for performance testing.
     """
-    import numpy as np
 
     return(data)
 
@@ -40,6 +39,7 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
 
     crossphase = np.arctan2(Pxy.imag, Pxy.real).mean(axis=2)
     return crossphase
+
 
 
 def kernel_crosspower(fft_data, ch_it, fft_config):
@@ -81,13 +81,12 @@ def kernel_coherence(fft_data, ch_it, fft_config):
     """
     Gxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
 
-
     for idx, ch_pair in enumerate(ch_it):
         X = fft_data[ch_pair.ch1.get_idx(), :, :]
         Y = fft_data[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
-        Gxy[idx, :] = np.abs((X * Y.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1))
+        Gxy[idx, :] = np.abs((X * Y.conj() / (np.sqrt(Pxx * Pyy) + 1e-10)).mean(axis=1))
 
     Gxy = Gxy.real
     return(Gxy)

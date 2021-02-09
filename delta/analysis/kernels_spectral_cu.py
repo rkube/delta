@@ -31,18 +31,17 @@ def kernel_crossphase_cu(fft_data, ch_it, fft_config):
     """
     fft_data_cu = cp.asarray(fft_data)
     # Gather results on device, since
-    Pxy = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+    Pxy = cp.zeros([len(ch_it), fft_data.shape[1], fft_data.shape[2]], dtype=fft_data.dtype)
 
     # The result of the call to mean() is another cupy array. Gather the
     # results in Pxy which needs to by a cupy array. Copy to host once
     # loop is done
     for idx, ch_pair in enumerate(ch_it):
-        Pxy[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] *
-                       fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1)
-
-    Pxy = cp.asnumpy(Pxy)
-
-    return(np.arctan2(Pxy.imag, Pxy.real).real)
+        Pxy[idx, :, :] = fft_data_cu[ch_pair.ch1.get_idx(), :, :] * fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()
+    
+    crossphase = cp.asnumpy(cp.arctan2(Pxy.imag, Pxy.real).mean(axis=2))
+    np.savez("crossphase_cu.npz", crossphase=crossphase)
+    return(crossphase)
 
 
 def kernel_crosspower_cu(fft_data, ch_it, fft_config):
@@ -69,13 +68,10 @@ def kernel_crosspower_cu(fft_data, ch_it, fft_config):
                        fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) /\
             fft_config["win_factor"]
 
-        # res[idx, :] = (fft_data_cu[ch_pair.ch1.get_idx(), :, :] *
-        #                fft_data_cu[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1) /\
-        #     fft_config["fft_params"]["win_factor"]
+    crosspower = cp.asnumpy(cp.abs(res).real)
+    np.savez("crosspower_cu.npz", crosspower=crosspower)
 
-    res = cp.asnumpy(res)
-
-    return(np.abs(res).real)
+    return(crosspower)
 
 
 def kernel_coherence_cu(fft_data, ch_it, fft_config):
@@ -95,7 +91,6 @@ def kernel_coherence_cu(fft_data, ch_it, fft_config):
             Coherence
     """
     fft_data_cu = cp.asarray(fft_data)
-
     Gxy_cu = cp.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
 
     for idx, ch_pair in enumerate(ch_it):
@@ -103,10 +98,10 @@ def kernel_coherence_cu(fft_data, ch_it, fft_config):
         Y = fft_data_cu[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
-        Gxy_cu[idx, :] = ((X * Y.conj()) / cp.sqrt(Pxx * Pyy)).mean(axis=1)
+        Gxy_cu[idx, :] = cp.abs((X * Y.conj() / (cp.sqrt(Pxx * Pyy) + 1e-10)).mean(axis=1))
 
-    # Gxy_cu = cp.abs(Gxy_cu)
-    Gxy = cp.asnumpy(cp.abs(Gxy_cu).real)
+    Gxy = cp.asnumpy(Gxy_cu).real
+    np.savez("coherence_cu.npz", Gxy=Gxy)
 
     return(Gxy)
 

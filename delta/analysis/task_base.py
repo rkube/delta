@@ -22,25 +22,33 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
     Returns:
         None
     """
-    #from mpi4py import MPI
+    from mpi4py import MPI
     import datetime
-    #from socket import gethostname
-    #comm = MPI.COMM_WORLD
+    from socket import gethostname
+    import time
+    comm = MPI.COMM_WORLD
     chunk_idx = info_dict['chunk_idx']
     an_name = info_dict["analysis_name"]
     t1_calc = datetime.datetime.now()
     result = kernel(timechunk.data_ft, ch_it, timechunk.params)
+    with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
+        df.write(f"{an_name}: type is {type(result)} and shape is {result.shape}\n")
+        df.flush()
+
     t2_calc = datetime.datetime.now()
 
-    #t1_io = datetime.datetime.now()
+    t1_io = datetime.datetime.now()
     storage_backend.store_data(result, info_dict)
-    #dt_io = datetime.datetime.now() - t1_io
+    dt_io = datetime.datetime.now() - t1_io
+    time.sleep(5.0)
 
-    #with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
-    #    df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
+    # with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
+    #     # df.write("here")
+    #     df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
     #             t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
     #             f" Storage: {dt_io} " + f" {gethostname()}\n")
-    #    df.flush()
+    #     df.write(f"{an_name}: type is {type(result)} and shape is {result.shape}\n")
+    #     df.flush()
 
     return result
 

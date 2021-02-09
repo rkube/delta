@@ -134,6 +134,59 @@ def config_analysis_cy():
     return config
 
 
+
+@pytest.fixture(scope="module")
+def config_analysis_cu():
+    """Provides a configuration object for all unit tests."""    
+    config_str = """{
+        "diagnostic":
+          {
+    "name": "kstarecei",
+    "shotnr": 18431,
+    "datasource":
+    {
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
+      "chunk_size": 10000,
+      "num_chunks": 500,
+      "channel_range": ["L0101-2408"],
+      "datatype": "float"
+    }
+  },
+  "transport_nersc":
+  {
+    "datapath": "tmp_nersc",
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "128.55.205.18",
+      "Timeout": "120",
+      "Port": "50001",
+      "TransportMode": "fast"
+    }
+  },
+  "storage":
+  {
+    "backend": "numpy",
+    "basedir": "/global/homes/r/rkube/tmp"
+  },
+ "preprocess":
+{
+   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"},
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
+   },
+  "analysis": {
+    "crossphase_cu": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  }
+  }"""
+
+    config = json.loads(config_str)
+    return config
+
+
 @pytest.fixture()
 def stream_attrs_022289():
     """Dummy substitute for ECEI parameters typically read from HDF5.

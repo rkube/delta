@@ -172,6 +172,8 @@ def test_kernels(config_all):
     print("Gxy_bp = ", Gxy_bp[cmp_idx])
     print("Gxy_kernel = ", Gxy_kernel[delta_idx, cmp_idx])
 
+    np.savez("coherence_cpu.npz", Gxy_kernel=Gxy_kernel)
+
     # Dist from 1 and 2 should be small
     dist = np.linalg.norm(Gxy_bp[cmp_idx] -
                           coherence_delta[delta_idx, cmp_idx]) / np.linalg.norm(Gxy_bp[cmp_idx])
