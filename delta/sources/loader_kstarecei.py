@@ -50,9 +50,9 @@ class loader_kstarecei():
         if cfg_all["diagnostic"]["datasource"]["datatype"] == "int":
             self.dtype = np.int32
         elif cfg_all["diagnostic"]["datasource"]["datatype"] == "float":
-            self.dtype = np.float
+            self.dtype = np.float64
         elif cfg_all["diagnostic"]["datasource"]["datatype"] == "double":
-            self.dtype = np.float
+            self.dtype = np.float64
 
         # Process attributes stored in HDF5 file
         # Extract device name of filename, the part in between .[A-Z]{2}.

@@ -29,7 +29,7 @@ class backend_numpy():
         # Directory where numpy files are stored
         self.basedir = cfg['basedir']
 
-    def store(self, chunk_data, chunk_info):
+    def store_data(self, chunk_data, info_dict):
         """Stores data and args in numpy file.
 
         Args:
@@ -41,12 +41,11 @@ class backend_numpy():
         Returns:
             None
         """
-        fname_fq = join(self.basedir, chunk_info['analysis_name']) +\
-            f"_tidx{chunk_info['tidx']:05d}_batch{chunk_info['channel_batch']:02d}.npz"
-
+        fname_fq = join(self.basedir, info_dict['analysis_name']) +\
+            f"_chunk{info_dict['chunk_idx']:05d}_batch{info_dict['channel_batch']:02d}.npz"
+        np.savez(fname_fq, chunk_data, analysis_name=info_dict['analysis_name'],
+                 chunk_idx=info_dict['chunk_idx'], batch=info_dict['channel_batch'])
         logging.debug("Storing data in " + fname_fq)
-        np.savez(fname_fq, chunk_data, analysis_name=chunk_info['analysis_name'],
-                 tidx=chunk_info['tidx'], batch=chunk_info['channel_batch'])
 
     def store_metadata(self, cfg):
         """Stores metadta in an numpy file.

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 
 #@patch("module.adios2")
-def test_kernels(config_all):
+def test_kernels(config_analysis_cy):
     """Verify that pure python kernels yield same result as fluctana."""
     import sys
     import os
@@ -21,7 +21,7 @@ def test_kernels(config_all):
     from data_models.kstar_ecei import ecei_chunk
     from data_models.helpers import get_dispatch_sequence
     from data_models.timebase import timebase_streaming
-    from analysis.kernels_spectral import kernel_crossphase, kernel_coherence, kernel_crosspower
+    from analysis.kernels_spectral_cy import kernel_crossphase_64_cy, kernel_coherence_64_cy, kernel_crosspower_64_cy
 
 
     from scipy.signal import stft
@@ -29,7 +29,7 @@ def test_kernels(config_all):
     from azure.storage.blob import BlockBlobService
 
     # Mutate storage path for numpy backend
-    config_all["storage"]["basedir"] = os.getcwd()
+    config_analysis_cy["storage"]["basedir"] = os.getcwd()
 
     # Create the BlockBlobService that is used to call the Blob service for the storage account
     blob_service_client = BlockBlobService(account_name="deltafiles")
@@ -65,9 +65,11 @@ def test_kernels(config_all):
     all_data[ch0_idx, :] = sig_ch0_fa[:]
     all_data[ch1_idx, :] = sig_ch1_fa[:]
     # Calculate cross-phase from fluctana
-    nfft = config_all["preprocess"]["stft"]["nfft"]
-    frg, _, sig_ch0_bp_ft = stft(sig_ch0_fa, fs=5e5, nperseg=nfft, noverlap=256, detrend="constant", window="hann", return_onesided=False)
-    frg, _, sig_ch1_bp_ft = stft(sig_ch1_fa, fs=5e5, nperseg=nfft, noverlap=256, detrend="constant", window="hann", return_onesided=False)
+    nfft = config_analysis_cy["preprocess"]["stft"]["nfft"]
+    frg, _, sig_ch0_bp_ft = stft(sig_ch0_fa, fs=5e5, nperseg=nfft, noverlap=256, 
+                                 detrend="constant", window="hann", return_onesided=False)
+    frg, _, sig_ch1_bp_ft = stft(sig_ch1_fa, fs=5e5, nperseg=nfft, noverlap=256, 
+                                 detrend="constant", window="hann", return_onesided=False)
 
     frg = np.fft.fftshift(frg)
     sig_ch0_bp_ft = np.fft.fftshift(sig_ch0_bp_ft, axes=0)
@@ -79,8 +81,8 @@ def test_kernels(config_all):
 
     # Set up Delta stuff
     e = ThreadPoolExecutor(max_workers=2)
-    my_preprocess = preprocessor(e, config_all)
-    my_tasklist = tasklist(e, config_all)
+    my_preprocess = preprocessor(e, config_analysis_cy)
+    my_tasklist = tasklist(e, config_analysis_cy)
     tb = timebase_streaming(t_start, t_end, 5e5, 10000, 0)
     ecei_params = {"TFcurrent": 18000, "LensFocus": 503, "LoFreq": 79.5, "Mode": "X", "LensZoom": 200, "dev": "GT"}
     my_chunk = ecei_chunk(all_data, tb, ecei_params)
@@ -93,7 +95,7 @@ def test_kernels(config_all):
     e.shutdown(wait=True)
 
     # Load data from numpy file:
-    fname_fq = os.path.join(os.getcwd(), "task_crossphase" + f"_chunk{0:05d}_batch{0:02d}.npz")
+    fname_fq = os.path.join(os.getcwd(), "task_crossphase_cy" + f"_chunk{0:05d}_batch{0:02d}.npz")
     with np.load(fname_fq) as df:
         crossphase_delta = df["arr_0"]
 
@@ -111,7 +113,7 @@ def test_kernels(config_all):
                 break
 
     # Alternative 2: Pass pre-processed chunk data directly to kernel
-    Axy_here = kernel_crossphase(chunk_pre.data_ft, ch_it, None)
+    Axy_here = kernel_crossphase_64_cy(chunk_pre.data_ft, ch_it, None)
 
     # Calcuate the L2 norm between the crossphase calculated here to the crossphase calculated in Delta
     # Do this only for the frequencies within the filter pass band
@@ -128,7 +130,7 @@ def test_kernels(config_all):
 
     ############################# Testing cross-power #############################################
     #  Option 1) Load analysis result from Delta numpy file
-    fname_fq = os.path.join(os.getcwd(), "task_crosspower" + f"_chunk{0:05d}_batch{0:02d}.npz")
+    fname_fq = os.path.join(os.getcwd(), "task_crosspower_cy" + f"_chunk{0:05d}_batch{0:02d}.npz")
     with np.load(fname_fq) as df:
         crosspower_delta = df["arr_0"]
 
@@ -138,7 +140,7 @@ def test_kernels(config_all):
     
     # Option 3) Pass bandpass-filtered data into python kernel
     params = {"win_factor": win_factor}
-    Pxy_kernel = kernel_crosspower(chunk_pre.data_ft, ch_it, params)
+    Pxy_kernel = kernel_crosspower_64_cy(chunk_pre.data_ft, ch_it, params)
 
     # Dist from 1 and 2 should be small
     dist = np.linalg.norm(np.log10(Pxy_bp[cmp_idx] / 
@@ -156,7 +158,7 @@ def test_kernels(config_all):
 
     ############################# Testing coherence #############################################
     # Option 1) Load analysis result from Delta numpy file
-    fname_fq = os.path.join(os.getcwd(), "task_coherence" + f"_chunk{0:05d}_batch{0:02d}.npz")
+    fname_fq = os.path.join(os.getcwd(), "task_coherence_cy" + f"_chunk{0:05d}_batch{0:02d}.npz")
     with np.load(fname_fq) as df:
         coherence_delta = df["arr_0"]
 
@@ -166,13 +168,11 @@ def test_kernels(config_all):
     Gxy_bp = np.abs((sig_ch0_bp_ft * sig_ch1_bp_ft.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1)).real
 
     # Option 3) Pass pre-processed data directly into python kernel
-    Gxy_kernel = kernel_coherence(chunk_pre.data_ft, ch_it, None)
+    Gxy_kernel = kernel_coherence_64_cy(chunk_pre.data_ft, ch_it, None)
 
     print("coherence_delta = ", coherence_delta[delta_idx, cmp_idx])
     print("Gxy_bp = ", Gxy_bp[cmp_idx])
     print("Gxy_kernel = ", Gxy_kernel[delta_idx, cmp_idx])
-
-    np.savez("coherence_cpu.npz", Gxy_kernel=Gxy_kernel)
 
     # Dist from 1 and 2 should be small
     dist = np.linalg.norm(Gxy_bp[cmp_idx] -
@@ -188,6 +188,4 @@ def test_kernels(config_all):
     assert(dist < 0.5)
 
 
-
-
-# End of file test_kernels_py.py
+# End of file test_kernels_cy.py
