@@ -158,11 +158,18 @@ parser.add_argument('--ntasks', type=int, help='Number of tasks (separate execut
 parser.add_argument('--ndispatcher', type=int, help='Number of ndispatcher', default=1)
 parser.add_argument('--checkclock', help='Check clock diff', action='store_true')
 parser.add_argument('--setaffinity', help='Set affinity', action='store_true')
+parser.add_argument('--writeronly', help='Run as a writer', action='store_true')
+parser.add_argument('--readeronly', help='Run as a reader', action='store_true')
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--processpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='process')
 group.add_argument('--threadpool', help='use ThreadPoolExecutor', action='store_const', dest='pool', const='thread')
 group.add_argument('--mpicomm', help='use MPICommExecutor', action='store_const', dest='pool', const='mpicomm')
 group.add_argument('--mpipool', help='use MPIPoolExecutor', action='store_const', dest='pool', const='mpipool')
+
+group1 = parser.add_argument_group('Adios2 options')
+group1.add_argument('--engine', help='engine', default='BP4')
+group1.add_argument('--params', help='engine', default='')
+
 parser.set_defaults(pool='process')
 
 ## A trick to handle: python -u -m mpi4py.futures ...
@@ -262,7 +269,7 @@ if __name__ == "__main__":
 
 
     ## Generating dummy data
-    if rank == 0:
+    if (not args.readeronly) and (rank == 0):
         logging.info("Command: {0}".format(" ".join([x for x in sys.argv])))
         logging.info("All settings used:")
         for k,v in sorted(vars(args).items()):
@@ -271,6 +278,10 @@ if __name__ == "__main__":
         logging.info(f"Dumping data")
         adios = adios2.ADIOS(MPI.COMM_SELF)
         IO = adios.DeclareIO('write')
+        IO.SetEngine(args.engine)
+        params = dict(item.split("=") for item in args.params.split(","))
+        IO.SetParameters(params)
+
         data_array = np.ones((192, args.chunksize))
         v1 = IO.DefineVariable('tstep', np.array(1))
         v2 = IO.DefineVariable('data', data_array,
@@ -288,6 +299,8 @@ if __name__ == "__main__":
             writer.EndStep()
 
         writer.Close()
+        if args.writeronly:
+            quit()
 
     ## To ensure to have unique ID for multiple processes or threads
     counter = mp.Value('i', 0)
@@ -333,7 +346,6 @@ if __name__ == "__main__":
             # We use another queue to track output (filled with future objects)
             fs = queue.Queue()
 
-
             # Warming-up (just to make sure workers are created before running main analysis)
             for _ in executor.map(foo, range(2*max(args.nworkers,size))):
                 pass
@@ -352,6 +364,10 @@ if __name__ == "__main__":
             ## Read open
             adios = adios2.ADIOS(MPI.COMM_SELF)
             IO = adios.DeclareIO('read')
+            IO.SetEngine(args.engine)
+            params = dict(item.split("=") for item in args.params.split(","))
+            IO.SetParameters(params)
+            
             reader = IO.Open('test.bp', adios2.Mode.Read)
 
             # Main loop is here
