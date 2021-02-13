@@ -78,6 +78,9 @@ Examples (Cori)
     srun -n 1 python test_executor.py --threadpool --nworkers=8 --setaffinity
     srun -n 1 python test_executor.py --threadpool --nworkers=8
 
+* DataMan (need to run between DTN and Cori. Works only with thread executor.)
+    python test_executor.py --writeronly --engine=DataMan --params='IPAddress=128.55.205.18' --nstreams=2
+    srun -n 2 python test_executor.py --readeronly --engine=DataMan --params='IPAddress=128.55.205.18' --thread
 """
 
 import numpy as np 
@@ -160,17 +163,18 @@ parser.add_argument('--checkclock', help='Check clock diff', action='store_true'
 parser.add_argument('--setaffinity', help='Set affinity', action='store_true')
 parser.add_argument('--writeronly', help='Run as a writer', action='store_true')
 parser.add_argument('--readeronly', help='Run as a reader', action='store_true')
+parser.add_argument('--nstreams', type=int, help='Number of streams', default=1)
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--processpool', help='use ProcessPoolExecutor', action='store_const', dest='pool', const='process')
 group.add_argument('--threadpool', help='use ThreadPoolExecutor', action='store_const', dest='pool', const='thread')
 group.add_argument('--mpicomm', help='use MPICommExecutor', action='store_const', dest='pool', const='mpicomm')
 group.add_argument('--mpipool', help='use MPIPoolExecutor', action='store_const', dest='pool', const='mpipool')
+parser.set_defaults(pool='process')
 
 group1 = parser.add_argument_group('Adios2 options')
 group1.add_argument('--engine', help='engine', default='BP4')
 group1.add_argument('--params', help='engine', default='')
-
-parser.set_defaults(pool='process')
+parser.add_argument('--dataman_port', type=int, help='DataMan port', default=59001)
 
 ## A trick to handle: python -u -m mpi4py.futures ...
 idx = len(sys.argv) - sys.argv[::-1].index(__file__)
@@ -264,6 +268,24 @@ def hello_mpi(counter):
     affinity = None
     logging.info(f"\tWorker: init. rank={rank} pid={os.getpid()} hostname={hostname} ID={pidmap[os.getpid()]} affinity={affinity}")
 
+def paramstodict(x, offset):
+    """
+    convert param opt to dict
+    """
+    param_list = list()
+    for item in x.split(','):
+        if '=' in item:
+            param_list.append(item.split('='))
+    out = dict(param_list)
+
+    ## Set port number for DataMan
+    if args.engine.lower() == "dataman":
+        out['Port'] = str(args.dataman_port + 2*offset)
+        print('DataMan port:', out['Port'])
+
+    print ('out', out)
+    return out
+
 # Main
 if __name__ == "__main__":
 
@@ -277,28 +299,39 @@ if __name__ == "__main__":
 
         logging.info(f"Dumping data")
         adios = adios2.ADIOS(MPI.COMM_SELF)
-        IO = adios.DeclareIO('write')
-        IO.SetEngine(args.engine)
-        params = dict(item.split("=") for item in args.params.split(","))
-        IO.SetParameters(params)
 
-        data_array = np.ones((192, args.chunksize))
-        v1 = IO.DefineVariable('tstep', np.array(1))
-        v2 = IO.DefineVariable('data', data_array,
-                                    data_array.shape, # shape
-                                    list(np.zeros_like(data_array.shape, dtype=int)),  # start 
-                                    data_array.shape, # count
-                                    adios2.ConstantDims)
+        writer_list = list()
+        for i in range(args.nstreams):
+            ioname = 'write.%d'%i
+            IO = adios.DeclareIO(ioname)
+            IO.SetEngine(args.engine)
+            IO.SetParameters(paramstodict(args.params, i))
 
-        writer = IO.Open('test.bp', adios2.Mode.Write)
+            data_array = np.ones((192, args.chunksize))
+            v1 = IO.DefineVariable('tstep', np.array(1))
+            v2 = IO.DefineVariable('data', data_array,
+                                        data_array.shape, # shape
+                                        list(np.zeros_like(data_array.shape, dtype=int)),  # start 
+                                        data_array.shape, # count
+                                        adios2.ConstantDims)
+
+            writer = IO.Open('test.%d.bp'%i, adios2.Mode.Write)
+            writer_list.append((IO, writer))
 
         for i in range(args.nsteps):
+            k = i%len(writer_list)
+            IO, writer = writer_list[k]
             writer.BeginStep()
+            v1 = IO.InquireVariable('tstep')
+            v2 = IO.InquireVariable('data')
             writer.Put(v1, np.array(i))
             writer.Put(v2, data_array)
             writer.EndStep()
 
-        writer.Close()
+        for k in range(len(writer_list)):
+            _, writer = writer_list[k]
+            writer.Close()
+
         if args.writeronly:
             quit()
 
@@ -365,10 +398,11 @@ if __name__ == "__main__":
             adios = adios2.ADIOS(MPI.COMM_SELF)
             IO = adios.DeclareIO('read')
             IO.SetEngine(args.engine)
-            params = dict(item.split("=") for item in args.params.split(","))
-            IO.SetParameters(params)
-            
-            reader = IO.Open('test.bp', adios2.Mode.Read)
+            IO.SetParameters(paramstodict(args.params, rank))
+
+            fname = 'test.%d.bp'%rank
+            logging.info(f"\tMaster: reading {fname}")            
+            reader = IO.Open(fname, adios2.Mode.Read)
 
             # Main loop is here
             # Reading data (from KSTAR) and save in the queue (dq) as soon as possible.
