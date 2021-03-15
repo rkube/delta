@@ -27,7 +27,9 @@ def test_pre_bandpass_iir(config_all):
 
     # Download the blob(s).
     # Add '_DOWNLOADED' as prefix to '.txt' so you can see both files in Documents.
-    full_path_to_file = os.path.join(os.getcwd(), str.replace(local_file_name, '.npz', '_DOWNLOADED.npz'))
+    # shifter is read-only so let's use /tmp, the only place we're allowed to read/write
+    full_path_to_file = os.path.join('/tmp',
+                                     str.replace(local_file_name, '.npz', '_DOWNLOADED.npz'))
     blob_service_client.get_blob_to_path(container_name, local_file_name, full_path_to_file)
 
     with np.load(full_path_to_file) as df:
