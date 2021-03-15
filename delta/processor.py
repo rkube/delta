@@ -79,6 +79,10 @@ def main():
     parser.add_argument("--transport", type=str,
                         help="Specifies the transport section used to configure the reader",
                         default="transport_rx")
+    parser.add_argument("--run_id", type=str,
+                        help="Name of database collection to store analysis results in",
+                        required=True)
+
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
@@ -99,7 +103,7 @@ def main():
 
     stream_varname = gen_var_name(cfg)[0]
 
-    cfg["run_id"] = "25259_GT_null"
+    cfg["run_id"] = args.run_id
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -155,8 +159,8 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
         
-        # if reader.CurrentStep() > 5:
-        #     break
+        if reader.CurrentStep() > 5:
+            break
 
     dq.join()
     logger.info("Queue joined")

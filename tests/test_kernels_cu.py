@@ -115,11 +115,11 @@ def test_kernels(config_analysis_cu):
                 break
 
     # Alternative 2: Pass pre-processed chunk data directly to kernel
-    Axy_cu = kernel_crossphase_cu(chunk_pre.data_ft, ch_it, None)
+    Axy_cu = kernel_crossphase_cu(chunk_pre.data, ch_it, None)
     print(type(Axy_cu), np.shape(Axy_cu))
 
     # Alternative 3: Pass pre-processed chunk data directly to cpu kernel
-    Axy_cpu = kernel_crossphase(chunk_pre.data_ft, ch_it, None)
+    Axy_cpu = kernel_crossphase(chunk_pre.data, ch_it, None)
     assert(np.linalg.norm(Axy_cpu - Axy_cu) < 1e-10)
 
     # # Calcuate the L2 norm between the crossphase calculated here to the crossphase calculated in Delta
@@ -147,10 +147,10 @@ def test_kernels(config_analysis_cu):
     
     # # Option 3) Pass bandpass-filtered data into python kernel
     params = {"win_factor": win_factor}
-    Pxy_kernel = kernel_crosspower_cu(chunk_pre.data_ft, ch_it, params)
+    Pxy_kernel = kernel_crosspower_cu(chunk_pre.data, ch_it, params)
 
     # Alternative 4: Compare to cpu kernel
-    Pxy_cpu = kernel_crosspower(chunk_pre.data_ft, ch_it, params)
+    Pxy_cpu = kernel_crosspower(chunk_pre.data, ch_it, params)
     assert(np.linalg.norm(Pxy_kernel - Pxy_cpu) < 1e-10)
 
 
@@ -180,10 +180,10 @@ def test_kernels(config_analysis_cu):
     # Gxy_bp = np.abs((sig_ch0_bp_ft * sig_ch1_bp_ft.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1)).real
 
     # # Option 3) Pass pre-processed data directly into python kernel
-    Gxy_kernel = kernel_coherence_cu(chunk_pre.data_ft, ch_it, None)
+    Gxy_kernel = kernel_coherence_cu(chunk_pre.data, ch_it, None)
 
     # Option 4
-    Gxy_cpu = kernel_coherence(chunk_pre.data_ft, ch_it, None)
+    Gxy_cpu = kernel_coherence(chunk_pre.data, ch_it, None)
     assert(np.linalg.norm(Gxy_kernel - Gxy_cpu) < 1e-10)
 
     # print("coherence_delta = ", coherence_delta[delta_idx, cmp_idx])

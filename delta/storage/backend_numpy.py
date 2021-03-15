@@ -87,8 +87,8 @@ class backend_numpy():
         # Adds the channel_serialization key to cfg
         #cfg.update(j)
 
-        with open("/tmp/config.json"), "w") as df:
-            json.dump(cfg, df)
+        # with open("/tmp/config.json"), "w") as df:
+        #     json.dump(cfg, df)
 
         return None
 

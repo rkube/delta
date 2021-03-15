@@ -16,10 +16,6 @@ def kernel_null(data, ch_it, fft_config):
     return(data)
 
 
-
-
-
-
 def kernel_crossphase(fft_data, ch_it, fft_config):
     """Kernel that calculates the cross-phase between two channels.
 
@@ -41,7 +37,6 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
 
     crossphase = np.arctan2(Pxy.imag, Pxy.real).mean(axis=2)
     return crossphase
-
 
 
 def kernel_crosspower(fft_data, ch_it, fft_config):

@@ -29,13 +29,9 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
     chunk_idx = info_dict['chunk_idx']
     an_name = info_dict["analysis_name"]
     t1_calc = datetime.datetime.now()
-    result = kernel(timechunk.data_ft, ch_it, timechunk.params)
-    with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"{an_name}: type is {type(result)} and shape is {result.shape}\n")
-        df.flush()
-
+    result = kernel(timechunk.data, ch_it, timechunk.params)
     t2_calc = datetime.datetime.now()
-
+    
     t1_io = datetime.datetime.now()
     storage_backend.store_data(result, info_dict)
     dt_io = datetime.datetime.now() - t1_io

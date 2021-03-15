@@ -114,7 +114,7 @@ def test_kernels(config_analysis_cy):
                 break
 
     # Alternative 2: Pass pre-processed chunk data directly to kernel
-    Axy_here = kernel_crossphase_64_cy(chunk_pre.data_ft, ch_it, None)
+    Axy_here = kernel_crossphase_64_cy(chunk_pre.data, ch_it, None)
 
     # Calcuate the L2 norm between the crossphase calculated here to the crossphase calculated in Delta
     # Do this only for the frequencies within the filter pass band
@@ -141,7 +141,7 @@ def test_kernels(config_analysis_cy):
     
     # Option 3) Pass bandpass-filtered data into python kernel
     params = {"win_factor": win_factor}
-    Pxy_kernel = kernel_crosspower_64_cy(chunk_pre.data_ft, ch_it, params)
+    Pxy_kernel = kernel_crosspower_64_cy(chunk_pre.data, ch_it, params)
 
     # Dist from 1 and 2 should be small
     dist = np.linalg.norm(np.log10(Pxy_bp[cmp_idx] / 
@@ -169,7 +169,7 @@ def test_kernels(config_analysis_cy):
     Gxy_bp = np.abs((sig_ch0_bp_ft * sig_ch1_bp_ft.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1)).real
 
     # Option 3) Pass pre-processed data directly into python kernel
-    Gxy_kernel = kernel_coherence_64_cy(chunk_pre.data_ft, ch_it, None)
+    Gxy_kernel = kernel_coherence_64_cy(chunk_pre.data, ch_it, None)
 
     print("coherence_delta = ", coherence_delta[delta_idx, cmp_idx])
     print("Gxy_bp = ", Gxy_bp[cmp_idx])
