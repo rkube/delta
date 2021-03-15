@@ -13,8 +13,11 @@ def kernel_null(data, ch_it, fft_config):
 
     Used for performance testing.
     """
-
     return(data)
+
+
+
+
 
 
 def kernel_crossphase(fft_data, ch_it, fft_config):
@@ -31,7 +34,6 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
       Axy (float):
         Cross phase
     """
-
     Pxy = np.zeros([len(ch_it), fft_data.shape[1], fft_data.shape[2]], dtype=fft_data.dtype)
 
     for idx, ch_pair in enumerate(ch_it):
@@ -116,6 +118,24 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
         res[idx, :] = np.fft.fftshift(_tmp.real)
 
     return(res)
+
+
+def kernel_invfft(fft_data, ch_it, fft_params):
+    """Applies an inverse Fourier transformation.
+
+    Applies an inverse Fourier transformation, and returning data chunks in real space.
+
+    Args:
+    fft_data (ndarray, complex)
+         Contains the fourier-transformed data.
+         dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+    ch_it (iterable):
+        Iterator over a list of channels we wish to perform our computation on
+
+    Returns:
+        real_data (float)
+    """
+    return None
 
 
 def kernel_bicoherence(fft_data, ch_it, fft_params):

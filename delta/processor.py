@@ -17,7 +17,6 @@ import logging.config
 import time
 import queue
 import threading
-#import string
 import json
 import yaml
 import argparse
@@ -62,7 +61,6 @@ def consume(Q, my_task_list, my_preprocessor):
 def main():
     """Procesess a stream of data chunks on an executor."""
     comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
 
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis" +
@@ -101,7 +99,7 @@ def main():
 
     stream_varname = gen_var_name(cfg)[0]
 
-    cfg["run_id"] = "ABC302"
+    cfg["run_id"] = "25259_GT_null"
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 

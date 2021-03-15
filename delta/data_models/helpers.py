@@ -121,8 +121,9 @@ def gen_channel_name(cfg_diagnostic: dict) -> str:
         diagnostic = "ECEI"
         shotnr = int(cfg_diagnostic["shotnr"])
         channel_rg = cfg_diagnostic["datasource"]["channel_range"][0]
+        dev = cfg_diagnostic["dev"]
 
-        channel_name = f"{experiment}_{shotnr:05d}_{diagnostic}_{channel_rg}"
+        channel_name = f"{experiment}_{shotnr:05d}_{diagnostic}_{dev}_{channel_rg}"
         return channel_name
 
     else:
