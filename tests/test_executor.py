@@ -154,6 +154,7 @@ parser.add_argument('--ncorespernode', type=int, help='Number of cores per node'
 parser.add_argument('--nsteps', type=int, help='Number of steps', default=100)
 parser.add_argument('--chunksize', type=int, help='Number of steps in data chunk', default=10000)
 parser.add_argument('--nanalysis', type=int, help='Number of nanalysis', default=100)
+parser.add_argument('--ntasks', type=int, help='Number of tasks (separate executor launches / data chunk)', default=1)
 parser.add_argument('--checkclock', help='Check clock diff', action='store_true')
 parser.add_argument('--setaffinity', help='Set affinity', action='store_true')
 group = parser.add_mutually_exclusive_group()
@@ -227,9 +228,9 @@ def dispatch():
             dq.task_done()
             logging.info(f"\tDispatcher: no more data. break. rank={rank}")
             break
-        
-        future = executor.submit(perform_analysis, tstep, channel_data)
-        fs.put(future)
+        for i in range(args.ntasks): 
+            future = executor.submit(perform_analysis, tstep, channel_data)
+            fs.put(future)
         dq.task_done()
 
 def foo(n):
