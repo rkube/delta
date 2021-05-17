@@ -33,52 +33,155 @@ def config_all():
       "TransportMode": "fast"
     }
   },
-  "storage_mongo":
+  "storage":
   {
-    "backend": "mongo",
-    "datastore": "gridfs",
-    "datadir": "/global/cscratch1/sd/rkube/delta"
+    "backend": "numpy",
+    "basedir": "/global/homes/r/rkube/tmp"
+  },
+ "preprocess": 
+{
+   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"},
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
+   },
+  "analysis": {
+    "crossphase": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crosspower": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crossphase": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "coherence": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  }
+  }"""
+
+    config = json.loads(config_str)
+    return config
+
+
+
+@pytest.fixture(scope="module")
+def config_analysis_cy():
+    """Provides a configuration object for all unit tests."""    
+    config_str = """{
+        "diagnostic":
+          {
+    "name": "kstarecei",
+    "shotnr": 18431,
+    "datasource":
+    {
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
+      "chunk_size": 10000,
+      "num_chunks": 500,
+      "channel_range": ["L0101-2408"],
+      "datatype": "float"
+    }
+  },
+  "transport_nersc":
+  {
+    "datapath": "tmp_nersc",
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "128.55.205.18",
+      "Timeout": "120",
+      "Port": "50001",
+      "TransportMode": "fast"
+    }
   },
   "storage":
   {
-    "backend": "null"
+    "backend": "numpy",
+    "basedir": "/global/homes/r/rkube/tmp"
   },
- "preprocess": {
-   "plot": {"time_range": [0.0, 0.00002], "plot_dir": "/global/homes/r/rkube/delta_runs/plots/"},
-   "wavelet": {"wavelet": "db5", "method": "BayesShrink", "wavelet_levels": 4},
-   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true},
-   "no_bandpass_fir": {"N": 5, "Wn": [0.02, 0.036], "btype": "bandpass", "output": "sos"},
-   "no_bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0392], "gpass": 0.5, "gstop": 10, "ftype": "ellip"}
+ "preprocess":
+{
+   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"},
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
    },
- "task_list": [{
-                "task_description" : "cross_correlation",
-                "analysis": "cross_correlation",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              },
-              {
-                "task_description" : "cross_power",
-                "analysis": "cross_power",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              },
-              {
-                "task_description" : "cross_phase",
-                "analysis": "cross_phase",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              },
-              {
-                "task_description" : "coherence",
-                "analysis": "coherence",
-                "channel_chunk_size": 32768,
-                "ref_channels" : [1, 1, 24, 8],
-                "cmp_channels" : [1, 1, 24, 8]
-              }]
-    }"""
+  "analysis": {
+    "crosspower_cy": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crossphase_cy": {
+      "channel_chunk_size": 32768, 
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "coherence_cy": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  }
+  }"""
+
+    config = json.loads(config_str)
+    return config
+
+
+
+@pytest.fixture(scope="module")
+def config_analysis_cu():
+    """Provides a configuration object for all unit tests."""    
+    config_str = """{
+        "diagnostic":
+          {
+    "name": "kstarecei",
+    "shotnr": 18431,
+    "datasource":
+    {
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
+      "chunk_size": 10000,
+      "num_chunks": 500,
+      "channel_range": ["L0101-2408"],
+      "datatype": "float"
+    }
+  },
+  "transport_nersc":
+  {
+    "datapath": "tmp_nersc",
+    "engine": "BP4",
+    "params":
+    {
+      "IPAddress": "128.55.205.18",
+      "Timeout": "120",
+      "Port": "50001",
+      "TransportMode": "fast"
+    }
+  },
+  "storage":
+  {
+    "backend": "numpy",
+    "basedir": "/global/homes/r/rkube/tmp"
+  },
+ "preprocess":
+{
+   "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"},
+   "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
+   },
+  "analysis": {
+    "crossphase_cu": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
+      "cmp_channels": [1, 1, 24, 8]
+    }
+  }
+  }"""
 
     config = json.loads(config_str)
     return config

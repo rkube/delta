@@ -103,7 +103,7 @@ class ecei_chunk():
         self.siglev = None
         self.sigstd = None
         # bad_channels is used as a mask and has shape=(nchannels)
-        self.bad_channels = np.zeros((self.num_h * self.num_v), dtype=np.bool)
+        self.bad_channels = np.zeros((self.num_h * self.num_v), dtype=bool)
 
     @property
     def data(self):
@@ -176,11 +176,11 @@ class ecei_chunk():
 class ecei_chunk_ft():
     """Represents a fourier-transformed time-chunk of ECEI data."""
 
-    def __init__(self, data_ft, tb, freqs, params=None, axis_ch=0, axis_t=1, num_v=24, num_h=8):
+    def __init__(self, data, tb, freqs, params=None, axis_ch=0, axis_t=1, num_v=24, num_h=8):
         """Initializes with data and meta-information.
 
         Args:
-            data_ft (ndarray, float):
+            data (ndarray, float):
                 Fourier Coefficients
             tb (timebase streaming):
                 Timebase of the original data.
@@ -200,7 +200,7 @@ class ecei_chunk_ft():
         Returns:
             None
         """
-        self.data_ft = data_ft
+        self.data = data
         self.tb = tb
         self.freqs = freqs
         self.params = params
@@ -212,7 +212,7 @@ class ecei_chunk_ft():
     @property
     def data(self):
         """Common interface to data."""
-        return self.data_ft
+        return self.data
 
     @property
     def shape(self):

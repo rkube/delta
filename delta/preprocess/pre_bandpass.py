@@ -3,7 +3,7 @@
 
 """Defines infitnite-impulse bandpass filters."""
 
-from scipy.signal import iirdesign, butter, sosfilt, filtfilt
+from scipy.signal import iirdesign, butter, sosfiltfilt, filtfilt
 
 
 def kernel_bandpass_sos(data, params):
@@ -25,7 +25,7 @@ def kernel_bandpass_sos(data, params):
             Time-chunk with filtered data
 
     """
-    y = sosfilt(params["sos"], data.data, axis=data.axis_t)
+    y = sosfiltfilt(params["sos"], data.data, axis=data.axis_t)
     data.data[:] = y[:]
 
     return(data)
@@ -79,10 +79,11 @@ class pre_bandpass_iir():
         Returns:
             None
         """
+        # Enfore sos coefficients.
         self.params = params
-        print("params = ", params)
-        self.bir, self.air = iirdesign(**params)
-        print("bir = ", self.bir, ", air = ", self.air)
+        self.params.update({"output": "sos"})
+        # Pop unnamed arguments for iirdesign
+        self.sos = iirdesign(**params)
 
     def process(self, data_chunk, executor):
         """Bandpass-filters the time-chunk.
@@ -98,8 +99,8 @@ class pre_bandpass_iir():
                 Time-chunk of data
         """
         # Do nothing and return the data
-        params = {"bir": self.bir, "air": self.air}
-        fut = executor.submit(kernel_bandpass_iir, data_chunk, params)
+        params = {"sos": self.sos}
+        fut = executor.submit(kernel_bandpass_sos, data_chunk, params)
         data_chunk = fut.result()
         return data_chunk
 

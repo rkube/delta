@@ -2,8 +2,6 @@
 
 """Unit tests for wavelet preprocessing."""
 
-import pytest
-
 
 def test_pre_bandpass_iir(config_all):
     """Compare Delta's bandpass preprocessing to directly calling scipy signal."""
@@ -19,7 +17,7 @@ def test_pre_bandpass_iir(config_all):
     from preprocess.pre_bandpass import pre_bandpass_iir
     from azure.storage.blob import BlockBlobService
 
-    from scipy.signal import iirdesign, filtfilt
+    from scipy.signal import iirdesign, sosfiltfilt
 
     # Create the BlockBlobService that is used to call the Blob service for the storage account
     blob_service_client = BlockBlobService(account_name="deltafiles")
@@ -29,7 +27,9 @@ def test_pre_bandpass_iir(config_all):
 
     # Download the blob(s).
     # Add '_DOWNLOADED' as prefix to '.txt' so you can see both files in Documents.
-    full_path_to_file = os.path.join(os.getcwd(), str.replace(local_file_name, '.npz', '_DOWNLOADED.npz'))
+    # shifter is read-only so let's use /tmp, the only place we're allowed to read/write
+    full_path_to_file = os.path.join('/tmp',
+                                     str.replace(local_file_name, '.npz', '_DOWNLOADED.npz'))
     blob_service_client.get_blob_to_path(container_name, local_file_name, full_path_to_file)
 
     with np.load(full_path_to_file) as df:
@@ -41,19 +41,18 @@ def test_pre_bandpass_iir(config_all):
 
     # Filter data here
     fsample = 5e5   # Sampling frequency,in Hz
-    fnyq = 0.5 * fsample
-    wp = config_all["preprocess"]["no_bandpass_iir"]["wp"]
-    ws = config_all["preprocess"]["no_bandpass_iir"]["ws"]
-    gpass = config_all["preprocess"]["no_bandpass_iir"]["gpass"]
-    gstop = config_all["preprocess"]["no_bandpass_iir"]["gstop"]
-    ftype = config_all["preprocess"]["no_bandpass_iir"]["ftype"]
-    bir, air = iirdesign(wp, ws, gpass, gstop, ftype=ftype)
-    y_filt_here = filtfilt(bir, air, data_orig, axis=1)
+    wp = config_all["preprocess"]["bandpass_iir"]["wp"]
+    ws = config_all["preprocess"]["bandpass_iir"]["ws"]
+    gpass = config_all["preprocess"]["bandpass_iir"]["gpass"]
+    gstop = config_all["preprocess"]["bandpass_iir"]["gstop"]
+    ftype = config_all["preprocess"]["bandpass_iir"]["ftype"]
+    sos = iirdesign(wp, ws, gpass, gstop, ftype=ftype, output="sos")
+    y_filt_here = sosfiltfilt(sos, data_orig, axis=1)
     y_filt_here[np.isnan(y_filt_here)] = 0.0
 
     # Filter data using Delta
     data_chunk = ecei_chunk(data_orig, None)
-    my_pre_bandpass_iir = pre_bandpass_iir(config_all["preprocess"]["no_bandpass_iir"])
+    my_pre_bandpass_iir = pre_bandpass_iir(config_all["preprocess"]["bandpass_iir"])
     e = ThreadPoolExecutor(max_workers=2)
     y_filt_delta = my_pre_bandpass_iir.process(data_chunk, e)
     y_filt_delta.data[np.isnan(y_filt_delta.data)] = 0.0

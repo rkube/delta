@@ -13,8 +13,6 @@ def kernel_null(data, ch_it, fft_config):
 
     Used for performance testing.
     """
-    import numpy as np
-
     return(data)
 
 
@@ -32,14 +30,12 @@ def kernel_crossphase(fft_data, ch_it, fft_config):
       Axy (float):
         Cross phase
     """
-    Pxy = np.zeros([len(ch_it), fft_data.shape[1]], dtype=fft_data.dtype)
+    Pxy = np.zeros([len(ch_it), fft_data.shape[1], fft_data.shape[2]], dtype=fft_data.dtype)
+
     for idx, ch_pair in enumerate(ch_it):
-        Pxy[idx, :] = (fft_data[ch_pair.ch1.get_idx(), :, :] *
-                       fft_data[ch_pair.ch2.get_idx(), :, :].conj()).mean(axis=1)
+        Pxy[idx, :, :] = fft_data[ch_pair.ch1.get_idx(), :, :] * fft_data[ch_pair.ch2.get_idx(), :, :].conj()
 
-    crossphase = np.zeros_like(Pxy.real)
-    np.arctan2(Pxy.imag, Pxy.real, out=crossphase, where=(Pxy.real > 1e-6) | (Pxy.imag > 1e-6))
-
+    crossphase = np.arctan2(Pxy.imag, Pxy.real).mean(axis=2)
     return crossphase
 
 
@@ -87,7 +83,7 @@ def kernel_coherence(fft_data, ch_it, fft_config):
         Y = fft_data[ch_pair.ch2.get_idx(), :, :]
         Pxx = X * X.conj()
         Pyy = Y * Y.conj()
-        Gxy[idx, :] = np.abs(X * Y.conj() / np.sqrt(Pxx * Pyy)).mean(axis=1)
+        Gxy[idx, :] = np.abs((X * Y.conj() / (np.sqrt(Pxx * Pyy) + 1e-10)).mean(axis=1))
 
     Gxy = Gxy.real
     return(Gxy)
@@ -117,6 +113,24 @@ def kernel_crosscorr(fft_data, ch_it, fft_params):
         res[idx, :] = np.fft.fftshift(_tmp.real)
 
     return(res)
+
+
+def kernel_invfft(fft_data, ch_it, fft_params):
+    """Applies an inverse Fourier transformation.
+
+    Applies an inverse Fourier transformation, and returning data chunks in real space.
+
+    Args:
+    fft_data (ndarray, complex)
+         Contains the fourier-transformed data.
+         dim0: channel, dim1: Fourier Coefficients, dim2: STFT (bins in fluctana code)
+    ch_it (iterable):
+        Iterator over a list of channels we wish to perform our computation on
+
+    Returns:
+        real_data (float)
+    """
+    return None
 
 
 def kernel_bicoherence(fft_data, ch_it, fft_params):

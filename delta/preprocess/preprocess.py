@@ -17,7 +17,7 @@ class preprocessor():
     executor.
     """
 
-    def __init__(self, executor, cfg_all):
+    def __init__(self, executor, cfg):
         """Configures the pre-processing pipeline from a dictionary.
 
         For each key-value pairs in `cfg['preprocess']`, a pre-processing callable
@@ -41,7 +41,7 @@ class preprocessor():
         # Iterate over pre-process routines defined in the configuration
         # For each item, add the appropriate pre-processing routine to the list.
 
-        self.cfg = cfg_all
+        self.cfg = cfg
         self.executor = executor
         self.preprocess_list = []
         for key, pre_params in cfg["preprocess"].items():

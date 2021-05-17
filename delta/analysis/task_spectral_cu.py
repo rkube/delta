@@ -1,8 +1,7 @@
 # -*- Encoding: UTF-8 -*-
 
 from analysis.task_base import task_base
-from analysis.kernels_spectral_cu import kernel_crosscorr_cu, kernel_coherence_cu
-from analysis.kernels_spectral_gpu import kernel_crosspower_cu, kernel_crossphase_cu
+from analysis.kernels_spectral_cu import kernel_crosscorr_cu, kernel_coherence_cu, kernel_crosspower_cu, kernel_crossphase_cu
     
 
 class task_crosscorr_cu(task_base):

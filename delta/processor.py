@@ -17,7 +17,6 @@ import logging.config
 import time
 import queue
 import threading
-#import string
 import json
 import yaml
 import argparse
@@ -62,7 +61,6 @@ def consume(Q, my_task_list, my_preprocessor):
 def main():
     """Procesess a stream of data chunks on an executor."""
     comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
 
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis" +
@@ -81,6 +79,10 @@ def main():
     parser.add_argument("--transport", type=str,
                         help="Specifies the transport section used to configure the reader",
                         default="transport_rx")
+    parser.add_argument("--run_id", type=str,
+                        help="Name of database collection to store analysis results in",
+                        required=True)
+
     args = parser.parse_args()
 
     with open(args.config, "r") as df:
@@ -101,7 +103,7 @@ def main():
 
     stream_varname = gen_var_name(cfg)[0]
 
-    cfg["run_id"] = "ABC302"
+    cfg["run_id"] = args.run_id
     cfg["storage"]["run_id"] = cfg["run_id"]
     logger.info(f"Starting run {cfg['run_id']}")
 
@@ -157,8 +159,8 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
         
-        # if reader.CurrentStep() > 5:
-        #     break
+        if reader.CurrentStep() > 5:
+            break
 
     dq.join()
     logger.info("Queue joined")

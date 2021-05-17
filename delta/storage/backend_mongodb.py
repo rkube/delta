@@ -241,6 +241,7 @@ class backend_mongodb():
                 MongoDB ObjectID of the inserted object.
         """
         size_in_MB = np.prod(data.shape) * data.dtype.itemsize / 1024 / 1024
+        self.logger.info(f"In store_data: data.shape{data.shape}, {info_dict}")
 
         with mongo_connection(self.cfg_mongo) as mongo:
             client, coll = mongo
@@ -296,6 +297,7 @@ class backend_mongodb():
 
             try:
                 inserted_id = coll.insert_one(info_dict)
+                self.logger.info(f"Storing data: {info_dict}")
             except pymongo.errors.PyMongoError as e:
                 self.logger.error(f"An error has occurred in store_data: {e}")
                 raise ValueError(e)
