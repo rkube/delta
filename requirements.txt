@@ -19,3 +19,4 @@ azure-storage-blob==2.1.0
 black>=20.8b1
 numba
 azure-storage
+cupy-cuda110
