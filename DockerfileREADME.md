@@ -1,57 +1,35 @@
 # README for Delta Dockerfile
 
-The Dockerfile is the blueprint for the delta image. It is built on top of an NVIDIA cuda image to provide GPU support. It largely follows the instructions here: https://delta-fusion.readthedocs.io/en/latest/notes/installing.html
+The Dockerfile is the blueprint for the delta image. It is built on top of an
+NVIDIA cuda image to provide GPU support. It largely follows the instructions
+here: https://delta-fusion.readthedocs.io/en/latest/notes/installing.html
 
-## Pulling
+## Using at NERSC
 
-If you want to just pull and use the pre-built container
+The image is called `registry.nersc.gov/das/delta:3.0`. 
 
-```
-docker pull stephey/delta:1.0
-```
+As a backup, there is also an image that has delta installed inside: `registry.nersc.gov/das/delta-inside:1.0`
 
-You can find more information here: https://hub.docker.com/repository/docker/stephey/delta
-
-## Building
-
-To build the container locally, make sure you have Docker installed on your machine. You may also want to sign up for a free dockerhub account.
+On corigpu, request the image during your interactive job:
 
 ```
-docker build -t <your dockerhub username>/delta:1.0 .
+module load cgpu
+salloc -N 1 -C gpu -G 1 -t 120 -A m499 --image=registry.nersc.gov/das/delta:3.0
 ```
 
-here we chose the `1.0` tag but you can call it whatever you like.
+On Cori, `module unload cgpu` and adjust your salloc/sbatch accordingly.
 
-Note that building the container requires the `requirements.txt` file present alongside the Dockerfile to be copied into the image.
-
-Building from scratch takes ~30 mins.
-
-## Running
-
-To run the container and look around inside:
+To open a shell inside the container and run tests/scripts inside:
 
 ```
-docker run -it --rm <your dockerhub username>/delta:1.0 /bin/bash
+shifter --volume="/global/cscratch1/sd/stephey/delta:/opt/delta" /bin/bash
 ```
 
-## Pushing
+The `--volume` command will bind-mount your delta installation into
+`/opt/delta` inside the image. Note that the bind location `/opt/delta` must
+exist inside the image.
 
-To push the container to dockerhub:
+To use shifter to run your tests/scripts:
 
+shifter --volume="/global/cscratch1/sd/stephey/delta:/opt/delta" ls /opt/delta/tests
 ```
-docker login
-#enter your dockerhub credentials
-docker push <your dockerhub username>/delta:1.0
-```
-
-Depending on your upload speed, this can be very slow (~hours). The next push will be faster since it can build on existing images.
-
-## Using
-
-On NERSC, we require that Docker containers are run using Shifter for security reasons (i.e. no root privileges.) You can find more info here: https://docs.nersc.gov/development/shifter/how-to-use/
-
-Notes: we have had some trouble with Python + CUDA drivers in shifter containers. We may also see this in the delta container. We're working on a fix for this.
-
-On other systems and clusters, you may be able to run using Docker directly or nvidia-docker.
-
-

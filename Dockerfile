@@ -1,6 +1,6 @@
 FROM nvidia/cuda:11.0-devel-ubuntu20.04
 
-WORKDIR /tmp
+WORKDIR /opt
 
 #ubuntu 20.04 bugfix
 ENV DEBIAN_FRONTEND noninteractive
@@ -33,44 +33,57 @@ RUN \
     cd ..                                                                   && \
     rm -rf $mpich_prefix
 
-ARG mpi4py=3.0.0
+ARG mpi4py=3.0.3
 ARG mpi4py_prefix=mpi4py-$mpi4py
-
-#alias python3 to python
-RUN ln -s /usr/bin/python3 /usr/bin/python && \
-    ln -s /usr/bin/pip3 /usr/bin/pip
 
 #install mpi4py manually, may not be necessary but let's be careful for now
 RUN \
     wget https://bitbucket.org/mpi4py/mpi4py/downloads/$mpi4py_prefix.tar.gz && \
     tar xvzf $mpi4py_prefix.tar.gz                                           && \
     cd $mpi4py_prefix                                                        && \
-    python setup.py build                                                    && \
-    python setup.py install                                                  && \
+    python3 setup.py build                                                    && \
+    python3 setup.py install                                                  && \
     cd ..                                                                    && \
     rm -rf $mpi4py_prefix                                                    && \
     cd $HOME
 
 RUN /sbin/ldconfig
 
-##install cuda sdk which is (maybe?) required by pip numba
-##see here https://numba.pydata.org/numba-doc/dev/user/installing.html#installing-using-pip-on-x86-x86-64-platforms
-#RUN wget https://developer.download.nvidia.com/compute/cuda/11.2.0/local_installers/cuda_11.2.0_460.27.04_linux.run && \
-#    /bin/bash cuda_11.2.0_460.27.04_linux.run
+####install python packages from requirements file
+###RUN python3 -m pip install -U setuptools pip
+###ADD requirements.txt /opt/requirements.txt
+###RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
-#install python packages from requirements file
-RUN python -m pip install -U setuptools pip
-ADD requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+#first update pip
+RUN python3 -m pip install -U setuptools pip
 
-#install adios
+#for now, let's install cupy ourselves since it's not in the delta
+#requirements file
+RUN python3 -m pip install cupy-cuda110
+
+WORKDIR /opt
+
+#clone delta but only for the requirements file
+#remove it after we're done so there's no confusion
+RUN wget https://github.com/rkube/delta/archive/master.tar.gz          && \
+    tar xvzf master.tar.gz                                             && \
+    mv delta-master delta                                              && \
+    rm -rf master.tar.gz                                               && \
+    cd delta                                                           && \
+    python3 -m pip install --no-cache-dir -r requirements.txt          && \
+    rm -rf /opt/delta
+
+#for the moment i think we're ok without the requirements since
+#we install mpi4py ourselves and delta installs numpy
+#install adios from current master
 RUN wget https://github.com/ornladios/ADIOS2/archive/master.tar.gz    && \
     tar xvzf master.tar.gz                                            && \
     mv ADIOS2-master adios2-devel                                     && \
+    #python3 -m pip install --no-cache-dir -r requirements.txt         && \
     mkdir adios2-build                                                && \
     rm -rf master.tar.gz
 
-WORKDIR /tmp/adios2-build
+WORKDIR /opt/adios2-build
 
 ENV VER docker
 
@@ -93,23 +106,16 @@ RUN \
         -DADIOS2_USE_ZeroMQ=ON                               \
         ../adios2-devel
 
-RUN make ; make install
+RUN make -j 32; make install
 
 RUN ln -s /software/adios2-$VER /software/adios2-current
 
 #this looks different in ubuntu
 ENV PYTHONPATH /software/adios2-current/lib/python3/dist-packages
 
-WORKDIR /tmp
+WORKDIR /opt
 
-#install delta
-RUN wget https://github.com/rkube/delta/archive/master.tar.gz          && \
-    tar xvzf master.tar.gz                                             && \
-    mv delta-master delta                                              && \
-    rm -rf master.tar.gz                                               && \
-    cd delta                                                           && \
-    cd delta/analysis                                                  && \
-    CC=cc LDSHARED="cc -shared" python setup.py build_ext --inplace
+#let's try to bind mount delta instead
 
 #mongodb python driver
 RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   && \
@@ -121,6 +127,11 @@ RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   
     > bson/buffer.c                                                             && \
     > bson/buffer.h                                                             && \
     > pymongo/_cmessagemodule.c                                                 && \
-    python setup.py build                                                       && \
-    python setup.py install --user
+    python3 setup.py build                                                       && \
+    python3 setup.py install --user
+
+
+#make the delta dir so we can bind mount it in
+WORKDIR /opt
+RUN mkdir /delta
 
