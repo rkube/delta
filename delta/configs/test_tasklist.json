@@ -20,7 +20,7 @@
     "params":
     {
       "IPAddress": "203.230.120.125",
-      "Timeout": "120",
+      "Timeout": "15",
       "Port": "50001",
       "TransportMode": "fast"
     }
@@ -31,7 +31,7 @@
     "params":
     {
       "IPAddress": "128.55.205.18",
-      "Timeout": "120",
+      "Timeout": "15",
       "Port": "50055",
       "TransportMode": "fast"
     }
