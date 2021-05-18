@@ -8,7 +8,7 @@ formatters:
     format: "middleman: %(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s "
   ext_generator:
     format: "generator: %(levelname)s %(asctime)s,%(msecs)d [Process %(process)d %(processName)s %(threadName)s] [%(module)s %(funcName)s]: %(message)s "
-  
+
 
 handlers:
   console:
@@ -34,6 +34,12 @@ handlers:
     level: INFO
     formatter: ext_generator
     filename: delta.log
+
+  file_performance:
+    class: logging.FileHandler
+    level: INFO
+    formatter: simple
+    filename: delta_performance.log
   
 loggers:
   simple:

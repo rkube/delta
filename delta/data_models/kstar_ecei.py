@@ -209,22 +209,22 @@ class ecei_chunk_ft():
         self.num_v = num_v
         self.num_h = num_h
 
-    @property
-    def data(self):
-        """Common interface to data."""
-        return self.data
+    # @property
+    # def data(self):
+    #     """Common interface to data."""
+    #     return self.data
 
     @property
     def shape(self):
         """Forwards to self.ecei_data.shape."""
-        return self.ecei_data.shape
+        return self.data.shape
 
 
 def channel_range_from_str(range_str):
     """Generates a channel_range from a range.
 
     In `fluctana <https://github.com/minjunJchoi/fluctana>`_ ,
-    channels are referred to f.ex. 
+    channels are referred to f.ex.
 
     .. code-block::
     

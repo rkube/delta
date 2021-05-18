@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 
-"""Stages fusion diagnostic data for streaming.
+"""Stages diagnostic data for streaming.
 
 Reads diagnostic data and stages it chunk-wise for transport.
 Data stream can be received with middleman or processor.
@@ -51,10 +51,10 @@ logger.info("Starting up...")
 
 # Instantiate a dataloader
 dataloader = get_loader(cfg)
-configname = "transport_tx" if not args.kstar else "transport_rx"
-logger.info(f"Creating writer_gen: engine={cfg[configname]['engine']}")
+sectionname = "transport_tx" if not args.kstar else "transport_rx"
+logger.info(f"Creating writer_gen: engine={cfg[sectionname]['engine']}")
 
-writer = writer_gen(cfg[configname], gen_channel_name(cfg["diagnostic"]))
+writer = writer_gen(cfg[sectionname], gen_channel_name(cfg["diagnostic"]))
 logger.info(f"Streaming channel name = {gen_channel_name(cfg['diagnostic'])}")
 # Give the writer hints on what kind of data to transfer
 

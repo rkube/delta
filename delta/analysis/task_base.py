@@ -36,6 +36,8 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
     storage_backend.store_data(result, info_dict)
     dt_io = datetime.datetime.now() - t1_io
 
+    #assert(False)
+
     with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
         # df.write("here")
         df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
@@ -44,7 +46,7 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
         df.write(f"{an_name}: type is {type(result)} and shape is {result.shape}\n")
         df.flush()
 
-    return result
+    return None
 
 
 class task_base():
