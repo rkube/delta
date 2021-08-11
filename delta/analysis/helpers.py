@@ -8,7 +8,7 @@ from analysis.task_spectral import task_crosspower, task_crossphase, task_cohere
 from analysis.task_spectral_cy import task_coherence_cy, task_crosspower_cy, task_crossphase_cy
 try:
     from analysis.task_spectral_cu import task_coherence_cu, task_crosscorr_cu, task_crossphase_cu, task_crosspower_cu
-except ModuleNotFoundError:
+except:
     None
 
 from analysis.task_spectral_numba import task_spectral_GAP
