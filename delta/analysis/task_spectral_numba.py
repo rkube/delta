@@ -43,7 +43,7 @@ def calc_and_store_numba(kernel, storage_backend, fft_data, ch_it, info_dict):
     win_factor = 1.0
 
     # Try changing flags to C_CONTIGUOUS
-    # Passinf fft_data.data directly into the kernel always fails.
+    # Passing fft_data.data directly into the kernel always fails.
     # I checked size and passing a dummy array of similar shape and dtype.
     # That worked, buy never fft_data.data
     # I also checked the flags. fft_data.data.C_CONTIGUOUS was false. Setting it to true
@@ -54,6 +54,7 @@ def calc_and_store_numba(kernel, storage_backend, fft_data, ch_it, info_dict):
 
     t1_calc = datetime.datetime.now()
     kernel[num_blocks, threads_per_block](dummy, result, ch1_idx_arr, ch2_idx_arr, win_factor)
+
     t2_calc = datetime.datetime.now()
 
     t1_io = datetime.datetime.now()
@@ -61,8 +62,8 @@ def calc_and_store_numba(kernel, storage_backend, fft_data, ch_it, info_dict):
     dt_io = datetime.datetime.now() - t1_io
 
     with open(f"outfile_{comm.rank:03d}.txt", "a") as df:
-        df.write(f"success: num_blocks={num_blocks}, tpb={threads_per_block}... {fft_data.data.dtype}, {fft_data.data.shape}... ")
-        df.write(f"dummy: {dummy.flags}, fft_data.data: {fft_data.data.flags}")
+        # df.write(f"success: num_blocks={num_blocks}, tpb={threads_per_block}... {fft_data.data.dtype}, {fft_data.data.shape}... ")
+        # df.write(f"dummy: {dummy.flags}, fft_data.data: {fft_data.data.flags}")
         df.write((f"rank {comm.rank:03d}/{comm.size:03d}: "
                   f"tidx={info_dict['chunk_idx']} {info_dict['analysis_name']} "
                   f"start {t1_calc.isoformat(sep=' ')}  "

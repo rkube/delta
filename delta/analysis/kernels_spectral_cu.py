@@ -121,29 +121,23 @@ def kernel_crosscorr_cu(fft_data, ch_it, fft_params):
         cross-correlation (ndarray, float):
             Cross-correlations
     """
-    # import time
-    from cupy.scipy import fft
+    from cupyx.scipy.fft import get_fft_plan
 
     fft_shifted = np.fft.fftshift(fft_data, axes=1)
 
-    fft_shifted_gpu = cp.asarray(fft_shifted)
+    fft_shifted_gpu = cp.asarray(fft_shifted.astype("complex64"))
     res = cp.zeros([len(ch_it), fft_data.shape[1]])
 
     # Pre-calculate one plan for all following FFTs:
-    plan = fft.get_fft_plan(fft_shifted_gpu[0, :, :], axes=0)
+    plan = get_fft_plan(fft_shifted_gpu[0, :, :], axes=0)
     with plan:
         for idx, ch_pair in enumerate(ch_it):
-            # _tmp = cp.fft.ifft(fft_shifted_gpu[1, :, :] *
-            #                    fft_shifted_gpu[3, :, :].conj(),
-            #                    axis=0).mean(axis=1) / fft_params['win_factor']
-
-            _tmp = cp.fft.ifft(fft_shifted_gpu[ch_pair.ch1.get_idx(), :, :] *
-                               fft_shifted_gpu[ch_pair.ch2.get_idx(), :, :].conj(),
-                               axis=0).mean(axis=1) / fft_params['win_factor']
+            # a1 = ch_pair.ch1.get_idx()
+            X = fft_shifted_gpu[ch_pair.ch1.get_idx(), :, :]
+            Y = fft_shifted_gpu[ch_pair.ch2.get_idx(), :, :]
+            _tmp = cp.fft.ifft(X * Y.conj(), axis=0).mean(axis=1) / fft_params["win_factor"]
             res[idx, :] = cp.fft.fftshift(_tmp.real)
-
-    res = cp.asnumpy(res)
-
+    res = cp.asnumpy(res.astype("complex128"))
     return(res)
 
 
