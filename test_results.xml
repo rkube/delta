@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="2.978" timestamp="2020-11-20T09:06:49.064645" hostname="cori09"><testcase classname="tests.test_pre_wavelet" name="test_pre_wavelet" time="2.640" /></testsuite></testsuites>
