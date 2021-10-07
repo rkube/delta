@@ -56,7 +56,7 @@ class loader_kstarecei():
 
         # Process attributes stored in HDF5 file
         # Extract device name of filename, the part in between .[A-Z]{2}.
-        m = re.search('\.[A-Z]{1,2}\.', os.path.basename(self.filename))
+        m = re.search("\.[A-Z]{1,2}\.", os.path.basename(self.filename))
         self.attrs = {"dev": m[0][1:-1]}
         self._read_attributes_from_hdf5()
         self.logger = logging.getLogger('simple')
@@ -82,7 +82,7 @@ class loader_kstarecei():
             for attr_name in ["SampleRate", "TriggerTime", "TFcurrent", "Mode", "LoFreq",
                               "LensFocus", "LensZoom"]:
                 try:
-                    # Test if attribute is serializable. 
+                    # Test if attribute is serializable.
                     # If it is f.ex an ndarray convert it to a list.
                     new_attr = dset[attr_name]
                     if isinstance(new_attr, np.ndarray):
@@ -191,4 +191,3 @@ class loader_kstarecei():
             yield current_chunk
 
 # End of file loader_kstarecei.py
-

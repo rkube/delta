@@ -60,7 +60,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
 def main():
     """Procesess a stream of data chunks on an executor."""
-    comm = MPI.COMM_WORLD
+    #comm = MPI.COMM_WORLD
 
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis" +
@@ -112,7 +112,7 @@ def main():
     store_backend = store_type(cfg["storage"])
     store_backend.store_one({"run_id": cfg['run_id'], "run_config": cfg})
 
-    # TODO: (RMC)  Should this be moved to where cfg updated? 
+    # TODO: (RMC)  Should this be moved to where cfg updated?
     # (would allow updating channels to process remotely)
     reader = reader_gen(cfg[args.transport], gen_channel_name(cfg["diagnostic"]))
     reader.Open()
@@ -120,9 +120,9 @@ def main():
     dq = queue.Queue()
 
     # In a streaming setting, (SST, dataman) attributes can only be accessed after
-    # reading the first time step of a variable. 
+    # reading the first time step of a variable.
     # Initialize stream_attrs with None and load it in the main loop below.
-    stream_attrs = None 
+    stream_attrs = None
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
     my_preprocessor = preprocessor(executor_pre, cfg)
@@ -158,7 +158,7 @@ def main():
         else:
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
-        
+
         if reader.CurrentStep() > 100:
             break
 
