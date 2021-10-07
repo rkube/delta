@@ -45,7 +45,7 @@ def consume(Q, my_task_list, my_preprocessor):
 
     while True:
         try:
-            msg = Q.get(timeout=2.0)
+            msg = Q.get(timeout=120.0)
         except queue.Empty:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
@@ -159,8 +159,8 @@ def main():
             logger.info(f"Exiting: StepStatus={stepStatus}")
             break
         
-        # if reader.CurrentStep() > 5:
-        #     break
+        if reader.CurrentStep() > 100:
+            break
 
     dq.join()
     logger.info("Queue joined")

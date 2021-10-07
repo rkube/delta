@@ -3,7 +3,7 @@
 
 """Receives data from generator and forwards them to processor."""
 
-from mpi4py import MPI
+#from mpi4py import MPI
 
 import logging
 import logging.config
@@ -14,8 +14,8 @@ import json
 import yaml
 import argparse
 
-from streaming.writers import writer_gen
-from streaming.reader_mpi import reader_gen
+from streaming.writer_nompi import writer_gen
+from streaming.reader_nompi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name
 
 
@@ -29,7 +29,8 @@ class AdiosMessage:
 
 def forward(Q, cfg, args, timeout):
     """To be executed by a local thread. Pops items from the queue and forwards them."""
-    global comm, rank
+    #global comm, rank
+    rank = 0
     logger = logging.getLogger("middleman")
     logger.info(f"Worker: Creating writer_gen: engine={cfg[args.transport_tx]['engine']}")
 
@@ -74,9 +75,10 @@ def forward(Q, cfg, args, timeout):
 
 def main():
     """Reads items from a ADIOS2 connection and forwards them."""
-    global comm, rank, args
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
+    #global comm, rank, args
+    #comm = MPI.COMM_WORLD
+    #rank = comm.Get_rank()
+    rank = 0
 
     parser = argparse.ArgumentParser(description="Receive data and dispatch" +
                                      "analysis tasks to a mpi queue")
@@ -90,7 +92,7 @@ def main():
 
     with open(args.config, "r") as df:
         cfg = json.load(df)
-    timeout = 5
+    timeout = 60
 
     # The middleman uses both a reader and a writer. Each is configured with using
     # their respective section of the config file. Therefore some keys are duplicated,
