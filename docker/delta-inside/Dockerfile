@@ -1,4 +1,5 @@
-FROM nvidia/cuda:11.0-devel-ubuntu20.04
+#needs to be devel since cupy requires libcublas which shifter doesn't currently provide
+FROM docker.io/nvidia/cuda:11.0-devel-ubuntu20.04
 
 WORKDIR /opt
 
@@ -27,54 +28,16 @@ RUN \
     tar xvzf $mpich_prefix.tar.gz                                           && \
     cd $mpich_prefix                                                        && \
     ./configure                                                             && \
-    make -j 4                                                               && \
+    make -j 32                                                              && \
     make install                                                            && \
     make clean                                                              && \
     cd ..                                                                   && \
     rm -rf $mpich_prefix
 
-ARG mpi4py=3.0.3
-ARG mpi4py_prefix=mpi4py-$mpi4py
-
-#install mpi4py manually, may not be necessary but let's be careful for now
-RUN \
-    wget https://bitbucket.org/mpi4py/mpi4py/downloads/$mpi4py_prefix.tar.gz && \
-    tar xvzf $mpi4py_prefix.tar.gz                                           && \
-    cd $mpi4py_prefix                                                        && \
-    python3 setup.py build                                                    && \
-    python3 setup.py install                                                  && \
-    cd ..                                                                    && \
-    rm -rf $mpi4py_prefix                                                    && \
-    cd $HOME
-
 RUN /sbin/ldconfig
-
-####install python packages from requirements file
-###RUN python3 -m pip install -U setuptools pip
-###ADD requirements.txt /opt/requirements.txt
-###RUN python3 -m pip install --no-cache-dir -r requirements.txt
-
-#first update pip
-RUN python3 -m pip install -U setuptools pip
-
-#for now, let's install cupy ourselves since it's not in the delta
-#requirements file
-RUN python3 -m pip install cupy-cuda110
 
 WORKDIR /opt
 
-#clone delta but only for the requirements file
-#remove it after we're done so there's no confusion
-RUN wget https://github.com/rkube/delta/archive/master.tar.gz          && \
-    tar xvzf master.tar.gz                                             && \
-    mv delta-master delta                                              && \
-    rm -rf master.tar.gz                                               && \
-    cd delta                                                           && \
-    python3 -m pip install --no-cache-dir -r requirements.txt          && \
-    rm -rf /opt/delta
-
-#for the moment i think we're ok without the requirements since
-#we install mpi4py ourselves and delta installs numpy
 #install adios from current master
 RUN wget https://github.com/ornladios/ADIOS2/archive/master.tar.gz    && \
     tar xvzf master.tar.gz                                            && \
@@ -82,6 +45,26 @@ RUN wget https://github.com/ornladios/ADIOS2/archive/master.tar.gz    && \
     #python3 -m pip install --no-cache-dir -r requirements.txt         && \
     mkdir adios2-build                                                && \
     rm -rf master.tar.gz
+
+#delta must come before adios2
+
+#first update pip
+RUN python3 -m pip install -U setuptools pip
+
+#note this is not cuda-aware
+RUN python3 -m pip install mpi4py
+
+#here we actually install delta and its requirements
+#note cuda is 11.0 so cupy is 110
+RUN wget https://github.com/rkube/delta/archive/master.tar.gz          && \
+    tar xvzf master.tar.gz                                             && \
+    mv delta-master delta                                              && \
+    rm -rf master.tar.gz                                               && \
+    cd delta                                                           && \
+    python3 -m pip install --no-cache-dir -r requirements.txt          && \
+    cd delta/analysis                                                  && \
+    CC=cc LDSHARED="cc -shared" python3 setup.py build_ext --inplace
+
 
 WORKDIR /opt/adios2-build
 
@@ -115,8 +98,6 @@ ENV PYTHONPATH /software/adios2-current/lib/python3/dist-packages
 
 WORKDIR /opt
 
-#let's try to bind mount delta instead
-
 #mongodb python driver
 RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   && \
     tar xvzf master.tar.gz                                                      && \
@@ -129,9 +110,4 @@ RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   
     > pymongo/_cmessagemodule.c                                                 && \
     python3 setup.py build                                                       && \
     python3 setup.py install --user
-
-
-#make the delta dir so we can bind mount it in
-WORKDIR /opt
-RUN mkdir /delta
 
