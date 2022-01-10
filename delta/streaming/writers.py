@@ -15,9 +15,9 @@ from streaming.stream_stats import stream_stats
 from streaming.adios_helpers import gen_io_name
 
 
-class writer_base():
+class writer_gen():
     """Generc base class for all ADIOS2 writers."""
-    def __init__(self, cfg: dict, stream_name: str):
+    def __init__(self, cfg_transport: dict, channel_name: str):
         """Initialize writer_base."""
         comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
@@ -33,8 +33,16 @@ class writer_base():
         self.shape = None
 
         # Generate a descriptive channel name
-        self.stream_name = stream_name
+        self.channel_name = channel_name
 
+        # Set IO parameters
+        self.IO.SetEngine(cfg_transport["engine"])
+        self.IO.SetParameters(cfg_transport["params"])
+
+        if cfg_transport["engine"].lower() == "dataman":
+            cfg_transport["params"].update(Port=str(int(cfg_transport["params"]["Port"]) +
+                                           self.rank))
+                                           
         # To generate statistics
         self.stats = stream_stats()
 
@@ -87,7 +95,7 @@ class writer_base():
     def Open(self):
         """Opens a new channel."""
         if self.writer is None:
-            self.writer = self.IO.Open(self.stream_name, adios2.Mode.Write)
+            self.writer = self.IO.Open(self.channel_name, adios2.Mode.Write)
 
     def Close(self):
         """Wrapper for Close."""
@@ -146,30 +154,4 @@ class writer_base():
         return stats_str
 
 
-class writer_gen(writer_base):
-    """I don't know why this is here - RK 2020-11-29."""
-    def __init__(self, cfg_transport, stream_name):
-        """Instantiates a writer.
-
-        Control Adios method and params through transport section cfg
-
-        Args:
-            cfg_transport (dict):
-                This corresponds to the transport section.
-            stream_name (str):
-                Name for the adios data stream
-
-        Returns:
-            None
-        """
-        super().__init__(cfg_transport, stream_name)
-        self.IO.SetEngine(cfg_transport["engine"])
-        self.IO.SetParameters(cfg_transport["params"])
-
-        if cfg_transport["engine"].lower() == "dataman":
-            cfg_transport["params"].update(Port=str(int(cfg_transport["params"]["Port"]) +
-                                           self.rank))
-
-
 # End of file writers.py
-

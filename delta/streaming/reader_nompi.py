@@ -9,14 +9,14 @@ from streaming.adios_helpers import gen_io_name
 from streaming.stream_stats import stream_stats
 
 
-class reader_base():
-    def __init__(self, cfg: dict, stream_name: str):
+class reader_gen():
+    def __init__(self, cfg: dict, channel_name: str):
         """Initializes the generic reader base class.
 
         Arguments:
             cfg (dict):
                 delta config dictionary
-            stream_name (str):
+            channel_name (str):
                 ADIOS2 name of the stream
 
         Returns:
@@ -26,9 +26,11 @@ class reader_base():
         self.logger = logging.getLogger("simple")
 
         self.IO = self.adios.DeclareIO(gen_io_name(0))
+        self.IO.SetEngine(cfg["engine"])
+        self.IO.SetParameters(cfg["params"])
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
         self.reader = None
-        self.stream_name = stream_name
+        self.channel_name = channel_name
 
     def Open(self, multi_channel_id=None):
         """Opens a new channel.
@@ -39,13 +41,13 @@ class reader_base():
         if multi_channel_id is not None:
             self.channel_name = "%s_%02d"%(self.channel_name, multi_channel_id)
 
-        self.logger.info(f"Waiting to receive channel name {self.stream_name}")
+        self.logger.info(f"Waiting to receive channel name {self.channel_name}")
         if self.reader is None:
-            self.reader = self.IO.Open(self.stream_name, adios2.Mode.Read)
+            self.reader = self.IO.Open(self.channel_name, adios2.Mode.Read)
             # attrs = self.IO.InquireAttribute("cfg")
         else:
             pass
-        self.logger.info(f"Opened channel {self.stream_name}")
+        self.logger.info(f"Opened channel {self.channel_name}")
         # self.logger.info(f"-> attrs = {attrs.DataString()}")
 
         return None
@@ -98,7 +100,7 @@ class reader_base():
         stream_attrs = json.loads(attrs.DataString()[0])
         #except ValueError as e:
         #    self.logger.error(f"Could not load attributes from stream: {e}")
-        #    raise ValueError(f"Failed to load attributes {attrsname} from {self.stream_name}")
+        #    raise ValueError(f"Failed to load attributes {attrsname} from {self.channel_name}")
 
         self.logger.info(f"Loaded attributes: {stream_attrs}")
         # TODO: Clean up naming conventions for stream attributes
@@ -136,28 +138,5 @@ class reader_base():
 
         return time_chunk
 
-
-class reader_gen(reader_base):
-    """I don't know why we have this derived class - RK 2020-12-02."""
-    def __init__(self, cfg: dict, stream_name: str):
-        """Instantiates a reader.
-
-        Args:
-            cfg (dict):
-                delta config dict
-            stream_name (str):
-                Name of the data stream to read
-
-        Returns:
-            A class instance
-
-        Used keys from cfg_all:
-            * transport.engine - Defines the `ADIOS2 engine <https://adios2.readthedocs.io/en/latest/engines/engines.html#supported-engines>`_
-            * transport.params - Passed to `SetParameters <https://adios2.readthedocs.io/en/latest/api_full/api_full.html?highlight=setparameters#_CPPv4N6adios22IO13SetParametersERKNSt6stringE>`_
-        """
-        super().__init__(cfg, stream_name)
-        self.IO.SetEngine(cfg["engine"])
-        self.IO.SetParameters(cfg["params"])
-        self.reader = None
 
 # End of file reader_mpi.py

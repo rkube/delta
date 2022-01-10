@@ -11,18 +11,23 @@ from streaming.adios_helpers import gen_io_name
 from streaming.stream_stats import stream_stats
 
 
-class reader_base():
+class reader_gen():
     def __init__(self, cfg: dict, stream_name: str):
         """Initializes the generic reader base class.
 
-        Arguments:
+        Args:
             cfg (dict):
-                delta config dictionary
+                delta config dict
             stream_name (str):
-                ADIOS2 name of the stream
+                Name of the data stream to read
 
         Returns:
-            None
+            A class instance
+
+        Used keys from cfg_all:
+            * transport.engine - Defines the `ADIOS2 engine <https://adios2.readthedocs.io/en/latest/engines/engines.html#supported-engines>`_
+            * transport.params - Passed to `SetParameters <https://adios2.readthedocs.io/en/latest/api_full/api_full.html?highlight=setparameters#_CPPv4N6adios22IO13SetParametersERKNSt6stringE>`_
+  
         """
         comm  = MPI.COMM_SELF
         self.rank = comm.Get_rank()
@@ -32,6 +37,8 @@ class reader_base():
         self.logger = logging.getLogger("simple")
 
         self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
+        self.IO.SetEngine(cfg["engine"])
+        self.IO.SetParameters(cfg["params"])
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
         self.reader = None
         self.stream_name = stream_name
@@ -142,28 +149,5 @@ class reader_base():
 
         return time_chunk
 
-
-class reader_gen(reader_base):
-    """I don't know why we have this derived class - RK 2020-12-02."""
-    def __init__(self, cfg: dict, stream_name: str):
-        """Instantiates a reader.
-
-        Args:
-            cfg (dict):
-                delta config dict
-            stream_name (str):
-                Name of the data stream to read
-
-        Returns:
-            A class instance
-
-        Used keys from cfg_all:
-            * transport.engine - Defines the `ADIOS2 engine <https://adios2.readthedocs.io/en/latest/engines/engines.html#supported-engines>`_
-            * transport.params - Passed to `SetParameters <https://adios2.readthedocs.io/en/latest/api_full/api_full.html?highlight=setparameters#_CPPv4N6adios22IO13SetParametersERKNSt6stringE>`_
-        """
-        super().__init__(cfg, stream_name)
-        self.IO.SetEngine(cfg["engine"])
-        self.IO.SetParameters(cfg["params"])
-        self.reader = None
 
 # End of file reader_mpi.py

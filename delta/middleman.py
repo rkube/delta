@@ -92,7 +92,7 @@ def main():
 
     with open(args.config, "r") as df:
         cfg = json.load(df)
-    timeout = 60
+    timeout = 120
 
     # The middleman uses both a reader and a writer. Each is configured with using
     # their respective section of the config file. Therefore some keys are duplicated,

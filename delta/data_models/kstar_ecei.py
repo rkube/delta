@@ -11,10 +11,11 @@ This code is based on the `fluctana <https://github.com/minjunJchoi/fluctana>`_ 
 import logging
 import numpy as np
 
+from data_models.base_models import twod_chunk
 from data_models.channels_2d import channel_2d, channel_range, num_to_vh
 
 
-class ecei_chunk():
+class ecei_chunk(twod_chunk):
     """Class that represents a time-chunk of ECEI data.
     
     This class provides the following interface.
@@ -37,7 +38,6 @@ class ecei_chunk():
     """
 
     def __init__(self, data, tb, params=None, num_v=24, num_h=8):
-        # TODO: remove rarr and zarr and make them computable from params
         """Creates an ecei_chunk from a give dataset.
 
         The first dimension indices channels, the second dimension indices time.
@@ -71,16 +71,18 @@ class ecei_chunk():
         Returns:
             None
         """
+        
+        super().__init__(data)  # Initializes data member
         self.logger = logging.getLogger("simple")
         # Data should have more than 1 dimension, last dimension is time
         assert(data.ndim > 1)
         #
         self.num_v, self.num_h = num_v, num_h
 
-        # We should ensure that the data is contiguous so that we can remove this from
-        # if not data.flags.contiguous:
-        self.ecei_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
-        assert(self.ecei_data.flags.contiguous)
+        # # We should ensure that the data is contiguous so that we can remove this from
+        # # if not data.flags.contiguous:
+        # self.ecei_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
+        # assert(self.ecei_data.flags.contiguous)
 
         # Time-base for the chunk
         self.tb = tb
@@ -105,15 +107,6 @@ class ecei_chunk():
         # bad_channels is used as a mask and has shape=(nchannels)
         self.bad_channels = np.zeros((self.num_h * self.num_v), dtype=bool)
 
-    @property
-    def data(self):
-        """Common interface to data."""
-        return self.ecei_data
-
-    @property
-    def shape(self):
-        """Forwards to self.ecei_data.shape."""
-        return self.ecei_data.shape
 
     def mark_bad_channels(self, verbose=False):
         """Mark bad channels.
@@ -173,7 +166,7 @@ class ecei_chunk():
                              freqs=None, params=params)
 
 
-class ecei_chunk_ft():
+class ecei_chunk_ft(twod_chunk):
     """Represents a fourier-transformed time-chunk of ECEI data."""
 
     def __init__(self, data, tb, freqs, params=None, axis_ch=0, axis_t=1, num_v=24, num_h=8):
@@ -200,7 +193,7 @@ class ecei_chunk_ft():
         Returns:
             None
         """
-        self.data = data
+        super().__init__(data)  # Initializes data
         self.tb = tb
         self.freqs = freqs
         self.params = params
@@ -209,15 +202,6 @@ class ecei_chunk_ft():
         self.num_v = num_v
         self.num_h = num_h
 
-    # @property
-    # def data(self):
-    #     """Common interface to data."""
-    #     return self.data
-
-    @property
-    def shape(self):
-        """Forwards to self.ecei_data.shape."""
-        return self.data.shape
 
 
 def channel_range_from_str(range_str):
