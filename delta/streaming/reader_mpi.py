@@ -12,11 +12,11 @@ from streaming.stream_stats import stream_stats
 
 
 class reader_gen():
-    def __init__(self, cfg: dict, stream_name: str):
+    def __init__(self, cfg_transport: dict, stream_name: str):
         """Initializes the generic reader base class.
 
         Args:
-            cfg (dict):
+            cfg_transport (dict):
                 delta config dict
             stream_name (str):
                 Name of the data stream to read
@@ -24,12 +24,12 @@ class reader_gen():
         Returns:
             A class instance
 
-        Used keys from cfg_all:
+        Used keys from cfg:
             * transport.engine - Defines the `ADIOS2 engine <https://adios2.readthedocs.io/en/latest/engines/engines.html#supported-engines>`_
             * transport.params - Passed to `SetParameters <https://adios2.readthedocs.io/en/latest/api_full/api_full.html?highlight=setparameters#_CPPv4N6adios22IO13SetParametersERKNSt6stringE>`_
   
         """
-        comm  = MPI.COMM_SELF
+        comm = MPI.COMM_WORLD
         self.rank = comm.Get_rank()
         self.size = comm.Get_size()
         # This should be MPI.COMM_SELF, not MPI.COMM_WORLD
@@ -37,8 +37,13 @@ class reader_gen():
         self.logger = logging.getLogger("simple")
 
         self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
-        self.IO.SetEngine(cfg["engine"])
-        self.IO.SetParameters(cfg["params"])
+        self.IO.SetEngine(cfg_transport["engine"])
+        if cfg_transport["engine"].lower() == "dataman":
+            cfg_transport["params"].update(Port=str(int(cfg_transport["params"]["Port"]) +
+                                           2 * self.rank))
+
+            self.logger.info(f"rank: {self.rank:d} - port = {cfg_transport['params']['Port']}")
+        self.IO.SetParameters(cfg_transport["params"])
         # Keeps track of the past chunk sizes. This allows to construct a dummy time base
         self.reader = None
         self.stream_name = stream_name

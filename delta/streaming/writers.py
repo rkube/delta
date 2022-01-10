@@ -37,11 +37,13 @@ class writer_gen():
 
         # Set IO parameters
         self.IO.SetEngine(cfg_transport["engine"])
-        self.IO.SetParameters(cfg_transport["params"])
 
         if cfg_transport["engine"].lower() == "dataman":
             cfg_transport["params"].update(Port=str(int(cfg_transport["params"]["Port"]) +
-                                           self.rank))
+                                           2 * self.rank))
+    
+        print(f"rank: {self.rank:d} - port = {cfg_transport['params']['Port']}")
+        self.IO.SetParameters(cfg_transport["params"])
                                            
         # To generate statistics
         self.stats = stream_stats()
