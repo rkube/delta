@@ -47,7 +47,7 @@ channel_name = gen_channel_name(2408, rank)
 
 if rank == 0:
     logging.info("==================I am test_reader_multichannel===================")
-logging.info(f"rank {rank:d} / size {size:d}. Channel_name = {channel_name}")
+logging.info(f"Channel_name = {channel_name}")
 
 
 w = writer_gen(cfg_transport, channel_name)
@@ -56,12 +56,14 @@ w.Open()
 w.DefineAttributes("strem_attrs", {"test": "yes"})
 
 for tstep in range(1, 100):
-    data = np.random.normal(100.0 * (rank + 1) + tstep, 0.1, size=(192, 10_000))
-    chunk = twod_chunk(data)
 
-    w.BeginStep()
-    w.put_data(chunk)
-    w.EndStep()
-    logging.info(f"tstep={tstep}")
+    if rank == tstep % size:
+        data = np.random.normal(1000.0 * (rank + 1) + tstep, 0.1, size=(192, 10_000))
+        chunk = twod_chunk(data)
+
+        w.BeginStep()
+        w.put_data(chunk)
+        w.EndStep()
+        logging.info(f"tstep={tstep}")
 
 w.writer.Close()

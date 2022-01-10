@@ -14,11 +14,14 @@ import adios2
 import numpy as np
 
 import logging
+import time
+
 
 import sys
 sys.path.append("/global/homes/r/rkube/repos/delta/delta")
 from streaming.reader_mpi import reader_gen
 from streaming.adios_helpers import gen_channel_name
+from streaming.stream_stats import stream_stats
 from data_models.base_models import twod_chunk
 
 
@@ -35,10 +38,10 @@ cfg_transport = {
     "engine": "dataman",
     "params":
     {
-      "IPAddress": "128.55.205.18",
+      "IPAddress": "203.230.120.125",
       "Timeout": "120",
       "Port": "50001",
-      "TransportMode": "fast"
+      "TransportMode": "reliable"
     }
 }
 
@@ -52,12 +55,25 @@ logging.info(f"rank {rank:d} / size {size:d}. Channel_name = {channel_name}")
 r = reader_gen(cfg_transport, channel_name)
 r.Open()
 
-for tstep in range(1, 100):
+stats = stream_stats()
+tstep = 0
+while True:
     stepStatus = r.BeginStep(timeoutSeconds=5.0)
     if stepStatus:
+        tic = time.time()
         stream_data = r.Get("dummy", save=False)
-        logging.info(f"rank {rank:d}, tstep = {tstep}, mean = {stream_data.mean()}")
+        logging.info(f"rank {rank:d}, tstep =  {tstep}, mean = {stream_data.mean()}")
         r.EndStep()
+        toc = time.time()
+        rx_bytes = stream_data.size * 8
+        stats.add_transfer(rx_bytes, toc-tic)
+
+        tstep += 1
+    else:
+        break
+
+
+logging.info(stats.get_transfer_stats(), stats.get_duration_stats())
 
 
 # End of file test_reader_multichannel.py
