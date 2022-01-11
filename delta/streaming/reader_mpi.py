@@ -138,11 +138,12 @@ class reader_gen():
         # elif isinstance(channels, type(None)):
         self.logger.info(f"Reading varname {varname}. Step no. {self.CurrentStep():d}")
         var = self.IO.InquireVariable(varname)
-        # self.logger.info(f"Received {varname}, shape={var.Shape()}, ", type(var.Type()))
         if var.Type() == 'double':
             new_dtype = np.float64
         elif var.Type() == 'float':
             new_dtype = np.float32
+        elif var.Type() == "int32_t":
+            new_dtype = np.int32
         else:
             raise ValueError(var.Type())
         time_chunk = np.zeros(var.Shape(), dtype=new_dtype)

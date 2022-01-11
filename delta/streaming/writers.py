@@ -28,9 +28,11 @@ class writer_gen():
         self.IO = self.adios.DeclareIO(gen_io_name(self.rank))
         self.writer = None
         # Adios2 variable that is defined in DefineVariable
-        self.variable = None
+        # Keep the defined variables in a dictionary: {"var_name": (shape, dtype)}
+        self.var_dict = {}
+        # self.variable = None
         # The shape used to define self.variable
-        self.shape = None
+        # self.shape = None
 
         # Generate a descriptive channel name
         self.channel_name = channel_name
@@ -61,13 +63,11 @@ class writer_gen():
 
         Returns:
             self.variable (adios2.variable)
-        """
-        self.var_name = var_name
-        self.shape = shape
-        self.dtype = dtype
-        self.variable = self.IO.DefineVariable(var_name, np.zeros(shape, dtype),
-                                               shape, len(shape) * [0], shape, adios2.ConstantDims)
-        return(self.variable)
+        """        
+        adios_var = self.IO.DefineVariable(var_name, np.zeros(shape, dtype),
+                                           shape, len(shape) * [0], shape, adios2.ConstantDims)
+        self.var_dict.update({var_name: (adios_var, shape, dtype)})
+        return(adios_var)
 
     def DefineAttributes(self, attrsname: str, attrs: dict):
         """Wrapper around DefineAttribute.
@@ -111,7 +111,7 @@ class writer_gen():
         """Wrapper around writer.EndStep."""
         return self.writer.EndStep()
 
-    def put_data(self, data_class):
+    def put_data(self, var_name, data_class):
         """Opens a new stream and send data through it.
 
         ADIOS2 requires that the data array is contiguous in memory in
@@ -126,14 +126,16 @@ class writer_gen():
         Returns:
             None
         """
-        assert(data_class.data.shape == self.shape)
+        assert(data_class.data.shape == self.var_dict[var_name][1])
 
         if self.writer is not None:
+            # retrieve the adios variable from the dict
+            adios_var = self.var_dict[var_name][0]
             # Assert that the data is continuous, as implicitly required by ADIOS2.
             # The burden to produce contiguous data is on the data producer.
             assert(data_class.data.flags.contiguous)
             tic = time.perf_counter()
-            self.writer.Put(self.variable, data_class.data, adios2.Mode.Sync)
+            self.writer.Put(adios_var, data_class.data, adios2.Mode.Sync)
             toc = time.perf_counter()
 
             num_bytes = np.product(data_class.data.shape) * data_class.data.itemsize

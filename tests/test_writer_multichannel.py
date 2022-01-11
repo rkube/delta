@@ -39,7 +39,7 @@ cfg_transport = {
       "IPAddress": "128.55.205.18",
       "Timeout": "120",
       "Port": "50001",
-      "TransportMode": "fast"
+      "TransportMode": "reliable"
     }
 }
 
@@ -52,6 +52,7 @@ logging.info(f"Channel_name = {channel_name}")
 
 w = writer_gen(cfg_transport, channel_name)
 w.DefineVariable("dummy", (192, 10_000), np.float64)
+w.DefineVariable("tstep", (1, 1), np.int32)
 w.Open()
 w.DefineAttributes("strem_attrs", {"test": "yes"})
 
@@ -60,9 +61,10 @@ for tstep in range(1, 100):
     if rank == tstep % size:
         data = np.random.normal(1000.0 * (rank + 1) + tstep, 0.1, size=(192, 10_000))
         chunk = twod_chunk(data)
-
+        tdata = twod_chunk(np.array([[1]], dtype=np.int32) * np.int32(tstep))  # Clunky way to send time-step data :)
         w.BeginStep()
-        w.put_data(chunk)
+        w.put_data("dummy", chunk)
+        w.put_data("tstep", tdata)
         w.EndStep()
         logging.info(f"tstep={tstep}")
 

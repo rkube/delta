@@ -38,14 +38,14 @@ cfg_transport = {
     "engine": "dataman",
     "params":
     {
-      "IPAddress": "203.230.120.125",
+      "IPAddress": "128.55.205.18",
       "Timeout": "120",
       "Port": "50001",
       "TransportMode": "reliable"
     }
 }
 
-
+# KSTAR DTN ip: 203.230.120.125
 channel_name = gen_channel_name(2408, rank)
 
 if rank == 0:
@@ -62,18 +62,19 @@ while True:
     if stepStatus:
         tic = time.time()
         stream_data = r.Get("dummy", save=False)
-        logging.info(f"rank {rank:d}, tstep =  {tstep}, mean = {stream_data.mean()}")
+        tstep_data = r.Get("tstep", save=False)
+        logging.info(f"rank {rank:d}, tstep =  {tstep_data[0,0]}, mean = {stream_data.mean()}")
         r.EndStep()
         toc = time.time()
         rx_bytes = stream_data.size * 8
-        stats.add_transfer(rx_bytes, toc-tic)
+        stats.add_transfer(rx_bytes, toc-tic, tstep_data[0, 0])
 
         tstep += 1
     else:
         break
 
-
-logging.info(stats.get_transfer_stats(), stats.get_duration_stats())
+idx_list_str = f"RX stats: {len(stats.idx_list)} chunks: " + " ".join([str(i) for i in stats.idx_list])
+logging.info(idx_list_str + " " + " ".join([str(f) for f in stats.get_speed_stats()]))
 
 
 # End of file test_reader_multichannel.py

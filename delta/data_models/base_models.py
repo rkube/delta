@@ -13,7 +13,7 @@ class twod_chunk():
     def __init__(self, data):
         # We should ensure that the data is contiguous so that we can remove this from
         # if not data.flags.contiguous:
-        self.chunk_data = np.require(data, dtype=np.float64, requirements=['C', 'O', 'W', 'A'])
+        self.chunk_data = np.require(data, dtype=data.dtype, requirements=['C', 'O', 'W', 'A'])
         assert(self.chunk_data.flags.contiguous)
 
     @property
