@@ -88,7 +88,7 @@ On corigpu, request the image during your interactive job:
 
 ```
 module load cgpu
-salloc -N 1 -C gpu -G 1 -t 60 -c 16 --image=registry.nersc.gov/das/delta:3.0
+salloc -N 1 -C gpu -G 1 -t 60 -c 16 --image=registry.nersc.gov/das/delta:4.0
 ```
 
 ```

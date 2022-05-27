@@ -36,6 +36,8 @@ RUN \
 ARG mpi4py=3.1.3
 ARG mpi4py_prefix=mpi4py-$mpi4py
 
+RUN /sbin/ldconfig
+
 #install mpi4py manually, may not be necessary but let's be careful for now
 RUN \
     wget https://bitbucket.org/mpi4py/mpi4py/downloads/$mpi4py_prefix.tar.gz && \
@@ -59,18 +61,13 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 #install adios from 2.7.1 release
 RUN wget https://github.com/ornladios/ADIOS2/archive/94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz && \    
     tar xvf 94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz                                          && \
-    mv ADIOS2-94c2e377eba2947ae9739c1dd42f616a1296f12a adios2-devel                                                                    && \
-#    python3 -m pip install --no-cache-dir -r requirements.txt                                       && \
+    mv ADIOS2-94c2e377eba2947ae9739c1dd42f616a1296f12a adios2-devel                                  && \
     mkdir adios2-build                                                                               && \
     rm -rf master.tar.gz
 
-WORKDIR /opt/adios2-build
+ENV PREFIX /opt/adios2-container
 
-ENV VER docker
-
-ENV PREFIX /software/adios2-$VER
-
-RUN \
+RUN cd /opt/adios2-build                                  && \
     CC=cc cmake                                              \
         -DCMAKE_INSTALL_PREFIX=$PREFIX                       \
         -DCMAKE_BUILD_TYPE=Release                           \
@@ -85,14 +82,17 @@ RUN \
         -DADIOS2_USE_Profiling=OFF                           \
         -DADIOS2_USE_DATAMAN=ON                              \
         -DADIOS2_USE_ZeroMQ=ON                               \
-        ../adios2-devel
+        ../adios2-devel                                   && \
+        make -j 32                                        && \
+        make install      
+  
 
-RUN make -j 32; make install
+RUN ln -s /opt/adios2-container /opt/adios2-current
 
-RUN ln -s /software/adios2-$VER /software/adios2-current
+RUN /sbin/ldconfig
 
-#this looks different in ubuntu
-ENV PYTHONPATH /software/adios2-current/lib/python3/dist-packages
+#path to adios2.so library
+ENV PYTHONPATH /opt/adios2-current/lib/python3.8/site-packages/adios2
 
 #mongodb python driver
 RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   && \
@@ -107,10 +107,7 @@ RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   
     python3 setup.py build                                                       && \
     python3 setup.py install --user
 
-RUN /sbin/ldconfig
-
 #make the delta dir so we can bind mount it in while running in shifter
-WORKDIR /opt
 RUN mkdir /delta
 
 
