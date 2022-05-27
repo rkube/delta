@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.0-devel-ubuntu20.04
+FROM nvcr.io/nvidia/cuda:11.5.0-devel-ubuntu20.04
 
 WORKDIR /opt
 
@@ -33,7 +33,7 @@ RUN \
     cd ..                                                                   && \
     rm -rf $mpich_prefix
 
-ARG mpi4py=3.0.3
+ARG mpi4py=3.1.3
 ARG mpi4py_prefix=mpi4py-$mpi4py
 
 #install mpi4py manually, may not be necessary but let's be careful for now
@@ -47,31 +47,12 @@ RUN \
     rm -rf $mpi4py_prefix                                                    && \
     cd $HOME
 
-RUN /sbin/ldconfig
-
-####install python packages from requirements file
-###RUN python3 -m pip install -U setuptools pip
-###ADD requirements.txt /opt/requirements.txt
-###RUN python3 -m pip install --no-cache-dir -r requirements.txt
-
-#first update pip
+#install delta requirements using file in local repo
+#this makes it possible to adjust requirements that have
+#not been merged upstream yet
 RUN python3 -m pip install -U setuptools pip
-
-#for now, let's install cupy ourselves since it's not in the delta
-#requirements file
-RUN python3 -m pip install cupy-cuda110
-
-WORKDIR /opt
-
-#clone delta but only for the requirements file
-#remove it after we're done so there's no confusion
-RUN wget https://github.com/rkube/delta/archive/master.tar.gz          && \
-    tar xvzf master.tar.gz                                             && \
-    mv delta-master delta                                              && \
-    rm -rf master.tar.gz                                               && \
-    cd delta                                                           && \
-    python3 -m pip install --no-cache-dir -r requirements.txt          && \
-    rm -rf /opt/delta
+ADD requirements.txt /opt/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
 #for the moment i think we're ok without the requirements since
 #we install mpi4py ourselves and delta installs numpy
@@ -79,7 +60,7 @@ RUN wget https://github.com/rkube/delta/archive/master.tar.gz          && \
 RUN wget https://github.com/ornladios/ADIOS2/archive/94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz && \    
     tar xvf 94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz                                          && \
     mv ADIOS2-94c2e377eba2947ae9739c1dd42f616a1296f12a adios2-devel                                                                    && \
-    #python3 -m pip install --no-cache-dir -r requirements.txt                                       && \
+#    python3 -m pip install --no-cache-dir -r requirements.txt                                       && \
     mkdir adios2-build                                                                               && \
     rm -rf master.tar.gz
 
@@ -113,10 +94,6 @@ RUN ln -s /software/adios2-$VER /software/adios2-current
 #this looks different in ubuntu
 ENV PYTHONPATH /software/adios2-current/lib/python3/dist-packages
 
-WORKDIR /opt
-
-#let's try to bind mount delta instead
-
 #mongodb python driver
 RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   && \
     tar xvzf master.tar.gz                                                      && \
@@ -130,8 +107,9 @@ RUN wget https://github.com/mongodb/mongo-python-driver/archive/master.tar.gz   
     python3 setup.py build                                                       && \
     python3 setup.py install --user
 
+RUN /sbin/ldconfig
 
-#make the delta dir so we can bind mount it in
+#make the delta dir so we can bind mount it in while running in shifter
 WORKDIR /opt
 RUN mkdir /delta
 
