@@ -2,11 +2,11 @@
   "diagnostic":
   {
     "name": "kstarecei",
-    "shotnr": 25259,
+    "shotnr": 22289,
     "dev": "GT",
     "datasource":
     {
-      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/025259/ECEI.025259.GT.h5",
+      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["0101-2408"],
