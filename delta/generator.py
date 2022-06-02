@@ -78,7 +78,7 @@ for nstep, chunk in enumerate(batch_gen):
     if rank == 0:
         logger.info(f"Sending time_chunk {nstep} / {dataloader.num_chunks}")
     writer.BeginStep()
-    writer.put_data(chunk)
+    writer.put_data(gen_var_name(cfg)[rank],chunk)
     writer.EndStep()
     time.sleep(args.slow)
 
