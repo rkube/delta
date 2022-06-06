@@ -11,7 +11,11 @@
 #existing builds, so be careful
 
 #location of your delta clone
+###
+### change me!!!
 export delta_install=/global/cscratch1/sd/stephey/delta
+###
+###
 
 export build=$delta_install/build
 rm -rf $build

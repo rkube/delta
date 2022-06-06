@@ -7,11 +7,35 @@ our Delta stack manually.
 you already have a local clone of Delta and will use the requirements file
 it finds there.
 
+You'll need to modify this line in `build-delta-dtn.sh`
+
+```
+#location of your delta clone
+###
+### change me!!!
+export delta_install=/global/cscratch1/sd/stephey/delta
+###
+###
+```
+
+to point to your own installation of Delta.
+
 `setup-delta-dtn.sh` assumes you have built Delta using the
 `build-delta-dtn.sh` script. You can 
 
 `source setup-delta-dtn.sh` to activate the custom Delta conda environment
 and point to the right Adios2 Python libraries.
+
+You'll need to modify this line in `setup-delta-dtn.sh`:
+
+```
+#location of your delta clone
+###
+### change me!!!
+export delta_install=/global/cscratch1/sd/stephey/delta
+###
+###
+```
 
 ## Notes
 
