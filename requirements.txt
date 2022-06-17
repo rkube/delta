@@ -21,3 +21,7 @@ numba
 cupy-cuda115
 ipykernel
 matplotlib
+ray[default]
+ray[tune]
+ray[rrlib]
+ray[serve]
