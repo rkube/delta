@@ -42,11 +42,11 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
 
     #assert(False)
 
-    #with open(f"outfile_{(pid):03d}.txt", "a") as df:
-     #   df.write(f"rank {pid:03d}/{len(ray.nodes()):03d}: tidx={chunk_idx} {an_name} start " +
-      #          t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
-       #         f" Storage: {dt_io} " + f" {gethostname()}\n")
-       # df.flush()
+    with open(f"outfile_{(pid):03d}.txt", "a") as df:
+        df.write(f"rank {pid:03d}/{len(ray.nodes()):03d}: tidx={chunk_idx} {an_name} start " +
+                t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
+                f" Storage: {dt_io} " + f" {gethostname()}\n")
+        df.flush()
 
     return None
 
