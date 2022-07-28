@@ -7,7 +7,9 @@ from os.path import join
 
 from preprocess.plot_ecei import plot_ecei_timeslice
 
+import ray 
 
+@ray.remote
 class pre_plot():
     """Plots the pre-processed data and stores it to a file.
     

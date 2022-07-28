@@ -7,8 +7,9 @@ from preprocess.pre_stft import pre_stft
 from preprocess.pre_bandpass import pre_bandpass_fir, pre_bandpass_iir
 from preprocess.pre_wavelet import pre_wavelet
 from preprocess.pre_plot import pre_plot
+import ray 
 
-
+@ray.remote
 def get_preprocess_routine(key, params):
     """Returns an instance of a pre-processing objects that matches the key.
 
@@ -43,17 +44,16 @@ def get_preprocess_routine(key, params):
 
     """
     if key == "stft":
-        return pre_stft(params)
+        return pre_stft.remote(params)
     elif key == "wavelet":
-        return pre_wavelet(params)
+        return pre_wavelet.remote(params)
     elif key == "bandpass_fir":
-        return pre_bandpass_fir(params)
+        return pre_bandpass_fir.remote(params)
     elif key == "bandpass_iir":
-        return pre_bandpass_iir(params)
+        return pre_bandpass_iir.remote(params)
     elif key == "plot":
-        return pre_plot(params)
+        return pre_plot.remote(params)
     else:
         raise NameError(f"Requested invalid pre-processing routine: {key}")
-
 
 # End of file helpers.py

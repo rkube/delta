@@ -8,24 +8,22 @@ import time
 from preprocess.helpers import get_preprocess_routine
 from storage.backend import get_storage_object
 from data_models.kstar_ecei import get_geometry
+import ray 
 
-
-class preprocessor():
+@ray.remote
+class preprocessor():  
     """Defines a pre-processing pipeline.
 
-    This class defines a pre-processing pipeline that is serially executed on an
-    executor.
+    This class defines a pre-processing pipeline that is executed in parallel using Ray 
     """
 
-    def __init__(self, executor, cfg):
+    def __init__(self, cfg):
         """Configures the pre-processing pipeline from a dictionary.
 
         For each key-value pairs in `cfg['preprocess']`, a pre-processing callable
         will be configured and appended list of callables.
 
         Args:
-            executor (PEP-3148-style executor):
-                Executor on which all pre-processing will be performed
             cfg: (dict)
                 Delta configuration
 
@@ -42,11 +40,10 @@ class preprocessor():
         # For each item, add the appropriate pre-processing routine to the list.
 
         self.cfg = cfg
-        self.executor = executor
         self.preprocess_list = []
         for key, pre_params in cfg["preprocess"].items():
             try:
-                pre_task = get_preprocess_routine(key, pre_params)
+                pre_task = ray.get(get_preprocess_routine.remote(key, pre_params)) 
                 self.preprocess_list.append(pre_task)
             except NameError as e:
                 self.logger.error(f"Could not find suitable pre-processing routine: {e}")
@@ -79,7 +76,7 @@ class preprocessor():
         storage.store_metadata(chunk_metadata)
 
     def submit(self, timechunk):
-        """Launches preprocessing routines on the executor.
+        """Launches preprocessing routines using Ray.
 
         Args:
             timechunk (timechunk):
@@ -94,7 +91,7 @@ class preprocessor():
 
         tic = time.perf_counter()
         for item in self.preprocess_list:
-            timechunk = item.process(timechunk, self.executor)
+            timechunk = ray.get(item.process.remote(timechunk)) 
 
         toc = time.perf_counter()
         tictoc = toc - tic

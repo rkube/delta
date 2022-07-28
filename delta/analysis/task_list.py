@@ -1,18 +1,19 @@
 # -*- Encoding: UTF-8 -*-
-
 """Implements analysis task list."""
 
 import logging
 from analysis.helpers import get_analysis_task
+import ray
 
 
+@ray.remote
 class tasklist():
     """Defines an analysis task list.
 
     This class defines an task list that is executed in parallel on an executor.
     """
 
-    def __init__(self, executor, cfg):
+    def __init__(self, cfg):
         """Configures the analysis tasklist from a dictionary.
 
         For each key-value pair in "cfg_analysis", an analysis task is instantiated
@@ -24,22 +25,22 @@ class tasklist():
                 Executor on which all analysis tasks are launched
             cfg:
                 Delta configuration
-
         Returns:
             None
         """
         self.logger = logging.getLogger("simple")
         self.cfg = cfg
-        self.executor = executor
+        #self.executor = executor
         self.tasklist = []
         for key, anl_params in cfg["analysis"].items():
             try:
-                self.tasklist.append(get_analysis_task(key, anl_params, cfg["storage"]))
+                self.tasklist.append(ray.get(get_analysis_task.remote(key, anl_params, cfg["storage"])))
             except NameError as e:
                 self.logger.error(f"Could not find a suitable analysis task: {e}")
                 continue
             self.logger.info(f"Added {key} to analysis task list")
-
+        
+        
     def execute(self, timechunk):
         """Execute all analysis tasks.
 
@@ -52,6 +53,6 @@ class tasklist():
         """
         self.logger.info(f"Submitting timechunk {timechunk.tb.chunk_idx} to analysis tasklist")
         for task in self.tasklist:
-            task.execute(timechunk, self.executor)
+            ray.get(task.execute.remote(timechunk))
         
 # End of file task_list.py    

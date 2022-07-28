@@ -4,57 +4,11 @@
 """Defines infitnite-impulse bandpass filters."""
 
 from scipy.signal import iirdesign, butter, sosfiltfilt, filtfilt
+import ray
+import numpy as np
 
 
-def kernel_bandpass_sos(data, params):
-    """Executes bandpass filtering.
-
-    Uses `scipy.signal.sosfilt
-    <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html>`_
-    to filter a data sequence.
-
-    Args:
-        data (twod_chunk):
-            Time-chunk of diagnostic data.
-        params:
-            Dictionary of arguments that are passed to `scipy.signal.sosfilt`.
-            Second-order stable (sos) coefficients are stored in key `sos`.
-
-    Returns:
-        data (twod_chunk):
-            Time-chunk with filtered data
-
-    """
-    y = sosfiltfilt(params["sos"], data.data, axis=data.axis_t)
-    data.data[:] = y[:]
-
-    return(data)
-
-
-def kernel_bandpass_iir(data, params):
-    """Executes iir bandpass filter.
-
-    Uses `scipy.signal.filtfilt
-    <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.filtfilt.html>`_
-    to filter a data sequence.
-
-    Args:
-        data (twod_chunk):
-            Time-chunk of diagnostic data.
-        params:
-            Dictionary of arguments that are passed to `scipy.signal.filtfilt`.
-
-    Returns:
-        data (twod_chunk):
-            Time-chunk with filtered data
-
-    """
-    y = filtfilt(params["bir"], params["air"], data.data, axis=data.axis_t)
-    data.data[:] = y[:]
-
-    return(data)
-
-
+@ray.remote
 class pre_bandpass_iir():
     """Implements bandpass filtering using scipy.signal iirdesign and sosfilt.
 
@@ -85,7 +39,7 @@ class pre_bandpass_iir():
         # Pop unnamed arguments for iirdesign
         self.sos = iirdesign(**params)
 
-    def process(self, data_chunk, executor):
+    def process(self, data_chunk):
         """Bandpass-filters the time-chunk.
 
         Args:
@@ -98,13 +52,63 @@ class pre_bandpass_iir():
             data_chunk (twod_chunk):
                 Time-chunk of data
         """
-        # Do nothing and return the data
-        params = {"sos": self.sos}
-        fut = executor.submit(kernel_bandpass_sos, data_chunk, params)
-        data_chunk = fut.result()
+        # Do nothing and return the data            
+        params = {"sos": self.sos}        
+        data_chunk = self.kernel_bandpass_sos(data_chunk, params)
         return data_chunk
+   
+    
+    
 
+    def kernel_bandpass_iir(data, params):
+        """Executes iir bandpass filter.
 
+        Uses `scipy.signal.filtfilt
+        <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.filtfilt.html>`_
+        to filter a data sequence.
+
+        Args:
+        data (twod_chunk):
+            Time-chunk of diagnostic data.
+        params:
+            Dictionary of arguments that are passed to `scipy.signal.filtfilt`.
+
+        Returns:
+            data (twod_chunk):
+                Time-chunk with filtered data
+
+        """
+        y = filtfilt(params["bir"], params["air"], data.data, axis=data.axis_t)
+        data.update_data(y)
+
+        return(data)
+    
+    def kernel_bandpass_sos(self,data, params):
+        """Executes bandpass filtering.
+
+        Uses `scipy.signal.sosfilt
+        <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html>`_
+        to filter a data sequence.
+
+        Args:
+        data (twod_chunk):
+            Time-chunk of diagnostic data.
+        params:
+            Dictionary of arguments that are passed to `scipy.signal.sosfilt`.
+            Second-order stable (sos) coefficients are stored in key `sos`.
+
+        Returns:
+        data (twod_chunk):
+            Time-chunk with filtered data
+
+        """
+        y = sosfiltfilt(params["sos"], data.data, axis=data.axis_t)
+        data.update_data(y)
+
+        return(data)
+    
+    
+@ray.remote
 class pre_bandpass_fir():
     """Implements bandpass filtering using `scipy.signal.butter` and `sosfilt`.
 
@@ -135,7 +139,7 @@ class pre_bandpass_fir():
         Wn = params.pop("Wn")
         self.sos = butter(N, Wn, **params)
 
-    def process(self, data_chunk, executor):
+    def process(self, data_chunk):
         """Bandpass-filters the time-chunk.
 
         Args:
@@ -149,10 +153,58 @@ class pre_bandpass_fir():
                 Time-chunk of data
         """
         # Do nothing and return the data
-        params = {"sos": self.sos}
-        fut = executor.submit(kernel_bandpass_sos, data_chunk, params)
-        data_chunk = fut.result()
+        params = {"sos": self.sos}        
+        data_chunk = self.kernel_bandpass_sos(data_chunk, params)
         return data_chunk
+
+    def kernel_bandpass_sos(self,data, params):
+        """Executes bandpass filtering.
+
+        Uses `scipy.signal.sosfilt
+        <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.sosfilt.html>`_
+        to filter a data sequence.
+
+        Args:
+        data (twod_chunk):
+            Time-chunk of diagnostic data.
+        params:
+            Dictionary of arguments that are passed to `scipy.signal.sosfilt`.
+            Second-order stable (sos) coefficients are stored in key `sos`.
+
+        Returns:
+        data (twod_chunk):
+            Time-chunk with filtered data
+
+        """
+        y = sosfiltfilt(params["sos"], data.data, axis=data.axis_t)
+        data.update_data(y)
+
+        return(data)
+    
+    
+    
+    def kernel_bandpass_iir(data, params):
+        """Executes iir bandpass filter.
+
+        Uses `scipy.signal.filtfilt
+        <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.filtfilt.html>`_
+        to filter a data sequence.
+
+        Args:
+        data (twod_chunk):
+            Time-chunk of diagnostic data.
+        params:
+            Dictionary of arguments that are passed to `scipy.signal.filtfilt`.
+
+        Returns:
+            data (twod_chunk):
+                Time-chunk with filtered data
+
+        """
+        y = filtfilt(params["bir"], params["air"], data.data, axis=data.axis_t)
+        data.update_data(y)
+
+        return(data)
 
 
 # End of file pre_bandpass_iir.py

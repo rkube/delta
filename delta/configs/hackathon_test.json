@@ -6,7 +6,7 @@
     "dev": "GT",
     "datasource":
     {
-      "source_file": "/global/cscratch1/sd/rkube/KSTAR/kstar_streaming/022289/ECEI.022289.GT.h5",
+      "source_file": "/pscratch/sd/m/maburidi/delta/delta/data_file/022289/ECEI.022289.GT.h5",
       "chunk_size": 10000,
       "num_chunks": 500,
       "channel_range": ["0101-2408"],
@@ -62,6 +62,11 @@
     "crosspower_cy": {
       "channel_chunk_size": 32768, 
       "ref_channels": [1, 1, 24, 8], 
+      "cmp_channels": [1, 1, 24, 8]
+    },
+    "crosspower_cu": {
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
       "cmp_channels": [1, 1, 24, 8]
     },
     "crossphase_cy": {
