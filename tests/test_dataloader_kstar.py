@@ -30,8 +30,8 @@ def read_from_hdf5_dummy(cls, array, idx_start, idx_end):
 
 def read_attributes_from_hdf5_dummy(cls, attrs):
     """Sets dummy attributes.
-    
-    TODO: We use hard-coded stream_attrs_018431. This should really be the
+
+    ToDo: We use hard-coded stream_attrs_018431. This should really be the
     fixture defined in conftest. But I don't know how to use the fixture in this
     function and pass the argument in the mock.patch.multiple decorator.
     """
@@ -71,7 +71,7 @@ def test_dataloader_ecei_nocache(config_all, stream_attrs_018431):
     import os
     sys.path.append(os.path.abspath('delta'))
     import numpy as np
-    # # Import packages as delta.... so that we can run pytest as 
+    # # Import packages as delta.... so that we can run pytest as
     from delta.sources.loader_kstarecei import loader_kstarecei
 
     # Generate a read_attribute_dummy using the stream_attrs_... fixture.

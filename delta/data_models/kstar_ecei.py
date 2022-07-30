@@ -17,7 +17,7 @@ from data_models.channels_2d import channel_2d, channel_range, num_to_vh
 
 class ecei_chunk(twod_chunk):
     """Class that represents a time-chunk of ECEI data.
-    
+
     This class provides the following interface.
 
     Creating a time-chunk from streaming data, where `tb_chunk` is of type
@@ -25,7 +25,7 @@ class ecei_chunk(twod_chunk):
 
     .. code-block:: python
 
-        chunk = kstar_ecei(stream_data, tb_chunk, stream_attrs)
+        chunk = ecei_chunk(stream_data, tb_chunk, stream_attrs)
 
     Example: Fourier-transformation of a time-chunk. Time-axis is given given by
     axis_t member, data is access by data member, sampling frequency is calculated
@@ -34,7 +34,7 @@ class ecei_chunk(twod_chunk):
     .. code-block:: python
 
         fft_data = fft(chunk.data, axis=chunk.axsi_t, fsample = 1. / chunk.tb.dt()
-    
+
     """
 
     def __init__(self, data, tb, params=None, num_v=24, num_h=8):
@@ -47,7 +47,7 @@ class ecei_chunk(twod_chunk):
         Keys need to include:
 
             * dev: String identifier of the ECEI device: L, G, H, GT, or GR
-            * TriggerTime: 
+            * TriggerTime:
             * t_norm: Vector of 2 floats, defining the time interval used for normalization. In seconds.
             * SampleRate: Rate at which each channels samples the plasma. In Hz.
             * TFCurrent: Toroidal Field Coil current, in Amps
@@ -94,7 +94,6 @@ class ecei_chunk(twod_chunk):
         assert(data.shape[self.axis_ch] == self.num_h * self.num_v)
 
         # Parameters for the ECEI chunk:
-        # 
         self.params = params
         # True if data is normalized, False if not.
         self.is_normalized = False
@@ -211,10 +210,10 @@ def channel_range_from_str(range_str):
     channels are referred to f.ex.
 
     .. code-block::
-    
+
         'L0101' or 'GT1507'
-    
-    The letters refer to a device (D), the first two digits to the vertical channel number (V) 
+
+    The letters refer to a device (D), the first two digits to the vertical channel number (V)
     and the last two digits refer to the horizontal channel number (H). Delta uses the same DDVVHH
     format.
 

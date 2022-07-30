@@ -6,7 +6,7 @@ import json
 
 @pytest.fixture(scope="module")
 def config_all():
-    """Provides a configuration object for all unit tests."""    
+    """Provides a configuration object for all unit tests."""
     config_str = """{
         "diagnostic":
           {
@@ -38,7 +38,7 @@ def config_all():
     "backend": "numpy",
     "basedir": "/global/homes/r/rkube/tmp"
   },
- "preprocess": 
+ "preprocess":
 {
    "bandpass_iir": {"wp": [0.02, 0.036], "ws": [0.0192, 0.0368], "gpass": 1, "gstop": 40, "ftype": "ellip"},
    "stft": {"nfft": 512, "fs": 500000, "window": "hann", "overlap": 0.5, "noverlap": 256, "detrend": "constant", "full": true}
@@ -50,12 +50,12 @@ def config_all():
       "cmp_channels": [1, 1, 24, 8]
     },
     "crosspower": {
-      "channel_chunk_size": 32768, 
-      "ref_channels": [1, 1, 24, 8], 
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
       "cmp_channels": [1, 1, 24, 8]
     },
     "crossphase": {
-      "channel_chunk_size": 32768, 
+      "channel_chunk_size": 32768,
       "ref_channels": [1, 1, 24, 8],
       "cmp_channels": [1, 1, 24, 8]
     },
@@ -71,10 +71,9 @@ def config_all():
     return config
 
 
-
 @pytest.fixture(scope="module")
 def config_analysis_cy():
-    """Provides a configuration object for all unit tests."""    
+    """Provides a configuration object for all unit tests."""
     config_str = """{
         "diagnostic":
           {
@@ -113,12 +112,12 @@ def config_analysis_cy():
    },
   "analysis": {
     "crosspower_cy": {
-      "channel_chunk_size": 32768, 
-      "ref_channels": [1, 1, 24, 8], 
+      "channel_chunk_size": 32768,
+      "ref_channels": [1, 1, 24, 8],
       "cmp_channels": [1, 1, 24, 8]
     },
     "crossphase_cy": {
-      "channel_chunk_size": 32768, 
+      "channel_chunk_size": 32768,
       "ref_channels": [1, 1, 24, 8],
       "cmp_channels": [1, 1, 24, 8]
     },
@@ -134,10 +133,9 @@ def config_analysis_cy():
     return config
 
 
-
 @pytest.fixture(scope="module")
 def config_analysis_cu():
-    """Provides a configuration object for all unit tests."""    
+    """Provides a configuration object for all unit tests."""
     config_str = """{
         "diagnostic":
           {
@@ -225,8 +223,6 @@ def stream_attrs_018431():
     return stream_attrs
 
 
-
-
 @pytest.fixture(scope="module")
 def gen_sine_waves():
     """Generate sine wave data for coherence kernel.
@@ -275,5 +271,22 @@ def gen_sine_waves():
         fft_data[ch, :, :] = f_s[2][:, ]
 
     return fft_data
+
+
+@pytest.fixture()
+def doggo_conf():
+    """Dummy substitute for ECEI parameters typically read from HDF5.
+
+    These parameters are taken from shot 022289
+    """
+    doggo_conf = {"diagnostic": {"datasource":
+                                 {"data_dir":
+                                  "/global/cscratch1/sd/rkube/ML_datasets/stanford_dogs/Images",
+                                  "img_res_x": 224,
+                                  "img_res_y": 224,
+                                  "num_img": 10,
+                                  "num_categories": 3}}}
+
+    return doggo_conf
 
 # End of file conftest.py
