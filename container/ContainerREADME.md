@@ -14,7 +14,7 @@ file, you'll need to do the build from the directory where it is located.
 Here we are building on a NERSC staff podman node:
 
 ```
-podman build -t registry.nersc.gov/das/delta:4.0 . -f container/delta-outside/Dockerfile
+podman build -t registry.nersc.gov/das/delta:5.0 . -f container/delta-outside/Dockerfile
 ```
 
 We're using `registry.nersc.gov` to store our image. You may first need to log in
@@ -29,14 +29,14 @@ Note your NERSC username and password (no OTP) should be used.
 To push:
 
 ```
-podman push registry.nersc.gov/das/delta:4.0
+podman push registry.nersc.gov/das/delta:5.0
 ```
 
 To pull onto Cori/Perlmutter:
 
 ```
 shifterimg login registry.nersc.gov
-shifterimg pull registry.nersc.gov/das/delta:4.0
+shifterimg pull registry.nersc.gov/das/delta5.0
 ```
 
 ## Using at NERSC
@@ -45,7 +45,7 @@ There are two main ways we can run Delta in Shifter-- the first is with Delta
 installed outside the container, and the second is with Delta install inside
 the container.
 
-The image we use is called `registry.nersc.gov/das/delta:4.0`.
+The image we use is called `registry.nersc.gov/das/delta:5.0`.
 
 This image was built using the `delta-outside` Dockerfile and will use the
 installation of Delta outside the container.
@@ -59,7 +59,7 @@ it must be done inside Shifter.
 
 ```
 cd $SCRATCH/delta/delta/analysis
-shifter --image=registry.nersc.gov/das/delta:4.0 python3 setup.py build_ext --inplace
+shifter --image=registry.nersc.gov/das/delta:5.0 python3 setup.py build_ext --inplace
 ```
 
 Now we are ready to run Delta.
@@ -67,7 +67,7 @@ Now we are ready to run Delta.
 ### Haswell
 
 ```
-salloc -N 4 -C haswell -q interactive --image=registry.nersc.gov/das/delta:4.0
+salloc -N 4 -C haswell -q interactive --image=registry.nersc.gov/das/delta:5.0
 ```
 
 cd to wherever you have installed delta. For me it's
@@ -88,7 +88,7 @@ On corigpu, request the image during your interactive job:
 
 ```
 module load cgpu
-salloc -N 1 -C gpu -G 1 -t 60 -c 16 --image=registry.nersc.gov/das/delta:4.0
+salloc -N 1 -C gpu -G 1 -t 60 -c 16 --image=registry.nersc.gov/das/delta:5.0
 ```
 
 ```
