@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 #here we'll attempt to build a version of delta on the dtns
 #that is compatible with the version in our current delta/4:0 container
 #current version of build is https://github.com/rkube/delta/blob/master/container/delta-outside/Dockerfile
@@ -11,10 +13,8 @@
 #existing builds, so be careful
 
 #location of your delta clone
-###
 ### change me!!!
 export delta_install=/global/cscratch1/sd/stephey/delta
-###
 ###
 
 export build=$delta_install/build
@@ -55,10 +55,12 @@ export PATH=$build/cmake/bin:$PATH
 
 ###############zeromq##############
 
+#KSTAR DTN has 4.3.2, it's very important to match!
 cd $build
-wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
-tar vxf zeromq-4.3.4.tar.gz
-cd zeromq-4.3.4
+zmq_version=4.3.2
+wget https://github.com/zeromq/libzmq/releases/download/v$zmq_version/zeromq-$zmq_version.tar.gz
+tar vxf zeromq-$zmq_version.tar.gz
+cd zeromq-$zmq_version
 ./configure --prefix=$build/zeromq &&  make -j 8 && make install
 
 export LD_LIBRARY_PATH=$build/zeromq/lib:$LD_LIBRARY_PATH
