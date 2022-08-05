@@ -4,6 +4,25 @@ import pytest
 import json
 
 
+def pytest_addoption(parser):
+    parser.addoption("--dir_1", action="store", help="input dir for DELTA-Ray results")
+    parser.addoption("--dir_2", action="store", help="input dir for DELTA-mpi results")
+    parser.addoption("--task_name", action="store", help="analysis task Name to compare")
+    parser.addoption("--num_chunks", action="store", help="number of data chunks to compare")
+
+@pytest.fixture
+def params_ray(request):
+    params = {}
+    params['dir_1'] = request.config.getoption('--dir_1')
+    params['dir_2'] = request.config.getoption('--dir_2')
+    params['task_name'] = request.config.getoption('--task_name')
+    params['num_chunks'] = request.config.getoption('--num_chunks')
+
+    if params['dir_1'] is None or params['dir_2'] is None or params['task_name'] is None or params['num_chunks'] is None:
+        pytest.skip()
+    return params
+
+
 @pytest.fixture(scope="module")
 def config_all():
     """Provides a configuration object for all unit tests."""    
