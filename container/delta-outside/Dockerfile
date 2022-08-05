@@ -12,6 +12,7 @@ RUN \
         cmake                \
         gcc                  \
         gfortran             \
+        git                  \
         python3-dev          \
         python3-pip          \
         wget              && \
@@ -66,11 +67,13 @@ ENV CMAKE_PREFIX_PATH=/opt/zeromq:$CMAKE_PREFIX_PATH
 #for the moment i think we're ok without the requirements since
 #we install mpi4py ourselves and delta installs numpy
 #install adios from 2.7.1 release
-RUN wget https://github.com/ornladios/ADIOS2/archive/94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz && \    
-    tar xvf 94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz                                          && \
-    mv ADIOS2-94c2e377eba2947ae9739c1dd42f616a1296f12a adios2-devel                                  && \
-    mkdir adios2-build                                                                               && \
-    rm -rf master.tar.gz
+RUN git clone https://github.com/ornladios/ADIOS2.git adios2-devel && \    
+    cd adios2-devel && \
+    git checkout v2.7.1-279-gd65478233 && \
+    cd .. && \
+    mkdir adios2-build             
+
+RUN mkdir -p /opt/adios2-container
 
 ENV PREFIX /opt/adios2-container
 
