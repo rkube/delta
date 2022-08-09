@@ -107,16 +107,11 @@ To test the results, we compare the resulted new data chunks of DELTA Ray-based 
    ```bash
 shifter --image=registry.nersc.gov/das/delta:5.0 pytest -s test_ray.py --dir_1=/pscratch/sd/m/maburidi/data_storage/data_storage_ray_delta/ --dir_2=/pscratch/sd/m/maburidi/data_storage/data_storage_old_delta/ --task_name=task_crosscorr --num_chunks=100
    ```
+  required arguments: 
+
    ```bash
-   required arguments: 
     --dir_1:   directory where DELTA-Ray analysis results are stored
     --dir_2:   directory where DELTA-mpi analysis results are stored
     --task_name:  analysis task name ex. task_crosscorr, task_crosscorr_cu  
     --num_chunks: number of chunks to be compared 
-    ```
-
-
-
-
-
-
+   ```
