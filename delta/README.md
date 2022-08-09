@@ -51,6 +51,16 @@ task_crosscorr_cu, task_coherence_cu, task_crossphase_cu, task_crosspower_cu
 Notes
 
 * Cython tasks will not run on this version of DELTA. An error will be raised if there is a Cython task required in the configuration file. 
-* 
+* Files that were changed are:
+  ```bash
+  helpers.py, task_base.py, task_spectral.py, task_spectral_cu.py. 
+  ``` 
+  Other files were not changed. Kernels also were not changed. 
+In task_base.py: this includes the base class for each analysis task, one GPU (besides 1 CPU that is reserved by default) was reserved to run the main function calc_and_store() that executes the analysis kernel. If you would like to specify more GPUs and CPUs change the decorator on the top of the function definition
+```python
+@ray.remote(num_gpus=1)
+```
+but you should be aware that each time there should be enough resources for the worker to use, otherwise, not all chunks will be executed. This was one of the main problems we faced when DELTA was changed to use Ray.  
+
 
 
