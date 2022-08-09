@@ -36,5 +36,19 @@ update_data(self,new_data)
 to make the data writable, since Ray changes its permission to be unwritable. 
 
 
+### 4. Analysis tasks:
+Once a worker finishes the preprocessing, it takes the pre-processed data chunk and applies the analysis task. One type of these tasks uses only CPUs, other tasks use GPUs. 
+CPUs analysis tasks:
+```bash
+task_crosscorr, task_coherence, task_crossphase, task_crosspower
+```
+GPUs analysis tasks:
+```bash
+task_crosscorr_cu, task_coherence_cu, task_crossphase_cu, task_crosspower_cu 
+```
+
+
+
+
 
 
