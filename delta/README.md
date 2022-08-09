@@ -47,8 +47,10 @@ GPUs analysis tasks:
 task_crosscorr_cu, task_coherence_cu, task_crossphase_cu, task_crosspower_cu 
 ```
 
+***
+Notes
 
-
-
+* Cython tasks will not run on this version of DELTA. An error will be raised if there is a Cython task required in the configuration file. 
+* 
 
 
