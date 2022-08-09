@@ -65,10 +65,14 @@ Notes
 #### These are the changed that were made, lets talk now about how to run DELTA Ray-based version 
 
 
-
-
-
-
+\\
+\\
+\\
+\\
+\\
+\\
+\\
+\\
 
 
 ## Running DELTA Ray-based version: 
@@ -85,6 +89,10 @@ Under “storage”, add the following to store the results at the end:
 "basedir":"/pscratch/sd/m/maburidi/data_storage/data_storage_ray_delta” 
 ```
 This is the directory where to store the data after analyzing it, change it to point to your directory. You can choose “backend” to be “mongodb”. 
+
+In the current config file, there are two pre-processing tasks: bandpass_fir and stft. There are also: no_wavelet and no_plot: those to prevent other tasks to be run.  
+For now, and for comparison reason we just added two analysis tasks, those are: crosscorr and crosspower_cu. There are also: crosspower_cy, crossphase_cy and coherence_cy, those are Cython based tasks, and it will not run since this version is not designed to run those tasks. A warning will be raised once passed. 
+
 
 ### 2. Initiating the Head and the worker nodes:
 
