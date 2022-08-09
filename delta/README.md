@@ -78,6 +78,45 @@ Under “storage”, add the following to store the results at the end:
 "backend": "numpy",
 "basedir":"/pscratch/sd/m/maburidi/data_storage/data_storage_ray_delta” 
 ```
-This is the directory where to store the data after analyzing it. You can choose “backend” to be “mongodb”. 
+This is the directory where to store the data after analyzing it, change it to point to your directory. You can choose “backend” to be “mongodb”. 
+
+### 2. Initiating the Head and the worker nodes:
+
+The first thing is that we need to write and run a bash script to initiate the head and the worker nodes. This bash script is included in the repository and called: 
+```bash
+slurm-delta.sh
+```
+Notes
+
+* Delta will run inside DELTA shifter image.
+* After running many experiments, we concluded that the following flags in the bash scripts may be chosen like this for optimal performance: 
+   ```bash
+   #SBATCH --ntasks-per-node=1          
+   #SBATCH --gpus-per-task=4               
+   #SBATCH --cpus-per-task=32    
+   ```
+   Notes: if these flags were not set correctly, we noticed that not all analysis tasks will be applied, so not all the data chunks would be analyzed    correctly.  
+   
+* SBATCH --nodes=4.   This will determine the number of workers, here it’s three.
+* To run. DELTA: inside the terminal, run:  sbatch slurm-delta.sh 
+
+
+
+## Testing the results: 
+To test the results, we compare the resulted new data chunks of DELTA Ray-based version with DELTA-mpi version. To test, be in tests directory and run:
+   ```bash
+shifter --image=registry.nersc.gov/das/delta:5.0 pytest -s test_ray.py --dir_1=/pscratch/sd/m/maburidi/data_storage/data_storage_ray_delta/ --dir_2=/pscratch/sd/m/maburidi/data_storage/data_storage_old_delta/ --task_name=task_crosscorr --num_chunks=100
+   ```
+   ```bash
+   required arguments: 
+    --dir_1:   directory where DELTA-Ray analysis results are stored
+    --dir_2:   directory where DELTA-mpi analysis results are stored
+    --task_name:  analysis task name ex. task_crosscorr, task_crosscorr_cu  
+    --num_chunks: number of chunks to be compared 
+    ```
+
+
+
+
 
 
