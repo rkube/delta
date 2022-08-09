@@ -62,5 +62,10 @@ Notes
   ```
   but you should be aware that each time there should be enough resources for the worker to use, otherwise, not all chunks will be executed. This was one of the main problems we faced when DELTA was changed to use Ray.  
 
+#### These are the changed that were made, lets talk now about how to run DELTA Ray-based version 
 
+
+## Running DELTA Ray-based version: 
+<img width="335" alt="image" src="https://user-images.githubusercontent.com/48891624/183760124-6c31cb4d-6403-4a70-8d94-dc4ad7321d1c.png">
+Figure: this figure shows the programming architecture of DELTA Ray-based version. We start by initiating the head and the worker nodes using a Slurm with a bash script. The head node works as an organizer node, reads the data from the resources using ADIOS, and fills the queue with data chunks. Then, each worker pulls out a data chunk and applies the pre-processing tasks and then the analysis tasks. Each worker utilizes one node, and each task is executed using multiple CPUs or GPUs, depending on the type of the task. 
 
