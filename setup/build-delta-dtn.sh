@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 #here we'll attempt to build a version of delta on the dtns
 #that is compatible with the version in our current delta/4:0 container
 #current version of build is https://github.com/rkube/delta/blob/master/container/delta-outside/Dockerfile
@@ -30,7 +32,7 @@ wget https://www.mpich.org/static/downloads/$mpich/$mpich_prefix.tar.gz
 tar xvzf $mpich_prefix.tar.gz
 cd $mpich_prefix
 ./configure  --prefix=$build/mpich
-make -j 8
+make -j 32
 make install
 
 export LD_LIBRARY_PATH=$build/mpich/lib:$LD_LIBRARY_PATH
@@ -47,7 +49,7 @@ cd $build
 wget https://github.com/Kitware/CMake/releases/download/v3.23.2/cmake-3.23.2.tar.gz
 tar xvzf cmake-3.23.2.tar.gz
 cd cmake-3.23.2
-./bootstrap --prefix=$build/cmake && make -j 8 && make install
+./bootstrap --prefix=$build/cmake && make -j 32 && make install
 
 export PATH=$build/cmake/bin:$PATH
 
@@ -55,11 +57,13 @@ export PATH=$build/cmake/bin:$PATH
 
 ###############zeromq##############
 
+#KSTAR DTN has 4.3.2, it's very important to match!
 cd $build
-wget https://github.com/zeromq/libzmq/releases/download/v4.3.4/zeromq-4.3.4.tar.gz
-tar vxf zeromq-4.3.4.tar.gz
-cd zeromq-4.3.4
-./configure --prefix=$build/zeromq &&  make -j 8 && make install
+zmq_version=4.3.2
+wget https://github.com/zeromq/libzmq/releases/download/v$zmq_version/zeromq-$zmq_version.tar.gz
+tar vxf zeromq-$zmq_version.tar.gz
+cd zeromq-$zmq_version
+./configure --prefix=$build/zeromq &&  make -j 32 && make install
 
 export LD_LIBRARY_PATH=$build/zeromq/lib:$LD_LIBRARY_PATH
 
@@ -73,19 +77,22 @@ source activate delta-dtn
 python -m pip install --no-cache-dir -r $delta_install/requirements.txt
 #we can get away with this here since we're bringing our own mpich stack
 #and actually we don't want to link to cray mpich anyway
-python -m pip install mpi4py
+conda uninstall mpi4py -y
+MPICC=mpicc MPICXX=mpicxx pip install -U -I --global-option=build_ext mpi4py
+#python -m pip install mpi4py
 export conda_env=$CONDA_PREFIX
-conda deactivate
-module unload python
+#conda deactivate
+#module unload python
 
 #--------------------------------
 
 #############adios2##############
 
 cd $build
-wget https://github.com/ornladios/ADIOS2/archive/94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz
-tar xvf 94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz
-mv ADIOS2-94c2e377eba2947ae9739c1dd42f616a1296f12a adios2-devel
+git clone https://github.com/ornladios/ADIOS2.git adios2-devel
+cd adios2-devel
+git checkout v2.7.1-279-gd65478233
+cd ..
 rm -rf adios2-build
 mkdir adios2-build
 cd adios2-build
@@ -108,6 +115,6 @@ cmake                                                        \
         -DADIOS2_USE_DATAMAN=ON                              \
         -DADIOS2_USE_ZeroMQ=ON                               \
         ../adios2-devel
-make -j 8 && make install
+make -j 32 && make install
 
 #--------------------------------

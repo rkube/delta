@@ -12,9 +12,9 @@ RUN \
         cmake                \
         gcc                  \
         gfortran             \
+        git                  \
         python3-dev          \
         python3-pip          \
-        libzmq3-dev          \
         wget              && \
     apt-get clean all
 
@@ -56,14 +56,24 @@ RUN python3 -m pip install -U setuptools pip
 ADD requirements.txt /opt/requirements.txt
 RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
+#KSTAR DTN has 4.3.2, it's very important to match!
+ARG zmq_version=4.3.2
+RUN wget https://github.com/zeromq/libzmq/releases/download/v$zmq_version/zeromq-$zmq_version.tar.gz && \
+    tar vxf zeromq-$zmq_version.tar.gz && \
+    cd zeromq-$zmq_version && \
+    ./configure --prefix=/opt/zeromq &&  make -j 32 && make install
+ENV CMAKE_PREFIX_PATH=/opt/zeromq:$CMAKE_PREFIX_PATH
+
 #for the moment i think we're ok without the requirements since
 #we install mpi4py ourselves and delta installs numpy
 #install adios from 2.7.1 release
-RUN wget https://github.com/ornladios/ADIOS2/archive/94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz && \    
-    tar xvf 94c2e377eba2947ae9739c1dd42f616a1296f12a.tar.gz                                          && \
-    mv ADIOS2-94c2e377eba2947ae9739c1dd42f616a1296f12a adios2-devel                                  && \
-    mkdir adios2-build                                                                               && \
-    rm -rf master.tar.gz
+RUN git clone https://github.com/ornladios/ADIOS2.git adios2-devel && \    
+    cd adios2-devel && \
+    git checkout v2.7.1-279-gd65478233 && \
+    cd .. && \
+    mkdir adios2-build             
+
+RUN mkdir -p /opt/adios2-container
 
 ENV PREFIX /opt/adios2-container
 
@@ -82,6 +92,7 @@ RUN cd /opt/adios2-build                                  && \
         -DADIOS2_USE_Profiling=OFF                           \
         -DADIOS2_USE_DATAMAN=ON                              \
         -DADIOS2_USE_ZeroMQ=ON                               \
+        -DZeroMQ_INCLUDE_DIR=/opt/zeromq/include             \
         ../adios2-devel                                   && \
         make -j 32                                        && \
         make install      
