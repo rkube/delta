@@ -2,8 +2,9 @@
 
 from analysis.task_base import task_base
 from analysis.kernels_spectral_cu import kernel_crosscorr_cu, kernel_coherence_cu, kernel_crosspower_cu, kernel_crossphase_cu
-    
+import ray
 
+@ray.remote
 class task_crosscorr_cu(task_base):
     """Calculates cross-correlation using CuPy kernel."""
     def __str__(self):
@@ -12,7 +13,7 @@ class task_crosscorr_cu(task_base):
     def _get_kernel(self):
         return kernel_crosscorr_cu
 
-
+@ray.remote
 class task_coherence_cu(task_base):
     """Calculates coherence using CuPy kernel."""
     def __str__(self):
@@ -21,7 +22,7 @@ class task_coherence_cu(task_base):
     def _get_kernel(self):
         return kernel_coherence_cu
 
-
+@ray.remote
 class task_crosspower_cu(task_base):
     """Calculates cross-power using CuPy kernel."""
     def __str__(self):
@@ -30,7 +31,7 @@ class task_crosspower_cu(task_base):
     def _get_kernel(self):
         return kernel_crosspower_cu
 
-
+@ray.remote
 class task_crossphase_cu(task_base):
     """Calculates cross-phase using CuPy kernel."""
     def __str__(self):

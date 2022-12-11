@@ -5,8 +5,10 @@ import logging
 
 from data_models.helpers import get_dispatch_sequence
 from storage.backend import get_storage_object
+import os
+import ray 
 
-
+@ray.remote(num_gpus=1)
 def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
     """Dispatch a kernel and store the result.
 
@@ -22,10 +24,12 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
     Returns:
         None
     """
-    from mpi4py import MPI
     import datetime
     from socket import gethostname
-    comm = MPI.COMM_WORLD
+    logger = logging.getLogger("simple")
+    pid = os.getpid()
+    print("Execute Chunk Number {}".format(timechunk.tb.chunk_idx)) 
+    
     chunk_idx = info_dict['chunk_idx']
     an_name = info_dict["analysis_name"]
     t1_calc = datetime.datetime.now()
@@ -38,8 +42,8 @@ def calc_and_store(kernel, storage_backend, timechunk, ch_it, info_dict):
 
     #assert(False)
 
-    with open(f"outfile_{(comm.rank):03d}.txt", "a") as df:
-        df.write(f"rank {comm.rank:03d}/{comm.size:03d}: tidx={chunk_idx} {an_name} start " +
+    with open(f"outfile_{(pid):03d}.txt", "a") as df:
+        df.write(f"rank {pid:03d}/{len(ray.nodes()):03d}: tidx={chunk_idx} {an_name} start " +
                 t1_calc.isoformat(sep=" ") + " end " + t2_calc.isoformat(sep=" ") +
                 f" Storage: {dt_io} " + f" {gethostname()}\n")
         df.flush()
@@ -72,7 +76,7 @@ class task_base():
         """Returns the dispatch function to use."""
         return calc_and_store
 
-    def execute(self, timechunk, executor):
+    def execute(self, timechunk):
         """Launches a spectral analysis kernel on an executor.
 
         Args:
@@ -89,13 +93,13 @@ class task_base():
                            "channel_batch": batch_idx}
                           for batch_idx in range(len(self.dispatch_seq))]
 
-        _ = [executor.submit(self._get_dispatch_func(),
-                             self._get_kernel(),
+        _ = [calc_and_store.remote(self._get_kernel(),
                              self.storage_backend,
                              timechunk,
                              ch_it,
                              info_dict) for ch_it, info_dict in zip(self.dispatch_seq,
                                                                     info_dict_list)]
+        
         self.logger.info((f"chunk_idx={timechunk.tb.chunk_idx} submitted {self.__str__()} "
                           f"as {len(self.dispatch_seq)} tasks: {self._get_kernel()} "
                           f"dispatch_function: {self._get_dispatch_func()}"))

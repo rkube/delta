@@ -91,5 +91,10 @@ class backend_numpy():
         #     json.dump(cfg, df)
 
         return None
+    
+    def store_one(self, item):
+        """Does nothing."""
+        return None
+
 
 # End of file backend_numpy.py

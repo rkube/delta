@@ -1,87 +1,73 @@
 # -*- Encoding: UTF-8 -*-
 
-"""This processor implements the one-to-one model using mpi.
+"""This processor implements the one-to-one model using Ray.
 
-To run on an interactive node
-srun -n 4 python -m mpi4py.futures processor_mpi_tasklist.py --config configs/test_all.json
+To initiate head and worker nodes, use Slurm bash file
 
-Remember to have adios2 included in $PYTHONPATH
-
-This is the streaming_attrs branch.
 """
 
-from mpi4py import MPI
 
 import logging
 import logging.config
 import time
-import queue
-import threading
 import json
 import yaml
 import argparse
+import os
 
-from concurrent.futures import ThreadPoolExecutor
-from mpi4py.futures import MPIPoolExecutor
+import ray
+from ray.util.queue import Queue
 
 from preprocess.preprocess import preprocessor
 from analysis.task_list import tasklist
-from streaming.reader_mpi import reader_gen
+from streaming.reader_nompi import reader_gen
 from data_models.helpers import gen_channel_name, gen_var_name, data_model_generator
 from storage.backend import get_storage_object
+ 
+
+ray.init(address=os.environ["ip_head"],ignore_reinit_error=True)
 
 
-def consume(Q, my_task_list, my_preprocessor):
-    """Dispatch work items from the queue on an executor.
+@ray.remote
+def consume(Q,my_preprocessor,my_task_list,worker):
+    """Dispatch work items from the queue on a Ray executor task.
 
-    Executed by a local thread.
+    Each time the chuck is executed on a node worker.
     """
     logger = logging.getLogger('simple')
-
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-
     logger.info("Starting consume")
+    time.sleep(3)
+    pid = os.getpid()
 
     while True:
         try:
             msg = Q.get(timeout=120.0)
-        except queue.Empty:
+        except:
             logger.info("Empty queue after waiting until time-out. Exiting")
             break
 
-        logger.info(f"Rank {rank}: Consumed: {msg.tb} Got data type {type(msg)}")
-        msg = my_preprocessor.submit(msg)
-        my_task_list.execute(msg)
-        Q.task_done()
+        logger.info(f"task {pid}: Consumed: {msg.tb} Got data type {type(msg)}")
+        msg = ray.get(my_preprocessor.submit.remote(msg))
+        my_task_list.execute.remote(msg)
+        
 
     logger.info("Task done")
 
 
 def main():
     """Procesess a stream of data chunks on an executor."""
-    comm = MPI.COMM_WORLD
 
     # Parse command line arguments and read configuration file
     parser = argparse.ArgumentParser(description="Receive data and dispatch analysis" +
                                      "tasks to a mpi queue")
     parser.add_argument('--config', type=str, help='Lists the configuration file',
-                        default='configs/config_null.json')
-    parser.add_argument("--num_ranks_preprocess", type=int,
-                        help="Number of processes used in preprocessing executor",
-                        default=4)
-    parser.add_argument("--num_ranks_analysis", type=int,
-                        help="Number of processes used in analysis executor",
-                        default=4)
-    parser.add_argument("--num_queue_threads", type=int,
-                        help="Number of worker threads that consume item from the queue",
-                        default=4)
+                        default='configs/hackathon_test.json')
     parser.add_argument("--transport", type=str,
                         help="Specifies the transport section used to configure the reader",
                         default="transport_rx")
     parser.add_argument("--run_id", type=str,
                         help="Name of database collection to store analysis results in",
-                        required=True)
+                        required=False)
 
     args = parser.parse_args()
 
@@ -95,11 +81,6 @@ def main():
         log_cfg = yaml.safe_load(f.read())
     logging.config.dictConfig(log_cfg)
     logger = logging.getLogger('simple')
-
-    # PoolExecutor for pre-processing, on-node.
-    executor_pre = ThreadPoolExecutor(max_workers=args.num_ranks_preprocess)
-    # PoolExecutor for data analysis. off-node
-    executor_anl = MPIPoolExecutor(max_workers=args.num_ranks_analysis)
 
     stream_varname = gen_var_name(cfg)[0]
 
@@ -115,9 +96,10 @@ def main():
     # TODO: (RMC)  Should this be moved to where cfg updated? 
     # (would allow updating channels to process remotely)
     reader = reader_gen(cfg[args.transport], gen_channel_name(cfg["diagnostic"]))
+
     reader.Open()
 
-    dq = queue.Queue()
+    q = Queue()
 
     # In a streaming setting, (SST, dataman) attributes can only be accessed after
     # reading the first time step of a variable. 
@@ -125,14 +107,13 @@ def main():
     stream_attrs = None 
 
     data_model_gen = data_model_generator(cfg["diagnostic"])
-    my_preprocessor = preprocessor(executor_pre, cfg)
-    my_task_list = tasklist(executor_anl, cfg)
+    my_preprocessor = preprocessor.remote(cfg)
+    my_task_list = tasklist.remote(cfg)
+    
+    
+    num_workers = int(os.environ["SLURM_NTASKS"]) - 1
+    workers = [consume.remote(q,my_preprocessor,my_task_list,j) for j in range(num_workers)]
 
-    worker_thread_list = []
-    for _ in range(args.num_queue_threads):
-        new_worker = threading.Thread(target=consume, args=(dq, my_task_list, my_preprocessor))
-        new_worker.start()
-        worker_thread_list.append(new_worker)
 
     logger.info("Starting main loop")
     tic_main = time.perf_counter()
@@ -152,7 +133,7 @@ def main():
 
             # Create a datamodel instance from the raw data and push into the queue
             msg = data_model_gen.new_chunk(stream_data, stream_attrs, reader.CurrentStep())
-            dq.put_nowait(msg)
+            q.put_nowait(msg)
             logger.info(f"Published tidx {reader.CurrentStep()}")
             reader.EndStep()
         else:
@@ -162,25 +143,21 @@ def main():
         if reader.CurrentStep() > 100:
             break
 
-    dq.join()
     logger.info("Queue joined")
 
     logger.info("Exiting main loop")
-    for thr in worker_thread_list:
-        thr.join()
 
+    ray.get(workers)
     logger.info("Workers have joined")
 
-    # Shutdown the executioner
-    executor_anl.shutdown(wait=True)
-    executor_pre.shutdown(wait=True)
-    # executor.shutdown(wait=True)
+    # Shutdown Ray
+    ray.shutdown()
 
     toc_main = time.perf_counter()
     logger.info(f"Run {cfg['run_id']} finished in {(toc_main - tic_main):6.4f}s")
     logger.info(f"Processed {len(rx_list)} time_chunks: {rx_list}")
 
-
+    
 if __name__ == "__main__":
     main()
 

@@ -5,8 +5,9 @@
 
 import numpy as np
 from scipy.signal import stft
+import ray
 
-
+@ray.remote
 class pre_stft():
     """Implements short-time Fourier transformation."""
 
@@ -17,16 +18,18 @@ class pre_stft():
             params (dictionary):
                 Provides keywords that are passed to `scipy.signal.stft
                 <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.stft.html>`_
-
+                
         Returns:
             None
 
         """
         self.params = params
         self.params["noverlap"] = int(self.params["overlap"] * self.params["nfft"])
-
-    def process(self, data_chunk, executor):
-        """Performs short-time Fourier Transform on an executor.
+        
+        
+        
+    def process(self, data_chunk):
+        """Performs short-time Fourier Transform.
 
         Args:
             data_chunk (twod_chunk):
@@ -38,28 +41,35 @@ class pre_stft():
             data_chunk_ft (twod_chunk_f):
                 Fourier-transformed image-data chunk
         """
-        fut = executor.submit(stft, data_chunk.data, axis=data_chunk.axis_t,
-                              fs=self.params["fs"], nperseg=self.params["nfft"],
-                              window=self.params["window"],
-                              detrend=self.params["detrend"],
-                              noverlap=self.params["noverlap"],
-                              padded=False,
-                              return_onesided=False,
-                              boundary=None)
-        freqs, _, data_fft = fut.result()
+        freqs, _, data_fft = stft(data_chunk.data,
+                   axis=data_chunk.axis_t,
+                   fs=self.params["fs"],                  
+                   nperseg=self.params["nfft"],
+                   window=self.params["window"],
+                   detrend=self.params["detrend"],
+                   noverlap=self.params["noverlap"],
+                   padded=False,
+                   return_onesided=False, 
+                   boundary=None)
+        
         data_fft = np.fft.fftshift(data_fft, axes=data_chunk.axis_t)
-
-        # Calculate the windowing factor and add it to the parameters
-        _, win = self.build_fft_window(data_chunk.data.shape[data_chunk.axis_t],
+                
+        # Calculate the windowing factor and add it to the parameters        
+        bins_win = self.build_fft_window(data_chunk.data.shape[data_chunk.axis_t],
                                        self.params["nfft"],
-                                       self.params["window"], self.params["overlap"])
+                                       self.params["window"], self.params["overlap"])    
+        
+        _ = bins_win["bins"]
+        win = bins_win["win"]
+                
+        
         self.params["win_factor"] = (win ** 2.0).mean()
         # Store fft frequencies
         self.params["freqs"] = np.fft.fftshift(freqs)
-
+        
         data_chunk_ft = data_chunk.create_ft(data_fft, self.params)
-        return data_chunk_ft
-
+        return data_chunk_ft  
+    
     def build_fft_window(self, tnum, nfft, window, overlap):
         """Builds the window used in the STFTs. Taken from KSTAR/specs.py.
 
@@ -107,8 +117,10 @@ class pre_stft():
                 0.000000132974 * np.cos(10 * z)
         else:
             raise NameError(f"Unknown FFT window name: {window}")
-
-        return bins, win
+        
+        
+        bins_win = {"bins":bins,"win":win} 
+        return bins_win
 
 
 # End of file pre_stft.py

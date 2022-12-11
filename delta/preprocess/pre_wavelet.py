@@ -5,8 +5,9 @@
 import logging
 import numpy as np
 from skimage.restoration import estimate_sigma, denoise_wavelet
+import ray 
 
-
+@ray.remote
 class pre_wavelet():
     """Implements wavelet filtering."""
 
@@ -24,8 +25,8 @@ class pre_wavelet():
         self.logger = logging.getLogger("simple")
         self.params = params
 
-    def process(self, data_chunk, executor):
-        """Executes wavelet filter on the executor.
+    def process(self, data_chunk):
+        """Executes wavelet filter.
 
         Args:
             data_chunk (2d image):
@@ -47,16 +48,22 @@ class pre_wavelet():
         for ch in range(num_ch):
             # Extract 1d signal 
             signal = np.take(data_chunk.data, ch, data_chunk.axis_ch)
+            
+            sigma = estimate_sigma(signal)
             # Estimate sigma (on executor)
-            fut = executor.submit(estimate_sigma, signal)
-            sigma = fut.result()
+            #fut = executor.submit(estimate_sigma, signal)
+            #sigma = fut.result()
 
             # Apply wavelet filtering on executor
-            fut = executor.submit(denoise_wavelet, signal, sigma=sigma, **self.params)
-            signal = fut.result()
+            # fut = executor.submit(denoise_wavelet, signal, sigma=sigma, **self.params)
+            signal = denoise_wavelet(signal, sigma=sigma, **self.params)
+            
+            # Signal = fut.result()
             # Replace input signal with filtered signal
+            #data_chunk.make_writable
+            
+            data_chunk.update_data(data_chunk.data)
             np.put_along_axis(data_chunk.data, np.array([[ch]]), signal, data_chunk.axis_ch)
 
         return data_chunk
-
 # End of file pre_wavelet.py
